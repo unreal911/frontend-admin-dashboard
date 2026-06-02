@@ -1,0 +1,1497 @@
+'use client';
+
+import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+
+export type ProductVariantMode = 'MATRIX' | 'SIMPLE' | 'SIZE_ONLY';
+
+export interface AdminCategoryOption {
+  id: number;
+  name: string;
+}
+
+export interface AdminColorOption {
+  id: number;
+  name: string;
+  hex?: string | null;
+}
+
+export interface AdminSizeOption {
+  id: number;
+  name: string;
+}
+
+export interface AdminProductVariant {
+  id?: number;
+  sku?: string;
+  colorId: number;
+  sizeId: number;
+  price: number;
+  imageUrl?: string | null;
+  isActive?: boolean;
+  isSimpleVariant?: boolean;
+  isSizeOnlyVariant?: boolean;
+}
+
+export interface AdminProductDetail {
+  id: number;
+  name: string;
+  description?: string;
+  categoryId: number;
+  isActive: boolean;
+  variantMode?: ProductVariantMode;
+  marketplaceVariantColorIds?: number[];
+  marketplaceVariantSizeIds?: number[];
+  marketplaceColorImages?: Array<{ colorId: number; imageUrl?: string | null }>;
+  variants?: AdminProductVariant[];
+  images?: Array<{ id?: number; url: string }>;
+}
+
+interface ProductVariantForm {
+  id?: number;
+  sku?: string;
+  colorId: number;
+  sizeId: number;
+  price: number;
+  isActive: boolean;
+  imageUrl?: string;
+  imageFile?: File;
+  imagePreview?: string;
+}
+
+interface ProductImageForm {
+  file?: File;
+  preview: string;
+  url?: string;
+  publicId?: string;
+}
+
+interface MarketplaceColorImageForm {
+  colorId: number;
+  imageUrl?: string;
+  imageFile?: File;
+  imagePreview?: string;
+}
+
+interface AdminProductModalSubmitPayload {
+  mode: 'create' | 'edit';
+  id?: number;
+  payload: Record<string, unknown>;
+}
+
+interface AdminProductModalProps {
+  open: boolean;
+  product: AdminProductDetail | null;
+  categories: AdminCategoryOption[];
+  colors: AdminColorOption[];
+  sizes: AdminSizeOption[];
+  isSubmitting?: boolean;
+  onClose: () => void;
+  onSubmit: (payload: AdminProductModalSubmitPayload) => Promise<void> | void;
+}
+
+interface GeneratedVariantsResponse {
+  variants?: Array<{ colorId?: number; sizeId?: number }>;
+  message?: string;
+}
+
+function uniqueNumbers(values: number[]): number[] {
+  return [...new Set(values.filter((value) => Number.isInteger(value) && value > 0))];
+}
+
+function parseVariantMode(value: unknown): ProductVariantMode {
+  const normalized = String(value || '').trim().toUpperCase();
+  if (normalized === 'SIMPLE' || normalized === 'SIZE_ONLY') {
+    return normalized;
+  }
+  return 'MATRIX';
+}
+
+function toNumber(value: unknown): number {
+  const normalized = Number(value);
+  return Number.isFinite(normalized) ? normalized : 0;
+}
+
+function toPositiveNumber(value: unknown): number {
+  const normalized = Number(value);
+  return Number.isFinite(normalized) && normalized > 0 ? normalized : 0;
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result || '');
+      const base64 = result.includes(',') ? result.split(',')[1] : result;
+      resolve(base64);
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+function extractPublicIdFromUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    const pathParts = parsed.pathname.split('/').filter(Boolean);
+    const filenameWithExt = pathParts[pathParts.length - 1] || '';
+    const folder = pathParts[pathParts.length - 2] || '';
+    const filename = filenameWithExt.includes('.')
+      ? filenameWithExt.slice(0, filenameWithExt.lastIndexOf('.'))
+      : filenameWithExt;
+    if (!folder || !filename) {
+      return '';
+    }
+    return `${folder}/${filename}`;
+  } catch {
+    return '';
+  }
+}
+
+function looksLikeHtml(value: string): boolean {
+  return /<\/?[a-z][\s\S]*>/i.test(value);
+}
+
+function sanitizeDescriptionHtml(html: string): string {
+  const container = document.createElement('div');
+  container.innerHTML = html;
+  container.querySelectorAll('script,style').forEach((node) => node.remove());
+  container.querySelectorAll('*').forEach((element) => {
+    Array.from(element.attributes).forEach((attribute) => {
+      if (attribute.name.toLowerCase().startsWith('on')) {
+        element.removeAttribute(attribute.name);
+      }
+    });
+  });
+  return container.innerHTML;
+}
+
+export function AdminProductModal({
+  open,
+  product,
+  categories,
+  colors,
+  sizes,
+  isSubmitting = false,
+  onClose,
+  onSubmit,
+}: AdminProductModalProps) {
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [categoryId, setCategoryId] = useState<number | null>(null);
+  const [isActive, setIsActive] = useState(true);
+  const [variantMode, setVariantMode] = useState<ProductVariantMode>('MATRIX');
+  const [selectedColorIds, setSelectedColorIds] = useState<number[]>([]);
+  const [selectedSizeIds, setSelectedSizeIds] = useState<number[]>([]);
+  const [variants, setVariants] = useState<ProductVariantForm[]>([]);
+  const [marketplaceVariantsEnabled, setMarketplaceVariantsEnabled] = useState(false);
+  const [marketplaceVariants, setMarketplaceVariants] = useState<ProductVariantForm[]>([]);
+  const [marketplaceColorImages, setMarketplaceColorImages] = useState<MarketplaceColorImageForm[]>([]);
+  const [productImages, setProductImages] = useState<ProductImageForm[]>([]);
+  const [submitted, setSubmitted] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [formMessage, setFormMessage] = useState('');
+  const [isGeneratingVariants, setIsGeneratingVariants] = useState(false);
+  const [deletingImageIndex, setDeletingImageIndex] = useState<number | null>(null);
+  const descriptionEditorRef = useRef<HTMLDivElement | null>(null);
+
+  const isEditing = Boolean(product?.id);
+  const isSimpleMode = variantMode === 'SIMPLE';
+  const isSizeOnlyMode = variantMode === 'SIZE_ONLY';
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    setSubmitted(false);
+    setFormError('');
+    setFormMessage('');
+    setDeletingImageIndex(null);
+    setIsGeneratingVariants(false);
+
+    if (!product) {
+      setName('');
+      setDescription('');
+      setCategoryId(null);
+      setIsActive(true);
+      setVariantMode('MATRIX');
+      setSelectedColorIds([]);
+      setSelectedSizeIds([]);
+      setVariants([]);
+      setMarketplaceVariantsEnabled(false);
+      setMarketplaceVariants([]);
+      setMarketplaceColorImages([]);
+      setProductImages([]);
+      syncDescriptionEditorWithValue('');
+      return;
+    }
+
+    const productVariants = Array.isArray(product.variants) ? product.variants : [];
+    const resolvedMode = parseVariantMode(product.variantMode);
+    const looksSimple =
+      resolvedMode === 'SIMPLE'
+      || (productVariants.length === 1 && Boolean(productVariants[0]?.isSimpleVariant));
+    const looksSizeOnly =
+      resolvedMode === 'SIZE_ONLY'
+      || (productVariants.length > 0 && productVariants.every((variant) => Boolean(variant.isSizeOnlyVariant)));
+    const mode: ProductVariantMode = looksSimple ? 'SIMPLE' : looksSizeOnly ? 'SIZE_ONLY' : 'MATRIX';
+
+    setName(String(product.name || ''));
+    const nextDescription = String(product.description || '');
+    setDescription(nextDescription);
+    setCategoryId(toPositiveNumber(product.categoryId) || null);
+    setIsActive(Boolean(product.isActive));
+    setVariantMode(mode);
+
+    if (mode === 'SIMPLE') {
+      const firstVariant = productVariants[0];
+      const marketplaceColorIds = uniqueNumbers(product.marketplaceVariantColorIds || []);
+      const marketplaceSizeIds = uniqueNumbers(product.marketplaceVariantSizeIds || []);
+      const hasMarketplaceVariants = marketplaceColorIds.length > 0 && marketplaceSizeIds.length > 0;
+      setSelectedColorIds(hasMarketplaceVariants ? marketplaceColorIds : []);
+      setSelectedSizeIds(hasMarketplaceVariants ? marketplaceSizeIds : []);
+      const existingMarketplaceColorImages: MarketplaceColorImageForm[] = [];
+      for (const image of product.marketplaceColorImages || []) {
+        const colorId = toPositiveNumber(image.colorId);
+        const imageUrl = String(image.imageUrl || '').trim();
+        if (colorId && imageUrl) {
+          existingMarketplaceColorImages.push({ colorId, imageUrl, imagePreview: imageUrl });
+        }
+      }
+      setMarketplaceColorImages(existingMarketplaceColorImages);
+      setVariants(firstVariant ? [{
+        id: toPositiveNumber(firstVariant.id) || undefined,
+        sku: String(firstVariant.sku || '') || undefined,
+        colorId: toNumber(firstVariant.colorId),
+        sizeId: toNumber(firstVariant.sizeId),
+        price: toNumber(firstVariant.price),
+        isActive: firstVariant.isActive !== false,
+        imageUrl: String(firstVariant.imageUrl || '') || undefined,
+        imagePreview: String(firstVariant.imageUrl || '') || undefined,
+      }] : [{
+        colorId: 0,
+        sizeId: 0,
+        price: 0,
+        isActive: true,
+      }]);
+      setMarketplaceVariantsEnabled(hasMarketplaceVariants);
+    } else if (mode === 'SIZE_ONLY') {
+      const availableSizes = uniqueNumbers(productVariants.map((variant) => toPositiveNumber(variant.sizeId)));
+      setSelectedColorIds([]);
+      setSelectedSizeIds(availableSizes);
+      setVariants(
+        productVariants.map((variant) => ({
+          id: toPositiveNumber(variant.id) || undefined,
+          sku: String(variant.sku || '') || undefined,
+          colorId: 0,
+          sizeId: toPositiveNumber(variant.sizeId),
+          price: toNumber(variant.price),
+          isActive: variant.isActive !== false,
+          imageUrl: String(variant.imageUrl || '') || undefined,
+          imagePreview: String(variant.imageUrl || '') || undefined,
+        })),
+      );
+      setMarketplaceVariantsEnabled(false);
+      setMarketplaceVariants([]);
+      setMarketplaceColorImages([]);
+    } else {
+      const availableColors = uniqueNumbers(productVariants.map((variant) => toPositiveNumber(variant.colorId)));
+      const availableSizes = uniqueNumbers(productVariants.map((variant) => toPositiveNumber(variant.sizeId)));
+      setSelectedColorIds(availableColors);
+      setSelectedSizeIds(availableSizes);
+      setVariants(
+        productVariants.map((variant) => ({
+          id: toPositiveNumber(variant.id) || undefined,
+          sku: String(variant.sku || '') || undefined,
+          colorId: toPositiveNumber(variant.colorId),
+          sizeId: toPositiveNumber(variant.sizeId),
+          price: toNumber(variant.price),
+          isActive: variant.isActive !== false,
+          imageUrl: String(variant.imageUrl || '') || undefined,
+          imagePreview: String(variant.imageUrl || '') || undefined,
+        })),
+      );
+      setMarketplaceVariantsEnabled(false);
+      setMarketplaceVariants([]);
+      setMarketplaceColorImages([]);
+    }
+
+    setProductImages(
+      (Array.isArray(product.images) ? product.images : [])
+        .map((image) => {
+          const url = String(image.url || '').trim();
+          if (!url) {
+            return null;
+          }
+          return {
+            preview: url,
+            url,
+            publicId: extractPublicIdFromUrl(url),
+          } as ProductImageForm;
+        })
+        .filter((image): image is ProductImageForm => Boolean(image)),
+    );
+    syncDescriptionEditorWithValue(nextDescription);
+  }, [open, product]);
+
+  useEffect(() => {
+    if (!open || !isSimpleMode || !marketplaceVariantsEnabled) {
+      if (!open || !isSimpleMode) {
+        setMarketplaceVariants([]);
+        setMarketplaceColorImages([]);
+      }
+      return;
+    }
+
+    const baseVariant = variants[0];
+    if (!baseVariant) {
+      setMarketplaceVariants([]);
+      return;
+    }
+
+    if (!selectedColorIds.length || !selectedSizeIds.length) {
+      setMarketplaceVariants([]);
+      return;
+    }
+
+    const nextVariants: ProductVariantForm[] = [];
+    for (const colorId of selectedColorIds) {
+      for (const sizeId of selectedSizeIds) {
+        nextVariants.push({
+          colorId,
+          sizeId,
+          price: toNumber(baseVariant.price),
+          isActive: true,
+        });
+      }
+    }
+    setMarketplaceVariants(nextVariants);
+  }, [open, isSimpleMode, marketplaceVariantsEnabled, selectedColorIds, selectedSizeIds, variants]);
+
+  useEffect(() => {
+    if (!open || !isSimpleMode || !marketplaceVariantsEnabled) {
+      return;
+    }
+
+    setMarketplaceColorImages((current) => {
+      const byColorId = new Map(current.map((image) => [image.colorId, image]));
+      return selectedColorIds.map((colorId) => byColorId.get(colorId) || { colorId });
+    });
+  }, [open, isSimpleMode, marketplaceVariantsEnabled, selectedColorIds]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    function onEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape' && !isSubmitting) {
+        onClose();
+      }
+    }
+
+    window.addEventListener('keydown', onEscape);
+    return () => {
+      window.removeEventListener('keydown', onEscape);
+    };
+  }, [open, isSubmitting, onClose]);
+
+  const availableColorRows = useMemo(() => {
+    return colors.map((color) => ({
+      id: color.id,
+      name: color.name,
+      checked: selectedColorIds.includes(color.id),
+      hex: color.hex || null,
+    }));
+  }, [colors, selectedColorIds]);
+
+  const availableSizeRows = useMemo(() => {
+    return sizes.map((size) => ({
+      id: size.id,
+      name: size.name,
+      checked: selectedSizeIds.includes(size.id),
+    }));
+  }, [sizes, selectedSizeIds]);
+
+  if (!open) {
+    return null;
+  }
+
+  function syncDescriptionEditorWithValue(value: string) {
+    const editor = descriptionEditorRef.current;
+    if (!editor) {
+      return;
+    }
+
+    if (!value) {
+      editor.innerHTML = '';
+      return;
+    }
+
+    if (looksLikeHtml(value)) {
+      editor.innerHTML = sanitizeDescriptionHtml(value);
+      return;
+    }
+
+    editor.textContent = value;
+  }
+
+  function onDescriptionInput() {
+    const editor = descriptionEditorRef.current;
+    if (!editor) {
+      return;
+    }
+
+    const text = String(editor.textContent || '').trim();
+    const html = text ? sanitizeDescriptionHtml(editor.innerHTML) : '';
+    setDescription(html);
+  }
+
+  function focusDescriptionEditor() {
+    descriptionEditorRef.current?.focus();
+  }
+
+  function applyDescriptionCommand(command: string, value?: string) {
+    focusDescriptionEditor();
+    document.execCommand(command, false, value);
+    onDescriptionInput();
+  }
+
+  function setDescriptionBlock(tagName: 'p' | 'h2' | 'h3' | 'blockquote') {
+    applyDescriptionCommand('formatBlock', tagName);
+  }
+
+  function setDescriptionFont(fontName: string) {
+    if (!fontName) {
+      return;
+    }
+    applyDescriptionCommand('fontName', fontName);
+  }
+
+  function setDescriptionColor(color: string) {
+    if (!color) {
+      return;
+    }
+    applyDescriptionCommand('foreColor', color);
+  }
+
+  function setDescriptionFontSize(size: string) {
+    if (!size) {
+      return;
+    }
+    applyDescriptionCommand('fontSize', size);
+  }
+
+  function insertDescriptionGrid() {
+    const tableHtml = `
+      <table style="width:100%; border-collapse: collapse; margin: 0.5rem 0;">
+        <tbody>
+          <tr>
+            <td style="border:1px solid #94a3b8; padding:6px;">Celda 1</td>
+            <td style="border:1px solid #94a3b8; padding:6px;">Celda 2</td>
+          </tr>
+          <tr>
+            <td style="border:1px solid #94a3b8; padding:6px;">Celda 3</td>
+            <td style="border:1px solid #94a3b8; padding:6px;">Celda 4</td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+    applyDescriptionCommand('insertHTML', tableHtml);
+  }
+
+  function clearDescriptionFormat() {
+    applyDescriptionCommand('removeFormat');
+  }
+
+  function toggleColor(colorId: number, checked: boolean) {
+    setFormError('');
+    setSelectedColorIds((current) => {
+      const next = checked ? [...current, colorId] : current.filter((id) => id !== colorId);
+      return uniqueNumbers(next);
+    });
+  }
+
+  function toggleSize(sizeId: number, checked: boolean) {
+    setFormError('');
+    setSelectedSizeIds((current) => {
+      const next = checked ? [...current, sizeId] : current.filter((id) => id !== sizeId);
+      return uniqueNumbers(next);
+    });
+  }
+
+  function onVariantPriceChange(index: number, value: string) {
+    const nextPrice = Number(value);
+    setVariants((current) => {
+      const next = [...current];
+      const target = next[index];
+      next[index] = {
+        ...target,
+        price: Number.isFinite(nextPrice) ? nextPrice : 0,
+      };
+      return next;
+    });
+  }
+
+  function onVariantActiveChange(index: number, checked: boolean) {
+    setVariants((current) => {
+      const next = [...current];
+      next[index] = {
+        ...next[index],
+        isActive: checked,
+      };
+      return next;
+    });
+  }
+
+  function onVariantImageFileChange(index: number, event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    const preview = URL.createObjectURL(file);
+    setVariants((current) => {
+      const next = [...current];
+      next[index] = {
+        ...next[index],
+        imageFile: file,
+        imagePreview: preview,
+      };
+      return next;
+    });
+  }
+
+  function onMarketplaceColorImageFileChange(colorId: number, event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    const preview = URL.createObjectURL(file);
+    setMarketplaceColorImages((current) => {
+      const existing = current.find((image) => image.colorId === colorId);
+      const nextImage: MarketplaceColorImageForm = {
+        ...(existing || { colorId }),
+        imageFile: file,
+        imagePreview: preview,
+      };
+      const withoutCurrent = current.filter((image) => image.colorId !== colorId);
+      return [...withoutCurrent, nextImage].sort((a, b) => selectedColorIds.indexOf(a.colorId) - selectedColorIds.indexOf(b.colorId));
+    });
+    event.target.value = '';
+  }
+
+  function removeMarketplaceColorImage(colorId: number) {
+    setMarketplaceColorImages((current) => current.map((image) => (
+      image.colorId === colorId
+        ? { colorId }
+        : image
+    )));
+  }
+
+  async function generateVariants() {
+    setFormError('');
+    setFormMessage('');
+
+    if (isSimpleMode) {
+      setFormError('En modo producto unico no necesitas generar variantes.');
+      return;
+    }
+
+    if (!selectedSizeIds.length) {
+      setFormError('Selecciona al menos una talla para generar variantes.');
+      return;
+    }
+
+    const currentByKey = new Map(variants.map((variant) => [`${variant.colorId}-${variant.sizeId}`, variant]));
+
+    if (isSizeOnlyMode) {
+      const merged = selectedSizeIds.map((sizeId) => {
+        const key = `0-${sizeId}`;
+        return currentByKey.get(key) || {
+          colorId: 0,
+          sizeId,
+          price: 0,
+          isActive: true,
+        };
+      });
+      setVariants(merged);
+      return;
+    }
+
+    if (!selectedColorIds.length) {
+      setFormError('Selecciona al menos un color para generar variantes.');
+      return;
+    }
+
+    setIsGeneratingVariants(true);
+    try {
+      const response = await fetch('/api/admin/products/generate-variants', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          colorIds: selectedColorIds,
+          sizeIds: selectedSizeIds,
+        }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        setFormError(String((payload as { message?: unknown } | null)?.message || 'No se pudieron generar variantes.'));
+        return;
+      }
+
+      const generated = ((payload as GeneratedVariantsResponse | null)?.variants || [])
+        .map((item) => ({
+          colorId: toPositiveNumber(item.colorId),
+          sizeId: toPositiveNumber(item.sizeId),
+        }))
+        .filter((item) => item.colorId > 0 && item.sizeId > 0);
+
+      const merged = generated.map((item) => {
+        const key = `${item.colorId}-${item.sizeId}`;
+        return currentByKey.get(key) || {
+          colorId: item.colorId,
+          sizeId: item.sizeId,
+          price: 0,
+          isActive: true,
+        };
+      });
+      setVariants(merged);
+    } catch {
+      setFormError('No se pudieron generar variantes.');
+    } finally {
+      setIsGeneratingVariants(false);
+    }
+  }
+
+  async function generateMarketplaceVariants() {
+    setFormError('');
+    setFormMessage('');
+
+    if (!isSimpleMode || !marketplaceVariantsEnabled) {
+      return;
+    }
+    if (!selectedColorIds.length || !selectedSizeIds.length) {
+      setFormError('Selecciona al menos un color y una talla para marketplace.');
+      return;
+    }
+
+    const baseVariant = variants[0];
+    if (!baseVariant) {
+      setFormError('Configura primero la variante unica.');
+      return;
+    }
+
+    setIsGeneratingVariants(true);
+    try {
+      const response = await fetch('/api/admin/products/generate-variants', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          colorIds: selectedColorIds,
+          sizeIds: selectedSizeIds,
+        }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        setFormError(String((payload as { message?: unknown } | null)?.message || 'No se pudieron generar variantes.'));
+        return;
+      }
+
+      const generated = ((payload as GeneratedVariantsResponse | null)?.variants || [])
+        .map((item) => ({
+          colorId: toPositiveNumber(item.colorId),
+          sizeId: toPositiveNumber(item.sizeId),
+        }))
+        .filter((item) => item.colorId > 0 && item.sizeId > 0)
+        .map((item) => ({
+          colorId: item.colorId,
+          sizeId: item.sizeId,
+          price: toNumber(baseVariant.price),
+          isActive: true,
+        }));
+
+      setMarketplaceVariants(generated);
+    } catch {
+      setFormError('No se pudieron generar variantes de marketplace.');
+    } finally {
+      setIsGeneratingVariants(false);
+    }
+  }
+
+  function onProductImagesChange(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) {
+      return;
+    }
+    const nextItems = files.map((file) => ({
+      file,
+      preview: URL.createObjectURL(file),
+    }));
+    setProductImages((current) => [...current, ...nextItems]);
+    event.target.value = '';
+  }
+
+  async function removeProductImage(index: number) {
+    const image = productImages[index];
+    if (!image) {
+      return;
+    }
+    setFormError('');
+    setFormMessage('');
+    setDeletingImageIndex(index);
+
+    if (image.publicId) {
+      try {
+        const response = await fetch(`/api/admin/products/image/${encodeURIComponent(image.publicId)}`, {
+          method: 'DELETE',
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) {
+          setFormError(String((payload as { message?: unknown } | null)?.message || 'No se pudo eliminar la imagen.'));
+          setDeletingImageIndex(null);
+          return;
+        }
+        setFormMessage('Imagen eliminada.');
+      } catch {
+        setFormError('No se pudo eliminar la imagen.');
+        setDeletingImageIndex(null);
+        return;
+      }
+    }
+
+    setProductImages((current) => current.filter((_, idx) => idx !== index));
+    setDeletingImageIndex(null);
+  }
+
+  function handleVariantModeChange(mode: ProductVariantMode) {
+    if (variantMode === mode) {
+      return;
+    }
+    setFormError('');
+    setFormMessage('');
+    setVariantMode(mode);
+
+    if (mode === 'SIMPLE') {
+      const firstVariant = variants[0];
+      setSelectedColorIds([]);
+      setSelectedSizeIds([]);
+      setMarketplaceVariantsEnabled(false);
+      setMarketplaceVariants([]);
+      setMarketplaceColorImages([]);
+      setVariants([{
+        colorId: firstVariant?.colorId ?? 0,
+        sizeId: firstVariant?.sizeId ?? 0,
+        price: toNumber(firstVariant?.price || 0),
+        isActive: firstVariant?.isActive !== false,
+        imageUrl: firstVariant?.imageUrl,
+        imagePreview: firstVariant?.imagePreview || firstVariant?.imageUrl,
+        imageFile: firstVariant?.imageFile,
+      }]);
+      return;
+    }
+
+    if (mode === 'SIZE_ONLY') {
+      setSelectedColorIds([]);
+      setMarketplaceVariantsEnabled(false);
+      setMarketplaceVariants([]);
+      setMarketplaceColorImages([]);
+      setVariants([]);
+      return;
+    }
+
+    setMarketplaceVariantsEnabled(false);
+    setMarketplaceVariants([]);
+    setMarketplaceColorImages([]);
+    setVariants([]);
+  }
+
+  async function buildImageFilesPayload() {
+    const result: Array<{ filename: string; data: string }> = [];
+    for (const image of productImages) {
+      if (!image.file) {
+        continue;
+      }
+      result.push({
+        filename: image.file.name,
+        data: await fileToBase64(image.file),
+      });
+    }
+    return result;
+  }
+
+  async function buildVariantPayload(currentVariants: ProductVariantForm[], mode: ProductVariantMode) {
+    const result: Array<Record<string, unknown>> = [];
+
+    for (const variant of currentVariants) {
+      const payload: Record<string, unknown> = {
+        price: toNumber(variant.price),
+        isActive: variant.isActive !== false,
+      };
+
+      if (mode === 'MATRIX') {
+        payload.colorId = toPositiveNumber(variant.colorId);
+        payload.sizeId = toPositiveNumber(variant.sizeId);
+      } else if (mode === 'SIZE_ONLY') {
+        payload.sizeId = toPositiveNumber(variant.sizeId);
+      }
+
+      if (variant.imageUrl) {
+        payload.imageUrl = variant.imageUrl;
+      }
+
+      if (variant.imageFile) {
+        payload.imageFile = {
+          filename: variant.imageFile.name,
+          data: await fileToBase64(variant.imageFile),
+        };
+      }
+
+      result.push(payload);
+    }
+
+    return result;
+  }
+
+  async function buildMarketplaceColorImagesPayload() {
+    const result: Array<Record<string, unknown>> = [];
+
+    for (const image of marketplaceColorImages) {
+      if (!selectedColorIds.includes(image.colorId)) {
+        continue;
+      }
+
+      const payload: Record<string, unknown> = {
+        colorId: image.colorId,
+      };
+
+      if (image.imageUrl) {
+        payload.imageUrl = image.imageUrl;
+      }
+
+      if (image.imageFile) {
+        payload.imageFile = {
+          filename: image.imageFile.name,
+          data: await fileToBase64(image.imageFile),
+        };
+      }
+
+      if (payload.imageUrl || payload.imageFile) {
+        result.push(payload);
+      }
+    }
+
+    return result;
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSubmitted(true);
+    setFormError('');
+    setFormMessage('');
+
+    const normalizedName = String(name || '').trim();
+    const normalizedDescription = String(description || '').trim();
+    const normalizedCategoryId = Number(categoryId);
+
+    if (!normalizedName || normalizedName.length < 3) {
+      setFormError('El nombre es obligatorio y debe tener al menos 3 caracteres.');
+      return;
+    }
+    if (!Number.isInteger(normalizedCategoryId) || normalizedCategoryId < 1) {
+      setFormError('Selecciona una categoria valida.');
+      return;
+    }
+
+    if (!variants.length) {
+      setFormError(
+        isSimpleMode
+          ? 'Configura el precio de la variante unica antes de guardar.'
+          : 'Genera las variantes antes de guardar.',
+      );
+      return;
+    }
+
+    if (variants.some((variant) => toNumber(variant.price) <= 0)) {
+      setFormError('Cada variante debe tener un precio mayor que 0.');
+      return;
+    }
+
+    if (isSimpleMode && marketplaceVariantsEnabled && marketplaceVariants.length === 0) {
+      setFormError('Genera las variantes para marketplace o desactiva esa opcion.');
+      return;
+    }
+
+    const shouldPersistMarketplaceDimensions = isSimpleMode && marketplaceVariantsEnabled && marketplaceVariants.length > 0;
+    const imageUrls = productImages.filter((image) => image.url).map((image) => image.url as string);
+    const imageFiles = await buildImageFilesPayload();
+    const payloadVariants = await buildVariantPayload(variants, variantMode);
+    const marketplaceColorImagesPayload = shouldPersistMarketplaceDimensions
+      ? await buildMarketplaceColorImagesPayload()
+      : [];
+
+    const commonPayload: Record<string, unknown> = {
+      name: normalizedName,
+      description: normalizedDescription,
+      categoryId: normalizedCategoryId,
+      variantMode,
+      colorIds: variantMode === 'MATRIX' || shouldPersistMarketplaceDimensions ? uniqueNumbers(selectedColorIds) : [],
+      sizeIds: isSimpleMode && !shouldPersistMarketplaceDimensions ? [] : uniqueNumbers(selectedSizeIds),
+      imageUrls,
+      variants: payloadVariants,
+    };
+
+    if (imageFiles.length) {
+      commonPayload.imageFiles = imageFiles;
+    }
+
+    if (shouldPersistMarketplaceDimensions) {
+      commonPayload.marketplaceColorImages = marketplaceColorImagesPayload;
+    }
+
+    if (isEditing && product?.id) {
+      commonPayload.isActive = isActive;
+      await onSubmit({
+        mode: 'edit',
+        id: product.id,
+        payload: commonPayload,
+      });
+      return;
+    }
+
+    await onSubmit({
+      mode: 'create',
+      payload: commonPayload,
+    });
+  }
+
+  function getColorName(colorId: number) {
+    if (!colorId || colorId < 1) {
+      return '-';
+    }
+    return colors.find((color) => color.id === colorId)?.name || 'N/A';
+  }
+
+  function getSizeName(sizeId: number) {
+    if (!sizeId || sizeId < 1) {
+      return '-';
+    }
+    return sizes.find((size) => size.id === sizeId)?.name || 'N/A';
+  }
+
+  function getVariantPreview(variant: ProductVariantForm): string {
+    return String(variant.imagePreview || variant.imageUrl || '').trim();
+  }
+
+  function getMarketplaceColorImagePreview(colorId: number): string {
+    const image = marketplaceColorImages.find((item) => item.colorId === colorId);
+    return String(image?.imagePreview || image?.imageUrl || '').trim();
+  }
+
+  return (
+    <div className="admin-modal-overlay" role="presentation" onClick={onClose}>
+      <div
+        className="admin-modal-dialog admin-product-modal-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="admin-product-modal-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="admin-product-modal-head">
+          <div>
+            <h3 id="admin-product-modal-title">{isEditing ? 'Editar producto' : 'Crear producto'}</h3>
+            <p>
+              {isEditing
+                ? 'Actualiza los datos del producto existente.'
+                : 'Completa los campos para crear un producto nuevo.'}
+            </p>
+          </div>
+          <button
+            type="button"
+            className="admin-modal-close-next"
+            onClick={onClose}
+            disabled={isSubmitting}
+            aria-label="Cerrar modal de producto"
+          >
+            x
+          </button>
+        </div>
+
+        {formError ? <p className="admin-modal-error">{formError}</p> : null}
+        {formMessage ? <p className="admin-modal-success">{formMessage}</p> : null}
+
+        <form className="admin-modal-form admin-product-modal-form" onSubmit={handleSubmit}>
+          <div className="admin-product-basic-grid">
+            <label>
+              <span>Nombre</span>
+              <input
+                type="text"
+                placeholder="Nombre del producto"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+              />
+            </label>
+
+            <label>
+              <span>Categoria</span>
+              <select
+                value={categoryId ?? ''}
+                onChange={(event) => setCategoryId(toPositiveNumber(event.target.value) || null)}
+              >
+                <option value="">Selecciona una categoria</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="admin-field-block">
+            <span>Descripcion</span>
+            <div className="description-editor-shell">
+              <div className="description-toolbar">
+                <select
+                  defaultValue=""
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    if (value) {
+                      setDescriptionBlock(value as 'p' | 'h2' | 'h3' | 'blockquote');
+                    }
+                    event.currentTarget.value = '';
+                  }}
+                >
+                  <option value="">Bloque</option>
+                  <option value="p">Parrafo</option>
+                  <option value="h2">Titulo H2</option>
+                  <option value="h3">Titulo H3</option>
+                  <option value="blockquote">Cita</option>
+                </select>
+
+                <select
+                  defaultValue=""
+                  onChange={(event) => {
+                    setDescriptionFont(event.target.value);
+                    event.currentTarget.value = '';
+                  }}
+                >
+                  <option value="">Fuente</option>
+                  <option value="Arial">Arial</option>
+                  <option value="Georgia">Georgia</option>
+                  <option value="Courier New">Courier</option>
+                  <option value="Tahoma">Tahoma</option>
+                </select>
+
+                <select
+                  defaultValue=""
+                  onChange={(event) => {
+                    setDescriptionFontSize(event.target.value);
+                    event.currentTarget.value = '';
+                  }}
+                >
+                  <option value="">Tamano</option>
+                  <option value="2">Pequeno</option>
+                  <option value="3">Normal</option>
+                  <option value="5">Grande</option>
+                </select>
+
+                <input type="color" className="color-picker" onChange={(event) => setDescriptionColor(event.target.value)} />
+
+                <button type="button" className="admin-ghost-btn" onClick={() => applyDescriptionCommand('bold')}>
+                  <b>B</b>
+                </button>
+                <button type="button" className="admin-ghost-btn" onClick={() => applyDescriptionCommand('italic')}>
+                  <i>I</i>
+                </button>
+                <button type="button" className="admin-ghost-btn" onClick={() => applyDescriptionCommand('underline')}>
+                  <u>U</u>
+                </button>
+                <button type="button" className="admin-ghost-btn" onClick={() => applyDescriptionCommand('insertUnorderedList')}>
+                  Lista
+                </button>
+                <button type="button" className="admin-ghost-btn" onClick={() => applyDescriptionCommand('insertOrderedList')}>
+                  Numerada
+                </button>
+                <button type="button" className="admin-ghost-btn" onClick={() => applyDescriptionCommand('justifyLeft')}>
+                  Izq
+                </button>
+                <button type="button" className="admin-ghost-btn" onClick={() => applyDescriptionCommand('justifyCenter')}>
+                  Centro
+                </button>
+                <button type="button" className="admin-ghost-btn" onClick={() => applyDescriptionCommand('justifyRight')}>
+                  Der
+                </button>
+                <button type="button" className="admin-ghost-btn" onClick={insertDescriptionGrid}>
+                  Grilla
+                </button>
+                <button type="button" className="admin-ghost-btn" onClick={clearDescriptionFormat}>
+                  Limpiar
+                </button>
+              </div>
+
+              <div
+                ref={descriptionEditorRef}
+                className="description-editor-area"
+                contentEditable
+                suppressContentEditableWarning
+                data-placeholder="Descripcion con formato (fuente, tablas, listas...)"
+                onInput={onDescriptionInput}
+                onBlur={onDescriptionInput}
+              />
+            </div>
+          </div>
+
+          <section className="admin-product-mode-box">
+            <h4>Tipo de producto</h4>
+            <label className="admin-checkbox">
+              <input
+                type="radio"
+                name="variant-mode"
+                checked={variantMode === 'MATRIX'}
+                onChange={() => handleVariantModeChange('MATRIX')}
+              />
+              Con variantes (color y talla)
+            </label>
+            <label className="admin-checkbox">
+              <input
+                type="radio"
+                name="variant-mode"
+                checked={variantMode === 'SIMPLE'}
+                onChange={() => handleVariantModeChange('SIMPLE')}
+              />
+              Producto unico (sin color/talla)
+            </label>
+            <label className="admin-checkbox">
+              <input
+                type="radio"
+                name="variant-mode"
+                checked={variantMode === 'SIZE_ONLY'}
+                onChange={() => handleVariantModeChange('SIZE_ONLY')}
+              />
+              Producto unico con talla (sin color)
+            </label>
+          </section>
+
+          {isSimpleMode ? (
+            <section className="admin-product-mode-box">
+              <label className="admin-checkbox">
+                <input
+                  type="checkbox"
+                  checked={marketplaceVariantsEnabled}
+                  onChange={(event) => setMarketplaceVariantsEnabled(event.target.checked)}
+                />
+                Variantes para marketplace (color/talla)
+              </label>
+
+              {marketplaceVariantsEnabled ? (
+                <>
+                  <div className="admin-product-selection-grid">
+                    <div className="admin-product-select-box">
+                      <h5>Colores marketplace</h5>
+                      <div className="admin-product-check-grid">
+                        {availableColorRows.map((color) => (
+                          <label key={color.id} className="admin-checkbox">
+                            <input
+                              type="checkbox"
+                              checked={color.checked}
+                              onChange={(event) => toggleColor(color.id, event.target.checked)}
+                            />
+                            {color.name}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="admin-product-select-box">
+                      <h5>Tallas marketplace</h5>
+                      <div className="admin-product-check-grid">
+                        {availableSizeRows.map((size) => (
+                          <label key={size.id} className="admin-checkbox">
+                            <input
+                              type="checkbox"
+                              checked={size.checked}
+                              onChange={(event) => toggleSize(size.id, event.target.checked)}
+                            />
+                            {size.name}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="admin-product-inline-actions">
+                    <button
+                      type="button"
+                      className="admin-primary-btn"
+                      onClick={generateMarketplaceVariants}
+                      disabled={isGeneratingVariants || isSubmitting}
+                    >
+                      {isGeneratingVariants ? 'Generando...' : 'Generar variantes marketplace'}
+                    </button>
+                    <span>Combinaciones: {marketplaceVariants.length}</span>
+                  </div>
+
+                  {selectedColorIds.length ? (
+                    <section className="admin-marketplace-color-images-next">
+                      <div className="admin-marketplace-color-images-head-next">
+                        <div>
+                          <h5>Imagenes por color marketplace</h5>
+                          <p>Estas imagenes se usaran en la vista del marketplace al elegir cada color.</p>
+                        </div>
+                        <span>{selectedColorIds.length} color(es)</span>
+                      </div>
+
+                      <div className="admin-table-wrap">
+                        <table className="admin-table admin-table-sm admin-marketplace-color-image-table-next">
+                          <thead>
+                            <tr>
+                              <th>#</th>
+                              <th>Color</th>
+                              <th>Imagen</th>
+                              <th>Preview</th>
+                              <th>Acciones</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {selectedColorIds.map((colorId, index) => {
+                              const preview = getMarketplaceColorImagePreview(colorId);
+                              return (
+                                <tr key={colorId}>
+                                  <td>{index + 1}</td>
+                                  <td>{getColorName(colorId)}</td>
+                                  <td>
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      onChange={(event) => onMarketplaceColorImageFileChange(colorId, event)}
+                                    />
+                                  </td>
+                                  <td>
+                                    {preview ? (
+                                      <img
+                                        src={preview}
+                                        alt={`Preview marketplace color ${getColorName(colorId)}`}
+                                        className="admin-product-variant-preview"
+                                      />
+                                    ) : (
+                                      '-'
+                                    )}
+                                  </td>
+                                  <td>
+                                    {preview ? (
+                                      <button
+                                        type="button"
+                                        className="admin-ghost-btn"
+                                        onClick={() => removeMarketplaceColorImage(colorId)}
+                                      >
+                                        Quitar
+                                      </button>
+                                    ) : (
+                                      '-'
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  ) : null}
+
+                  {marketplaceVariants.length ? (
+                    <div className="admin-table-wrap">
+                      <table className="admin-table admin-table-sm">
+                        <thead>
+                          <tr>
+                            <th>#</th>
+                            <th>Color</th>
+                            <th>Talla</th>
+                            <th>Precio base</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {marketplaceVariants.map((variant, index) => (
+                            <tr key={`${variant.colorId}-${variant.sizeId}-${index}`}>
+                              <td>{index + 1}</td>
+                              <td>{getColorName(variant.colorId)}</td>
+                              <td>{getSizeName(variant.sizeId)}</td>
+                              <td>S/ {toNumber(variant.price).toFixed(2)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : null}
+                </>
+              ) : null}
+            </section>
+          ) : (
+            <div className={`admin-product-selection-grid ${isSizeOnlyMode ? 'size-only' : ''}`}>
+              {!isSizeOnlyMode ? (
+                <section className="admin-product-select-box">
+                  <h5>Colores</h5>
+                  <div className="admin-product-check-grid">
+                    {availableColorRows.map((color) => (
+                      <label key={color.id} className="admin-checkbox">
+                        <input
+                          type="checkbox"
+                          checked={color.checked}
+                          onChange={(event) => toggleColor(color.id, event.target.checked)}
+                        />
+                        {color.name}
+                      </label>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+
+              <section className="admin-product-select-box">
+                <h5>Tallas</h5>
+                <div className="admin-product-check-grid">
+                  {availableSizeRows.map((size) => (
+                    <label key={size.id} className="admin-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={size.checked}
+                        onChange={(event) => toggleSize(size.id, event.target.checked)}
+                      />
+                      {size.name}
+                    </label>
+                  ))}
+                </div>
+              </section>
+            </div>
+          )}
+
+          <section className="admin-product-select-box">
+            <h5>Imagenes del producto</h5>
+            <input type="file" accept="image/*" multiple onChange={onProductImagesChange} />
+            {productImages.length ? (
+              <div className="admin-product-image-grid">
+                {productImages.map((image, index) => (
+                  <article key={`${image.preview}-${index}`} className="admin-product-image-card">
+                    <img src={image.preview} alt="Imagen de producto" />
+                    <div>
+                      <span>{image.file?.name || image.url || 'Imagen existente'}</span>
+                      <button
+                        type="button"
+                        className="admin-ghost-btn"
+                        disabled={deletingImageIndex === index || isSubmitting}
+                        onClick={() => removeProductImage(index)}
+                      >
+                        {deletingImageIndex === index ? 'Eliminando...' : 'Eliminar'}
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : null}
+          </section>
+
+          {!isSimpleMode ? (
+            <div className="admin-product-inline-actions">
+              <button
+                type="button"
+                className="admin-primary-btn"
+                onClick={generateVariants}
+                disabled={isGeneratingVariants || isSubmitting}
+              >
+                {isGeneratingVariants ? 'Generando...' : isSizeOnlyMode ? 'Generar por talla' : 'Generar variantes'}
+              </button>
+            </div>
+          ) : null}
+
+          {variants.length ? (
+            <div className="admin-table-wrap">
+              <table className="admin-table admin-table-sm">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Color</th>
+                    <th>Talla</th>
+                    <th>Precio</th>
+                    <th>Activo</th>
+                    <th>Imagen</th>
+                    <th>Preview</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {variants.map((variant, index) => (
+                    <tr key={`${variant.colorId}-${variant.sizeId}-${index}`}>
+                      <td>{index + 1}</td>
+                      <td>{isSimpleMode || isSizeOnlyMode ? '-' : getColorName(variant.colorId)}</td>
+                      <td>{isSimpleMode ? '-' : getSizeName(variant.sizeId)}</td>
+                      <td>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={toNumber(variant.price)}
+                          onChange={(event) => onVariantPriceChange(index, event.target.value)}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={variant.isActive !== false}
+                          onChange={(event) => onVariantActiveChange(index, event.target.checked)}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(event) => onVariantImageFileChange(index, event)}
+                        />
+                      </td>
+                      <td>
+                        {getVariantPreview(variant) ? (
+                          <img
+                            src={getVariantPreview(variant)}
+                            alt="Preview de variante"
+                            className="admin-product-variant-preview"
+                          />
+                        ) : (
+                          '-'
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+
+          {isEditing ? (
+            <label className="admin-checkbox">
+              <input
+                type="checkbox"
+                checked={isActive}
+                onChange={(event) => setIsActive(event.target.checked)}
+              />
+              Producto activo
+            </label>
+          ) : null}
+
+          {submitted && (!name.trim() || name.trim().length < 3 || !categoryId) ? (
+            <p className="admin-modal-error">
+              Revisa los campos obligatorios antes de guardar.
+            </p>
+          ) : null}
+
+          <div className="admin-modal-actions">
+            <button type="button" className="admin-ghost-btn" onClick={onClose} disabled={isSubmitting}>
+              Cancelar
+            </button>
+            <button type="submit" className="admin-primary-btn" disabled={isSubmitting}>
+              {isSubmitting ? 'Guardando...' : isEditing ? 'Actualizar' : 'Crear producto'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}

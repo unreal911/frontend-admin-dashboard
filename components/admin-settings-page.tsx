@@ -1,0 +1,391 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+import { useAdminUi } from '@/components/admin-ui-provider';
+
+interface OrderWorkflowSettings {
+  returnResponsibilityManagementEnabled: boolean;
+  pickingResponsibilityFlowEnabled: boolean;
+  marketplacePaymentMethodsEnabled: boolean;
+  marketplacePaymentMethodIds: number[];
+  marketplaceIncludeIgv: boolean;
+  marketplaceAutoReserveStock: boolean;
+}
+
+interface PaymentMethod {
+  id: number;
+  name: string;
+  code: string;
+}
+
+const DEFAULT_SETTINGS: OrderWorkflowSettings = {
+  returnResponsibilityManagementEnabled: true,
+  pickingResponsibilityFlowEnabled: false,
+  marketplacePaymentMethodsEnabled: false,
+  marketplacePaymentMethodIds: [],
+  marketplaceIncludeIgv: true,
+  marketplaceAutoReserveStock: false,
+};
+
+function uniqueNumberIds(values: unknown): number[] {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+  return [...new Set(values.map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0))];
+}
+
+function normalizeSettings(payload: unknown): OrderWorkflowSettings {
+  const data = (payload as { data?: Partial<OrderWorkflowSettings> } | null)?.data || {};
+  return {
+    returnResponsibilityManagementEnabled: data.returnResponsibilityManagementEnabled !== false,
+    pickingResponsibilityFlowEnabled: data.pickingResponsibilityFlowEnabled === true,
+    marketplacePaymentMethodsEnabled: data.marketplacePaymentMethodsEnabled === true,
+    marketplacePaymentMethodIds: uniqueNumberIds(data.marketplacePaymentMethodIds),
+    marketplaceIncludeIgv: data.marketplaceIncludeIgv !== false,
+    marketplaceAutoReserveStock: data.marketplaceAutoReserveStock === true,
+  };
+}
+
+function normalizeActivePaymentMethods(payload: unknown): PaymentMethod[] {
+  const data = (payload as { data?: PaymentMethod[] } | null)?.data;
+  if (!Array.isArray(data)) {
+    return [];
+  }
+
+  const normalized: PaymentMethod[] = [];
+  for (const item of data) {
+    const id = Number((item as PaymentMethod).id);
+    const name = String((item as PaymentMethod).name || '').trim();
+    if (!Number.isInteger(id) || id < 1 || !name) {
+      continue;
+    }
+    normalized.push({
+      id,
+      name,
+      code: String((item as PaymentMethod).code || '').trim(),
+    });
+  }
+  return normalized;
+}
+
+function areNumberArraysEqual(first: number[], second: number[]): boolean {
+  const firstNormalized = [...new Set(first.map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0))].sort((a, b) => a - b);
+  const secondNormalized = [...new Set(second.map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0))].sort((a, b) => a - b);
+
+  if (firstNormalized.length !== secondNormalized.length) {
+    return false;
+  }
+
+  for (let index = 0; index < firstNormalized.length; index += 1) {
+    if (firstNormalized[index] !== secondNormalized[index]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function reconcileAllowedIds(ids: number[], activeMethodIds: Set<number>, fallbackIds: number[]): number[] {
+  const normalized = uniqueNumberIds(ids).filter((id) => activeMethodIds.has(id));
+  if (normalized.length > 0) {
+    return normalized;
+  }
+  return [...fallbackIds];
+}
+
+export function AdminSettingsPage() {
+  const { showAlert } = useAdminUi();
+
+  const [loading, setLoading] = useState(true);
+  const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [settings, setSettings] = useState<OrderWorkflowSettings>(DEFAULT_SETTINGS);
+  const [initialSettings, setInitialSettings] = useState<OrderWorkflowSettings>(DEFAULT_SETTINGS);
+
+  const hasChanges = useMemo(() => {
+    return settings.returnResponsibilityManagementEnabled !== initialSettings.returnResponsibilityManagementEnabled
+      || settings.pickingResponsibilityFlowEnabled !== initialSettings.pickingResponsibilityFlowEnabled
+      || settings.marketplacePaymentMethodsEnabled !== initialSettings.marketplacePaymentMethodsEnabled
+      || settings.marketplaceIncludeIgv !== initialSettings.marketplaceIncludeIgv
+      || settings.marketplaceAutoReserveStock !== initialSettings.marketplaceAutoReserveStock
+      || !areNumberArraysEqual(settings.marketplacePaymentMethodIds, initialSettings.marketplacePaymentMethodIds);
+  }, [settings, initialSettings]);
+
+  async function loadSettings() {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/admin/system-config/order-workflow', {
+        method: 'GET',
+        cache: 'no-store',
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        showAlert(
+          String((payload as { message?: unknown } | null)?.message || 'No se pudo cargar la configuracion.'),
+          'error',
+        );
+        return;
+      }
+
+      const normalized = normalizeSettings(payload);
+      setSettings(normalized);
+      setInitialSettings(normalized);
+    } catch {
+      showAlert('No se pudo cargar la configuracion.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadPaymentMethods() {
+    setLoadingPaymentMethods(true);
+    try {
+      const response = await fetch('/api/admin/payment-methods/active', {
+        method: 'GET',
+        cache: 'no-store',
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        setPaymentMethods([]);
+        return;
+      }
+
+      const methods = normalizeActivePaymentMethods(payload);
+      setPaymentMethods(methods);
+
+      const activeMethodIds = new Set(methods.map((method) => method.id));
+      const fallbackIds = methods.map((method) => method.id);
+      setSettings((current) => ({
+        ...current,
+        marketplacePaymentMethodIds: reconcileAllowedIds(current.marketplacePaymentMethodIds, activeMethodIds, fallbackIds),
+      }));
+      setInitialSettings((current) => ({
+        ...current,
+        marketplacePaymentMethodIds: reconcileAllowedIds(current.marketplacePaymentMethodIds, activeMethodIds, fallbackIds),
+      }));
+    } finally {
+      setLoadingPaymentMethods(false);
+    }
+  }
+
+  useEffect(() => {
+    loadSettings();
+    loadPaymentMethods();
+  }, []);
+
+  function reload() {
+    loadSettings();
+    loadPaymentMethods();
+  }
+
+  function resetChanges() {
+    setSettings({
+      ...initialSettings,
+      marketplacePaymentMethodIds: [...initialSettings.marketplacePaymentMethodIds],
+    });
+  }
+
+  async function saveSettings() {
+    if (!hasChanges || saving) {
+      return;
+    }
+
+    if (settings.marketplacePaymentMethodsEnabled && settings.marketplacePaymentMethodIds.length === 0) {
+      showAlert('Selecciona al menos un metodo de pago para activar esta regla.', 'error', 3500);
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const response = await fetch('/api/admin/system-config/order-workflow', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(settings),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        showAlert(
+          String((payload as { message?: unknown } | null)?.message || 'No se pudo guardar la configuracion.'),
+          'error',
+          3500,
+        );
+        return;
+      }
+
+      const normalized = normalizeSettings(payload);
+      const activeMethodIds = new Set(paymentMethods.map((method) => method.id));
+      const fallbackIds = paymentMethods.map((method) => method.id);
+      const reconciledIds = reconcileAllowedIds(normalized.marketplacePaymentMethodIds, activeMethodIds, fallbackIds);
+      const reconciled = {
+        ...normalized,
+        marketplacePaymentMethodIds: reconciledIds,
+      };
+
+      setSettings(reconciled);
+      setInitialSettings(reconciled);
+      showAlert('Configuracion guardada.', 'success');
+    } catch {
+      showAlert('No se pudo guardar la configuracion.', 'error', 3500);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function updateSetting<K extends keyof OrderWorkflowSettings>(key: K, value: OrderWorkflowSettings[K]) {
+    setSettings((current) => ({ ...current, [key]: value }));
+  }
+
+  function togglePaymentMethod(paymentMethodId: number, checked: boolean) {
+    setSettings((current) => {
+      const ids = new Set(current.marketplacePaymentMethodIds);
+      if (checked) {
+        ids.add(Number(paymentMethodId));
+      } else {
+        ids.delete(Number(paymentMethodId));
+      }
+      return {
+        ...current,
+        marketplacePaymentMethodIds: Array.from(ids.values()).filter((id) => Number.isInteger(id) && id > 0),
+      };
+    });
+  }
+
+  function isPaymentMethodSelected(paymentMethodId: number): boolean {
+    return settings.marketplacePaymentMethodIds.includes(Number(paymentMethodId));
+  }
+
+  return (
+    <section className="settings-page">
+      <article className="admin-card">
+        <p className="section-kicker">Admin Dashboard</p>
+        <h1 className="section-title">Configuracion Operativa</h1>
+        <p className="section-subtitle">
+          Activa o desactiva reglas globales del flujo de ordenes.
+        </p>
+      </article>
+
+      <div className="settings-actions">
+        <button type="button" className="admin-ghost-btn" onClick={reload} disabled={saving}>
+          Recargar
+        </button>
+        <button type="button" className="admin-ghost-btn" onClick={resetChanges} disabled={loading || saving || !hasChanges}>
+          Deshacer
+        </button>
+        <button type="button" className="admin-primary-btn" onClick={saveSettings} disabled={loading || saving || !hasChanges}>
+          {saving ? 'Guardando...' : 'Guardar cambios'}
+        </button>
+      </div>
+
+      <article className="settings-card">
+        <div className="settings-card-head">
+          <div>
+            <h2>Gestion de Responsabilidades de Devolucion</h2>
+            <p>Cuando esta activa, la devolucion pendiente exige responsable asignado y aceptacion antes de confirmar.</p>
+          </div>
+          <label className="toggle-wrap">
+            <span>{settings.returnResponsibilityManagementEnabled ? 'Activa' : 'Desactivada'}</span>
+            <input
+              type="checkbox"
+              checked={settings.returnResponsibilityManagementEnabled}
+              disabled={loading || saving}
+              onChange={(event) => updateSetting('returnResponsibilityManagementEnabled', event.target.checked)}
+            />
+          </label>
+        </div>
+      </article>
+
+      <article className="settings-card">
+        <div className="settings-card-head">
+          <div>
+            <h2>Flujo de Responsabilidad en Picking</h2>
+            <p>Si esta activo, quien confirma la orden queda como responsable principal de picking y puede delegar.</p>
+          </div>
+          <label className="toggle-wrap">
+            <span>{settings.pickingResponsibilityFlowEnabled ? 'Activo' : 'Desactivado'}</span>
+            <input
+              type="checkbox"
+              checked={settings.pickingResponsibilityFlowEnabled}
+              disabled={loading || saving}
+              onChange={(event) => updateSetting('pickingResponsibilityFlowEnabled', event.target.checked)}
+            />
+          </label>
+        </div>
+      </article>
+
+      <article className="settings-card">
+        <div className="settings-card-head">
+          <div>
+            <h2>Metodos de Pago en Marketplace</h2>
+            <p>Define si el checkout del marketplace mostrara metodos de pago y cuales estaran disponibles para el cliente.</p>
+          </div>
+          <label className="toggle-wrap">
+            <span>{settings.marketplacePaymentMethodsEnabled ? 'Activa' : 'Desactivada'}</span>
+            <input
+              type="checkbox"
+              checked={settings.marketplacePaymentMethodsEnabled}
+              disabled={loading || loadingPaymentMethods || saving}
+              onChange={(event) => updateSetting('marketplacePaymentMethodsEnabled', event.target.checked)}
+            />
+          </label>
+        </div>
+
+        {loadingPaymentMethods ? (
+          <p className="settings-muted">Cargando metodos de pago activos...</p>
+        ) : paymentMethods.length === 0 ? (
+          <p className="settings-muted">No hay metodos de pago activos para configurar.</p>
+        ) : (
+          <div className="payment-method-grid">
+            {paymentMethods.map((method) => (
+              <label key={method.id} className="payment-method-option">
+                <input
+                  type="checkbox"
+                  checked={isPaymentMethodSelected(method.id)}
+                  disabled={loading || saving || !settings.marketplacePaymentMethodsEnabled}
+                  onChange={(event) => togglePaymentMethod(method.id, event.target.checked)}
+                />
+                <span>{method.name}</span>
+              </label>
+            ))}
+          </div>
+        )}
+      </article>
+
+      <article className="settings-card">
+        <div className="settings-card-head">
+          <div>
+            <h2>IGV en Ecommerce</h2>
+            <p>Define si el checkout del marketplace debe incluir IGV (18%) en el total.</p>
+          </div>
+          <label className="toggle-wrap">
+            <span>{settings.marketplaceIncludeIgv ? 'Incluido' : 'No incluido'}</span>
+            <input
+              type="checkbox"
+              checked={settings.marketplaceIncludeIgv}
+              disabled={loading || saving}
+              onChange={(event) => updateSetting('marketplaceIncludeIgv', event.target.checked)}
+            />
+          </label>
+        </div>
+      </article>
+
+      <article className="settings-card">
+        <div className="settings-card-head">
+          <div>
+            <h2>Reserva Automatica en Marketplace</h2>
+            <p>Si esta activa, los pedidos del marketplace reservan stock automaticamente al crearse.</p>
+          </div>
+          <label className="toggle-wrap">
+            <span>{settings.marketplaceAutoReserveStock ? 'Activa' : 'Desactivada'}</span>
+            <input
+              type="checkbox"
+              checked={settings.marketplaceAutoReserveStock}
+              disabled={loading || saving}
+              onChange={(event) => updateSetting('marketplaceAutoReserveStock', event.target.checked)}
+            />
+          </label>
+        </div>
+      </article>
+    </section>
+  );
+}

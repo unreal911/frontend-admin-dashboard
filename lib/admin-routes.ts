@@ -1,0 +1,72 @@
+export type AdminRouteGroup =
+  | 'General'
+  | 'Catalogo'
+  | 'Inventario'
+  | 'Pedidos'
+  | 'Accesos'
+  | 'Sistema';
+
+export interface AdminRouteItem {
+  slug: string;
+  label: string;
+  group: AdminRouteGroup;
+  permission?: string;
+  description: string;
+}
+
+export const ADMIN_ROUTE_GROUP_ORDER: AdminRouteGroup[] = [
+  'General',
+  'Catalogo',
+  'Inventario',
+  'Pedidos',
+  'Accesos',
+  'Sistema',
+];
+
+export const ADMIN_ROUTE_ITEMS: AdminRouteItem[] = [
+  { slug: 'dashboard', label: 'Dashboard', group: 'General', permission: 'dashboard.view', description: 'Resumen general del sistema.' },
+
+  { slug: 'category', label: 'Categorias', group: 'Catalogo', permission: 'categories.manage', description: 'Gestion de categorias.' },
+  { slug: 'color', label: 'Colores', group: 'Catalogo', permission: 'colors.manage', description: 'Gestion de colores.' },
+  { slug: 'size', label: 'Tallas', group: 'Catalogo', permission: 'sizes.manage', description: 'Gestion de tallas.' },
+  { slug: 'payment-methods', label: 'Metodos de pago', group: 'Catalogo', permission: 'payment_methods.manage', description: 'Configuracion de medios de pago.' },
+  { slug: 'product', label: 'Productos', group: 'Catalogo', permission: 'products.view', description: 'Administracion de productos y variantes.' },
+
+  { slug: 'inventory', label: 'Inventario', group: 'Inventario', permission: 'inventory.view', description: 'Vista de inventario general.' },
+  { slug: 'inventory/movements', label: 'Movimientos', group: 'Inventario', permission: 'inventory.view', description: 'Movimientos de inventario.' },
+  { slug: 'inventory/traceability', label: 'Trazabilidad', group: 'Inventario', permission: 'inventory.view', description: 'Trazabilidad de lotes y stock.' },
+  { slug: 'transfers', label: 'Transferencias', group: 'Inventario', permission: 'transfers.view', description: 'Transferencias entre tiendas/almacenes.' },
+  { slug: 'stores', label: 'Tiendas', group: 'Inventario', permission: 'stores.view', description: 'Gestion de tiendas y almacenes.' },
+
+  { slug: 'orders/list', label: 'Pedidos', group: 'Pedidos', permission: 'orders.view', description: 'Listado de pedidos.' },
+  { slug: 'orders/pos', label: 'POS', group: 'Pedidos', permission: 'pos.view', description: 'Punto de venta para creacion de pedidos.' },
+  { slug: 'orders/picking', label: 'Picking', group: 'Pedidos', permission: 'picking.view', description: 'Tablero de picking.' },
+
+  { slug: 'users', label: 'Usuarios', group: 'Accesos', permission: 'users.view', description: 'Gestion de usuarios.' },
+  { slug: 'roles', label: 'Roles', group: 'Accesos', permission: 'roles.view', description: 'Gestion de roles y permisos.' },
+
+  { slug: 'settings', label: 'Configuracion', group: 'Sistema', permission: 'settings.manage', description: 'Parametros globales del sistema.' },
+  { slug: 'audit-logs', label: 'Auditoria', group: 'Sistema', permission: 'settings.manage', description: 'Bitacora de auditoria.' },
+  { slug: 'user-activities', label: 'Actividades', group: 'Sistema', permission: 'settings.manage', description: 'Actividad de usuarios.' },
+];
+
+export function normalizeAdminSlug(slugParts: string[] | undefined): string {
+  return (slugParts || []).join('/').trim();
+}
+
+export function buildAdminPath(slug: string): string {
+  return `/admin/${slug}`.replace(/\/+/g, '/');
+}
+
+export function resolveAdminRoute(slugParts: string[] | undefined): AdminRouteItem | null {
+  const slug = normalizeAdminSlug(slugParts);
+  if (!slug) {
+    return ADMIN_ROUTE_ITEMS.find((item) => item.slug === 'dashboard') || null;
+  }
+  return ADMIN_ROUTE_ITEMS.find((item) => item.slug === slug) || null;
+}
+
+export function listAdminRoutesByGroup(group: AdminRouteGroup): AdminRouteItem[] {
+  return ADMIN_ROUTE_ITEMS.filter((item) => item.group === group);
+}
+
