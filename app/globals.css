@@ -2458,7 +2458,20 @@ a {
   align-items: center;
   gap: 0.45rem;
   min-height: 34px;
+  outline: none;
   transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.admin-sidebar-nav-next a:focus:not(:focus-visible),
+.admin-sidebar-foot a:focus:not(:focus-visible) {
+  border-color: transparent;
+  background: transparent;
+}
+
+.admin-sidebar-nav-next a:focus-visible,
+.admin-sidebar-foot a:focus-visible {
+  border-color: color-mix(in oklab, var(--admin-primary) 72%, var(--admin-border));
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--admin-primary) 18%, transparent);
 }
 
 .admin-sidebar-nav-next a:hover {
@@ -2466,7 +2479,8 @@ a {
   background: color-mix(in oklab, var(--admin-primary) 10%, var(--admin-surface));
 }
 
-.admin-sidebar-nav-next a.active {
+.admin-sidebar-nav-next a.active,
+.admin-sidebar-nav-next a[aria-current='page'] {
   border-color: color-mix(in oklab, var(--admin-primary) 60%, var(--admin-border));
   background: color-mix(in oklab, var(--admin-primary) 16%, var(--admin-surface));
   color: var(--admin-text);
@@ -4114,12 +4128,18 @@ a {
   font-weight: 700;
 }
 
-.admin-modal-form input {
+.admin-modal-form input:not([type='checkbox']):not([type='radio']) {
   border: 1px solid var(--admin-border);
   border-radius: 10px;
   background: color-mix(in oklab, var(--admin-surface) 72%, var(--admin-surface-soft));
   color: var(--admin-text);
   padding: 0.55rem 0.65rem;
+}
+
+.admin-modal-form input[type='checkbox'],
+.admin-modal-form input[type='radio'] {
+  accent-color: var(--admin-primary);
+  margin: 0;
 }
 
 .admin-modal-form select,
@@ -4152,20 +4172,31 @@ a {
 }
 
 .admin-product-modal-dialog {
-  width: min(1120px, 100%);
-  max-height: min(92vh, 980px);
+  width: min(1140px, calc(100vw - 1.5rem));
+  max-height: min(92vh, 960px);
+  padding: 0;
+  gap: 0;
   overflow: auto;
+  background: var(--admin-surface);
 }
 
 .admin-product-modal-head {
+  position: sticky;
+  top: 0;
+  z-index: 5;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 0.75rem;
+  padding: 0.95rem 1rem;
+  border-bottom: 1px solid var(--admin-border);
+  background: color-mix(in oklab, var(--admin-surface) 96%, var(--admin-surface-soft));
+  backdrop-filter: blur(14px);
 }
 
 .admin-product-modal-head h3 {
   margin: 0;
+  font-size: 1.08rem;
 }
 
 .admin-product-modal-head p {
@@ -4174,6 +4205,7 @@ a {
 
 .admin-product-modal-form {
   gap: 0.85rem;
+  padding: 1rem;
 }
 
 .admin-product-basic-grid {
@@ -4185,10 +4217,10 @@ a {
 .admin-product-mode-box {
   border: 1px solid var(--admin-border);
   border-radius: 12px;
-  background: color-mix(in oklab, var(--admin-surface) 78%, var(--admin-surface-soft));
-  padding: 0.7rem;
+  background: color-mix(in oklab, var(--admin-surface) 80%, var(--admin-surface-soft));
+  padding: 0.72rem;
   display: grid;
-  gap: 0.45rem;
+  gap: 0.55rem;
 }
 
 .admin-product-mode-box h4,
@@ -4196,9 +4228,57 @@ a {
   margin: 0;
 }
 
+.admin-product-mode-box:has(input[name='variant-mode']) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.admin-product-mode-box:has(input[name='variant-mode']) h4 {
+  grid-column: 1 / -1;
+}
+
+.admin-product-modal-form .admin-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.48rem;
+}
+
+.admin-product-mode-box > .admin-checkbox,
+.admin-product-select-box .admin-checkbox {
+  border: 1px solid color-mix(in oklab, var(--admin-border) 84%, transparent);
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--admin-surface) 80%, var(--admin-surface-soft));
+  color: var(--admin-text);
+  padding: 0.52rem 0.58rem;
+  min-height: 38px;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+
+.admin-product-mode-box > .admin-checkbox:hover,
+.admin-product-select-box .admin-checkbox:hover {
+  border-color: color-mix(in oklab, var(--admin-primary) 42%, var(--admin-border));
+  background: color-mix(in oklab, var(--admin-primary) 10%, var(--admin-surface));
+}
+
+.admin-product-mode-box > .admin-checkbox:has(input:checked),
+.admin-product-select-box .admin-checkbox:has(input:checked) {
+  border-color: color-mix(in oklab, var(--admin-primary) 62%, var(--admin-border));
+  background: color-mix(in oklab, var(--admin-primary) 14%, var(--admin-surface));
+  color: var(--admin-text);
+}
+
+.admin-product-mode-box > .admin-checkbox input,
+.admin-product-select-box .admin-checkbox input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--admin-primary);
+  flex: 0 0 auto;
+  margin: 0;
+}
+
 .description-editor-shell {
   border: 1px solid color-mix(in oklab, var(--admin-text) 16%, transparent);
-  border-radius: 0.65rem;
+  border-radius: 10px;
   overflow: hidden;
   background: color-mix(in oklab, var(--admin-surface) 88%, var(--admin-surface-soft));
 }
@@ -4235,8 +4315,8 @@ a {
 }
 
 .description-editor-area {
-  min-height: 180px;
-  padding: 0.75rem;
+  min-height: 145px;
+  padding: 0.78rem;
   outline: none;
   line-height: 1.45;
   white-space: pre-wrap;
@@ -4268,17 +4348,19 @@ a {
 .admin-product-select-box {
   border: 1px solid var(--admin-border);
   border-radius: 12px;
-  background: color-mix(in oklab, var(--admin-surface) 78%, var(--admin-surface-soft));
-  padding: 0.65rem;
+  background: color-mix(in oklab, var(--admin-surface) 82%, var(--admin-surface-soft));
+  padding: 0.7rem;
   display: grid;
-  gap: 0.45rem;
+  gap: 0.52rem;
 }
 
 .admin-product-check-grid {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.45rem;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
   max-height: 200px;
   overflow: auto;
+  padding-right: 0.25rem;
 }
 
 .admin-product-inline-actions {
@@ -4297,7 +4379,7 @@ a {
 .admin-marketplace-color-images-next {
   border: 1px solid color-mix(in oklab, var(--admin-primary) 32%, var(--admin-border));
   border-radius: 12px;
-  background: color-mix(in oklab, var(--admin-surface) 82%, var(--admin-primary) 6%);
+  background: color-mix(in oklab, var(--admin-surface) 84%, var(--admin-surface-soft));
   padding: 0.7rem;
   display: grid;
   gap: 0.65rem;
@@ -4340,17 +4422,40 @@ a {
   min-width: 220px;
 }
 
+.admin-product-modal-form input[type='file'] {
+  border-style: dashed;
+  background: color-mix(in oklab, var(--admin-surface) 86%, var(--admin-surface-soft));
+  color: var(--admin-muted);
+  font-size: 0.78rem;
+}
+
+.admin-product-modal-form input[type='file']::file-selector-button {
+  border: 0;
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--admin-primary) 82%, var(--admin-primary-strong));
+  color: white;
+  font: inherit;
+  font-weight: 800;
+  margin-right: 0.6rem;
+  padding: 0.4rem 0.62rem;
+  cursor: pointer;
+}
+
+.admin-product-modal-form input[type='file']::file-selector-button:hover {
+  background: var(--admin-primary-strong);
+}
+
 .admin-product-image-grid {
   display: grid;
   gap: 0.6rem;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
 }
 
 .admin-product-image-card {
   border: 1px solid var(--admin-border);
   border-radius: 10px;
   background: color-mix(in oklab, var(--admin-surface) 88%, var(--admin-surface-soft));
-  padding: 0.45rem;
+  padding: 0.5rem;
   display: grid;
   gap: 0.42rem;
 }
@@ -4399,6 +4504,42 @@ a {
   border: 1px solid var(--admin-border);
   border-radius: 8px;
   background: color-mix(in oklab, var(--admin-surface) 78%, var(--admin-surface-soft));
+}
+
+.admin-product-modal-form > .admin-modal-actions {
+  position: sticky;
+  bottom: -1rem;
+  z-index: 4;
+  margin: 0 -1rem -1rem;
+  padding: 0.85rem 1rem;
+  border-top: 1px solid var(--admin-border);
+  background: color-mix(in oklab, var(--admin-surface) 94%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+@media (max-width: 860px) {
+  .admin-product-modal-dialog {
+    width: calc(100vw - 0.75rem);
+    max-height: calc(100dvh - 0.75rem);
+  }
+
+  .admin-product-basic-grid,
+  .admin-product-selection-grid,
+  .admin-product-mode-box:has(input[name='variant-mode']) {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-product-check-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .description-toolbar {
+    gap: 0.28rem;
+  }
+
+  .description-editor-area {
+    min-height: 130px;
+  }
 }
 
 .inventory-header-card {

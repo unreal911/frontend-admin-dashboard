@@ -124,6 +124,14 @@ export function AdminSidebar() {
     .flatMap((group) => listAdminRoutesByGroup(group))
     .filter((item) => hasPermission(item.permission));
 
+  function isRouteActive(item: AdminRouteItem, href: string): boolean {
+    if (pathname === href) {
+      return true;
+    }
+
+    return item.slug === 'orders/list' && /^\/admin\/orders\/\d+$/.test(pathname);
+  }
+
   return (
     <aside
       className={[
@@ -136,17 +144,17 @@ export function AdminSidebar() {
       <nav className="admin-sidebar-nav-next">
         {routes.map((item) => {
           const href = buildAdminPath(item.slug);
-          const active = pathname === href
-            || pathname.startsWith(`${href}/`)
-            || (item.slug === 'orders/list' && /^\/admin\/orders\/\d+$/.test(pathname));
+          const active = isRouteActive(item, href);
 
           return (
             <Link
               key={item.slug}
               href={href}
               title={item.label}
+              aria-current={active ? 'page' : undefined}
               className={active ? 'active' : ''}
-              onClick={() => {
+              onClick={(event) => {
+                event.currentTarget.blur();
                 if (isMobile) {
                   closeSidebar();
                 }

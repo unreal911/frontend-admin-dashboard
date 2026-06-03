@@ -72,6 +72,14 @@ interface MarketplaceColorImageForm {
   imagePreview?: string;
 }
 
+interface VariantGroupImageForm {
+  groupType: 'color' | 'size';
+  groupId: number;
+  imageUrl?: string;
+  imageFile?: File;
+  imagePreview?: string;
+}
+
 interface AdminProductModalSubmitPayload {
   mode: 'create' | 'edit';
   id?: number;
@@ -186,6 +194,7 @@ export function AdminProductModal({
   const [marketplaceVariantsEnabled, setMarketplaceVariantsEnabled] = useState(false);
   const [marketplaceVariants, setMarketplaceVariants] = useState<ProductVariantForm[]>([]);
   const [marketplaceColorImages, setMarketplaceColorImages] = useState<MarketplaceColorImageForm[]>([]);
+  const [variantGroupImages, setVariantGroupImages] = useState<VariantGroupImageForm[]>([]);
   const [productImages, setProductImages] = useState<ProductImageForm[]>([]);
   const [submitted, setSubmitted] = useState(false);
   const [formError, setFormError] = useState('');
@@ -221,6 +230,7 @@ export function AdminProductModal({
       setMarketplaceVariantsEnabled(false);
       setMarketplaceVariants([]);
       setMarketplaceColorImages([]);
+      setVariantGroupImages([]);
       setProductImages([]);
       syncDescriptionEditorWithValue('');
       return;
@@ -378,6 +388,41 @@ export function AdminProductModal({
       return selectedColorIds.map((colorId) => byColorId.get(colorId) || { colorId });
     });
   }, [open, isSimpleMode, marketplaceVariantsEnabled, selectedColorIds]);
+
+  useEffect(() => {
+    if (!open || isSimpleMode) {
+      setVariantGroupImages([]);
+      return;
+    }
+
+    const groupType: 'color' | 'size' = isSizeOnlyMode ? 'size' : 'color';
+    const groupIds = isSizeOnlyMode ? selectedSizeIds : selectedColorIds;
+
+    setVariantGroupImages((current) => {
+      const currentByKey = new Map(current.map((image) => [`${image.groupType}-${image.groupId}`, image]));
+      return groupIds.map((groupId) => {
+        const key = `${groupType}-${groupId}`;
+        const existing = currentByKey.get(key);
+        if (existing) {
+          return existing;
+        }
+
+        const variantWithImage = variants.find((variant) => {
+          const matchesGroup = groupType === 'color'
+            ? variant.colorId === groupId
+            : variant.sizeId === groupId;
+          return matchesGroup && getVariantPreview(variant);
+        });
+
+        return {
+          groupType,
+          groupId,
+          imageUrl: variantWithImage?.imageUrl,
+          imagePreview: variantWithImage ? getVariantPreview(variantWithImage) : undefined,
+        };
+      });
+    });
+  }, [open, isSimpleMode, isSizeOnlyMode, selectedColorIds, selectedSizeIds, variants]);
 
   useEffect(() => {
     if (!open) {
@@ -562,6 +607,78 @@ export function AdminProductModal({
     });
   }
 
+  function applyVariantGroupImage(variant: ProductVariantForm): ProductVariantForm {
+    const groupImage = variantGroupImages.find((image) => (
+      (image.groupType === 'color' && image.groupId === variant.colorId)
+      || (image.groupType === 'size' && image.groupId === variant.sizeId)
+    ));
+
+    if (!groupImage?.imageFile && !groupImage?.imageUrl && !groupImage?.imagePreview) {
+      return variant;
+    }
+
+    return {
+      ...variant,
+      imageUrl: groupImage.imageUrl,
+      imageFile: groupImage.imageFile,
+      imagePreview: groupImage.imagePreview || groupImage.imageUrl,
+    };
+  }
+
+  function onVariantGroupImageFileChange(
+    groupType: 'color' | 'size',
+    groupId: number,
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    const preview = URL.createObjectURL(file);
+    setVariantGroupImages((current) => {
+      const key = `${groupType}-${groupId}`;
+      const nextImage: VariantGroupImageForm = {
+        groupType,
+        groupId,
+        imageFile: file,
+        imagePreview: preview,
+      };
+      const withoutCurrent = current.filter((image) => `${image.groupType}-${image.groupId}` !== key);
+      return [...withoutCurrent, nextImage];
+    });
+    setVariants((current) => current.map((variant) => {
+      const matchesGroup = groupType === 'color'
+        ? variant.colorId === groupId
+        : variant.sizeId === groupId;
+      return matchesGroup
+        ? { ...variant, imageFile: file, imagePreview: preview }
+        : variant;
+    }));
+    event.target.value = '';
+  }
+
+  function removeVariantGroupImage(groupType: 'color' | 'size', groupId: number) {
+    setVariantGroupImages((current) => current.map((image) => (
+      image.groupType === groupType && image.groupId === groupId
+        ? { groupType, groupId }
+        : image
+    )));
+    setVariants((current) => current.map((variant) => {
+      const matchesGroup = groupType === 'color'
+        ? variant.colorId === groupId
+        : variant.sizeId === groupId;
+      return matchesGroup
+        ? {
+          ...variant,
+          imageFile: undefined,
+          imageUrl: undefined,
+          imagePreview: undefined,
+        }
+        : variant;
+    }));
+  }
+
   function onMarketplaceColorImageFileChange(colorId: number, event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) {
@@ -609,12 +726,12 @@ export function AdminProductModal({
     if (isSizeOnlyMode) {
       const merged = selectedSizeIds.map((sizeId) => {
         const key = `0-${sizeId}`;
-        return currentByKey.get(key) || {
+        return applyVariantGroupImage(currentByKey.get(key) || {
           colorId: 0,
           sizeId,
           price: 0,
           isActive: true,
-        };
+        });
       });
       setVariants(merged);
       return;
@@ -650,12 +767,12 @@ export function AdminProductModal({
 
       const merged = generated.map((item) => {
         const key = `${item.colorId}-${item.sizeId}`;
-        return currentByKey.get(key) || {
+        return applyVariantGroupImage(currentByKey.get(key) || {
           colorId: item.colorId,
           sizeId: item.sizeId,
           price: 0,
           isActive: true,
-        };
+        });
       });
       setVariants(merged);
     } catch {
@@ -780,6 +897,7 @@ export function AdminProductModal({
       setMarketplaceVariantsEnabled(false);
       setMarketplaceVariants([]);
       setMarketplaceColorImages([]);
+      setVariantGroupImages([]);
       setVariants([{
         colorId: firstVariant?.colorId ?? 0,
         sizeId: firstVariant?.sizeId ?? 0,
@@ -797,6 +915,7 @@ export function AdminProductModal({
       setMarketplaceVariantsEnabled(false);
       setMarketplaceVariants([]);
       setMarketplaceColorImages([]);
+      setVariantGroupImages([]);
       setVariants([]);
       return;
     }
@@ -804,6 +923,7 @@ export function AdminProductModal({
     setMarketplaceVariantsEnabled(false);
     setMarketplaceVariants([]);
     setMarketplaceColorImages([]);
+    setVariantGroupImages([]);
     setVariants([]);
   }
 
@@ -987,6 +1107,21 @@ export function AdminProductModal({
   function getMarketplaceColorImagePreview(colorId: number): string {
     const image = marketplaceColorImages.find((item) => item.colorId === colorId);
     return String(image?.imagePreview || image?.imageUrl || '').trim();
+  }
+
+  function getVariantGroupPreview(groupType: 'color' | 'size', groupId: number): string {
+    const groupImage = variantGroupImages.find((image) => image.groupType === groupType && image.groupId === groupId);
+    const groupPreview = String(groupImage?.imagePreview || groupImage?.imageUrl || '').trim();
+    if (groupPreview) {
+      return groupPreview;
+    }
+
+    const target = variants.find((variant) => (
+      groupType === 'color'
+        ? variant.colorId === groupId
+        : variant.sizeId === groupId
+    ) && getVariantPreview(variant));
+    return target ? getVariantPreview(target) : '';
   }
 
   return (
@@ -1404,6 +1539,84 @@ export function AdminProductModal({
             </div>
           ) : null}
 
+          {!isSimpleMode && (isSizeOnlyMode ? selectedSizeIds.length : selectedColorIds.length) ? (
+            <section className="admin-marketplace-color-images-next">
+              <div className="admin-marketplace-color-images-head-next">
+                <div>
+                  <h5>{isSizeOnlyMode ? 'Imagenes por talla' : 'Imagenes por color'}</h5>
+                  <p>
+                    {isSizeOnlyMode
+                      ? 'La imagen se aplicara a la variante de cada talla.'
+                      : 'La imagen se aplicara a todas las tallas del color seleccionado.'}
+                  </p>
+                </div>
+                <span>
+                  {isSizeOnlyMode
+                    ? `${selectedSizeIds.length} talla(s)`
+                    : `${selectedColorIds.length} color(es)`}
+                </span>
+              </div>
+
+              <div className="admin-table-wrap">
+                <table className="admin-table admin-table-sm admin-marketplace-color-image-table-next">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>{isSizeOnlyMode ? 'Talla' : 'Color'}</th>
+                      <th>Imagen</th>
+                      <th>Preview</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(isSizeOnlyMode ? selectedSizeIds : selectedColorIds).map((groupId, index) => {
+                      const groupType = isSizeOnlyMode ? 'size' : 'color';
+                      const preview = getVariantGroupPreview(groupType, groupId);
+                      const label = isSizeOnlyMode ? getSizeName(groupId) : getColorName(groupId);
+                      return (
+                        <tr key={`${groupType}-${groupId}`}>
+                          <td>{index + 1}</td>
+                          <td>{label}</td>
+                          <td>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(event) => onVariantGroupImageFileChange(groupType, groupId, event)}
+                            />
+                          </td>
+                          <td>
+                            {preview ? (
+                              <img
+                                src={preview}
+                                alt={`Preview ${label}`}
+                                className="admin-product-variant-preview"
+                              />
+                            ) : (
+                              '-'
+                            )}
+                          </td>
+                          <td>
+                            {preview ? (
+                              <button
+                                type="button"
+                                className="admin-ghost-btn"
+                                onClick={() => removeVariantGroupImage(groupType, groupId)}
+                              >
+                                Quitar
+                              </button>
+                            ) : (
+                              '-'
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          ) : null}
+
           {variants.length ? (
             <div className="admin-table-wrap">
               <table className="admin-table admin-table-sm">
@@ -1414,8 +1627,6 @@ export function AdminProductModal({
                     <th>Talla</th>
                     <th>Precio</th>
                     <th>Activo</th>
-                    <th>Imagen</th>
-                    <th>Preview</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1439,24 +1650,6 @@ export function AdminProductModal({
                           checked={variant.isActive !== false}
                           onChange={(event) => onVariantActiveChange(index, event.target.checked)}
                         />
-                      </td>
-                      <td>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(event) => onVariantImageFileChange(index, event)}
-                        />
-                      </td>
-                      <td>
-                        {getVariantPreview(variant) ? (
-                          <img
-                            src={getVariantPreview(variant)}
-                            alt="Preview de variante"
-                            className="admin-product-variant-preview"
-                          />
-                        ) : (
-                          '-'
-                        )}
                       </td>
                     </tr>
                   ))}
