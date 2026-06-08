@@ -66,6 +66,7 @@ interface PosCartItem {
 }
 
 const DEFAULT_PAYMENT_METHODS = ['Efectivo', 'Tarjeta', 'Yape', 'Plin', 'Transferencia'];
+const LOW_STOCK_THRESHOLD = 10;
 
 function asText(value: unknown, fallback = ''): string {
   const text = String(value ?? '').trim();
@@ -386,17 +387,14 @@ export function AdminPosPage() {
     return remoteStockOptions.find((option) => option.storeId === selectedFulfillmentStoreId) || null;
   }, [remoteStockOptions, selectedFulfillmentStoreId]);
 
-  const effectiveVariantStock = selectedVariant?.availableStock && selectedVariant.availableStock > 0
-    ? selectedVariant.availableStock
-    : selectedRemoteStock?.availableStock || 0;
+  const localVariantStock = Math.max(0, Number(selectedVariant?.availableStock || 0));
+  const remoteVariantStock = Math.max(0, Number(selectedRemoteStock?.availableStock || 0));
+  const shouldSuggestRemoteStock = Boolean(selectedVariant && localVariantStock <= LOW_STOCK_THRESHOLD);
+  const effectiveVariantStock = localVariantStock + remoteVariantStock;
 
-  const effectiveFulfillmentStoreId = selectedVariant?.availableStock && selectedVariant.availableStock > 0
+  const effectiveFulfillmentStoreId = localVariantStock > 0
     ? selectedStoreId
     : selectedRemoteStock?.storeId || null;
-
-  const effectiveFulfillmentStoreName = selectedVariant?.availableStock && selectedVariant.availableStock > 0
-    ? selectedStoreName
-    : selectedRemoteStock?.storeName || '';
 
   const cartItemsCount = useMemo(() => {
     return cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -651,7 +649,7 @@ export function AdminPosPage() {
       return;
     }
 
-    if (selectedVariant.availableStock > 0) {
+    if (selectedVariant.availableStock > LOW_STOCK_THRESHOLD) {
       setRemoteStockOptions([]);
       setSelectedFulfillmentStoreId(null);
       return;
@@ -731,17 +729,26 @@ export function AdminPosPage() {
     const quantity = Math.max(1, Math.min(effectiveVariantStock, Math.floor(Number(variantQuantity || 1))));
 
     setCart((current) => {
-      const existingIndex = current.findIndex((row) => (
-        row.variantId === selectedVariant.id
-        && row.fulfillmentStoreId === effectiveFulfillmentStoreId
-      ));
-      if (existingIndex === -1) {
-        return [
-          ...current,
-          {
+      const next = [...current];
+      let remaining = quantity;
+
+      const addCartAllocation = (storeId: number | null, storeName: string, availableStock: number) => {
+        if (!storeId || remaining <= 0 || availableStock <= 0) return;
+
+        const existingIndex = next.findIndex((row) => (
+          row.variantId === selectedVariant.id
+          && row.fulfillmentStoreId === storeId
+        ));
+        const currentQuantity = existingIndex >= 0 ? next[existingIndex].quantity : 0;
+        const availableCapacity = Math.max(0, availableStock - currentQuantity);
+        const quantityToAdd = Math.min(remaining, availableCapacity);
+        if (quantityToAdd <= 0) return;
+
+        if (existingIndex === -1) {
+          next.push({
             variantId: selectedVariant.id,
-            fulfillmentStoreId: effectiveFulfillmentStoreId,
-            fulfillmentStoreName: effectiveFulfillmentStoreName || selectedStoreName,
+            fulfillmentStoreId: storeId,
+            fulfillmentStoreName: storeName,
             productId: selectedProduct.id,
             productName: selectedProduct.name,
             colorName: selectedVariant.colorName,
@@ -749,21 +756,28 @@ export function AdminPosPage() {
             sku: selectedVariant.sku,
             imageUrl: selectedVariant.imageUrl || selectedProduct.imageUrl,
             unitPrice: selectedVariant.price,
-            quantity,
-            availableStock: effectiveVariantStock,
-            subtotal: quantity * selectedVariant.price,
-          },
-        ];
-      }
+            quantity: quantityToAdd,
+            availableStock,
+            subtotal: quantityToAdd * selectedVariant.price,
+          });
+        } else {
+          const row = next[existingIndex];
+          const mergedQty = Math.min(availableStock, row.quantity + quantityToAdd);
+          next[existingIndex] = {
+            ...row,
+            fulfillmentStoreName: storeName,
+            availableStock,
+            quantity: mergedQty,
+            subtotal: mergedQty * row.unitPrice,
+          };
+        }
 
-      const next = [...current];
-      const row = next[existingIndex];
-      const mergedQty = Math.min(row.availableStock, row.quantity + quantity);
-      next[existingIndex] = {
-        ...row,
-        quantity: mergedQty,
-        subtotal: mergedQty * row.unitPrice,
+        remaining -= quantityToAdd;
       };
+
+      addCartAllocation(selectedStoreId, selectedStoreName, localVariantStock);
+      addCartAllocation(selectedRemoteStock?.storeId || null, selectedRemoteStock?.storeName || '', remoteVariantStock);
+
       return next;
     });
 
@@ -1300,15 +1314,18 @@ export function AdminPosPage() {
                 <p>
                   Stock en {selectedStoreName}: {selectedVariant.availableStock} disponible(s)
                 </p>
-                {effectiveFulfillmentStoreId && effectiveFulfillmentStoreId !== selectedStoreId ? (
-                  <p>Reserva desde: {effectiveFulfillmentStoreName} ({effectiveVariantStock} disp.)</p>
+                {selectedRemoteStock ? (
+                  <p>Recomendacion: {selectedRemoteStock.storeName} tiene {selectedRemoteStock.availableStock} disponible(s)</p>
+                ) : null}
+                {localVariantStock > 0 && selectedRemoteStock ? (
+                  <p>Total combinando tiendas: {effectiveVariantStock} disponible(s)</p>
                 ) : null}
               </div>
 
-              {selectedVariant.availableStock <= 0 ? (
+              {shouldSuggestRemoteStock ? (
                 <div className="admin-pos-remote-stock-next">
                   <div className="admin-pos-remote-stock-head-next">
-                    <strong>Disponible en otras tiendas</strong>
+                    <strong>{localVariantStock > 0 ? 'Recomendacion en otras tiendas' : 'Disponible en otras tiendas'}</strong>
                     {loadingRemoteStock ? <span>Buscando...</span> : null}
                   </div>
                   {loadingRemoteStock ? (
@@ -1330,6 +1347,11 @@ export function AdminPosPage() {
                       ))}
                     </div>
                   )}
+                  {localVariantStock > 0 && selectedRemoteStock ? (
+                    <p className="admin-pos-remote-stock-note-next">
+                      Si la cantidad supera el stock local, el faltante se reservara en la tienda recomendada.
+                    </p>
+                  ) : null}
                 </div>
               ) : null}
 

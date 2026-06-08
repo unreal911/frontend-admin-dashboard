@@ -8890,6 +8890,14 @@ a {
   font-size: 0.78rem;
 }
 
+.admin-pos-remote-stock-note-next {
+  margin: 0;
+  color: var(--admin-muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  font-weight: 700;
+}
+
 .admin-pos-quantity-selector-next {
   display: flex;
   gap: 0.5rem;
