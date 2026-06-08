@@ -19,6 +19,10 @@ function applyTokenRefresh(response: Response, cookieStore: Awaited<ReturnType<t
   });
 }
 
+function clearSessionCookie(cookieStore: Awaited<ReturnType<typeof cookies>>) {
+  cookieStore.delete(ADMIN_SESSION_COOKIE);
+}
+
 export async function GET() {
   const cookieStore = await cookies();
   const token = String(cookieStore.get(ADMIN_SESSION_COOKIE)?.value || '').trim();
@@ -40,6 +44,8 @@ export async function GET() {
 
   const payload = await upstream.json().catch(() => null);
   applyTokenRefresh(upstream, cookieStore);
+  if (upstream.status === 401) {
+    clearSessionCookie(cookieStore);
+  }
   return NextResponse.json(payload, { status: upstream.status });
 }
-

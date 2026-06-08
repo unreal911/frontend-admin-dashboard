@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
 import { useAdminUi } from '@/components/admin-ui-provider';
 
 interface AdminRole {
@@ -38,6 +39,11 @@ const DEFAULT_FORM: UserFormState = {
   roleId: 0,
   isActive: true,
 };
+
+const USER_STATUS_OPTIONS: AdminSelectOption<'true' | 'false'>[] = [
+  { value: 'true', label: 'Activo' },
+  { value: 'false', label: 'Inactivo' },
+];
 
 function normalizeRoles(payload: unknown): AdminRole[] {
   const items = Array.isArray(payload)
@@ -575,29 +581,28 @@ export function AdminUsersPage() {
               ) : null}
 
               <div className="admin-user-form-grid">
-                <label>
+                <div className="admin-field-block">
                   <span>Rol</span>
-                  <select
-                    value={form.roleId || ''}
-                    onChange={(event) => setForm((current) => ({ ...current, roleId: Number(event.target.value) }))}
-                  >
-                    <option value="" disabled>Selecciona un rol</option>
-                    {roles.map((role) => (
-                      <option key={role.id} value={role.id}>{role.name}</option>
-                    ))}
-                  </select>
-                </label>
+                  <AdminSelect
+                    value={String(form.roleId || '')}
+                    options={[
+                      { value: '', label: 'Selecciona un rol', disabled: true },
+                      ...roles.map((role) => ({ value: String(role.id), label: role.name })),
+                    ]}
+                    ariaLabel="Seleccionar rol de usuario"
+                    onChange={(nextValue) => setForm((current) => ({ ...current, roleId: Number(nextValue) }))}
+                  />
+                </div>
 
-                <label>
+                <div className="admin-field-block">
                   <span>Estado</span>
-                  <select
+                  <AdminSelect
                     value={form.isActive ? 'true' : 'false'}
-                    onChange={(event) => setForm((current) => ({ ...current, isActive: event.target.value === 'true' }))}
-                  >
-                    <option value="true">Activo</option>
-                    <option value="false">Inactivo</option>
-                  </select>
-                </label>
+                    options={USER_STATUS_OPTIONS}
+                    ariaLabel="Seleccionar estado de usuario"
+                    onChange={(nextValue) => setForm((current) => ({ ...current, isActive: nextValue === 'true' }))}
+                  />
+                </div>
               </div>
 
               {modalError ? <p className="admin-modal-error">{modalError}</p> : null}

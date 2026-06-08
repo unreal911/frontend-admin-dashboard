@@ -30,6 +30,14 @@ interface PosVariant {
   availableStock: number;
 }
 
+interface PosRemoteStockOption {
+  storeId: number;
+  storeName: string;
+  storeType?: string | null;
+  availableStock: number;
+  reservedStock: number;
+}
+
 interface PosProduct {
   id: number;
   name: string;
@@ -43,6 +51,8 @@ interface PosProduct {
 
 interface PosCartItem {
   variantId: number;
+  fulfillmentStoreId: number;
+  fulfillmentStoreName: string;
   productId: number;
   productName: string;
   colorName: string;
@@ -108,6 +118,26 @@ function normalizePaymentMethods(payload: unknown): string[] {
     if (name) unique.add(name);
   });
   return Array.from(unique.values());
+}
+
+function normalizeRemoteStockOptions(payload: unknown): PosRemoteStockOption[] {
+  const rows = extractArray(payload);
+  const options: PosRemoteStockOption[] = [];
+  rows.forEach((row) => {
+    const raw = row as Record<string, unknown>;
+    const storeId = asPositiveInt(raw.storeId);
+    if (!storeId) return;
+    const availableStock = Math.max(0, asNumber(raw.availableStock, 0));
+    if (availableStock <= 0) return;
+    options.push({
+      storeId,
+      storeName: asText(raw.storeName, `Tienda #${storeId}`),
+      storeType: asText(raw.storeType) || null,
+      availableStock,
+      reservedStock: Math.max(0, asNumber(raw.reservedStock, 0)),
+    });
+  });
+  return options.sort((a, b) => b.availableStock - a.availableStock);
 }
 
 function normalizeProducts(payload: unknown): PosProduct[] {
@@ -267,6 +297,9 @@ export function AdminPosPage() {
   const [selectedColor, setSelectedColor] = useState('');
   const [selectedSize, setSelectedSize] = useState('');
   const [variantQuantity, setVariantQuantity] = useState(1);
+  const [remoteStockOptions, setRemoteStockOptions] = useState<PosRemoteStockOption[]>([]);
+  const [loadingRemoteStock, setLoadingRemoteStock] = useState(false);
+  const [selectedFulfillmentStoreId, setSelectedFulfillmentStoreId] = useState<number | null>(null);
 
   const [paymentMethods, setPaymentMethods] = useState<string[]>(DEFAULT_PAYMENT_METHODS);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(DEFAULT_PAYMENT_METHODS[0]);
@@ -343,6 +376,27 @@ export function AdminPosPage() {
     }
     return byColor[0];
   }, [selectedProduct, selectedColor, selectedSize]);
+
+  const selectedStoreName = useMemo(() => (
+    stores.find((store) => store.id === selectedStoreId)?.name || 'Tienda seleccionada'
+  ), [selectedStoreId, stores]);
+
+  const selectedRemoteStock = useMemo(() => {
+    if (!selectedFulfillmentStoreId) return null;
+    return remoteStockOptions.find((option) => option.storeId === selectedFulfillmentStoreId) || null;
+  }, [remoteStockOptions, selectedFulfillmentStoreId]);
+
+  const effectiveVariantStock = selectedVariant?.availableStock && selectedVariant.availableStock > 0
+    ? selectedVariant.availableStock
+    : selectedRemoteStock?.availableStock || 0;
+
+  const effectiveFulfillmentStoreId = selectedVariant?.availableStock && selectedVariant.availableStock > 0
+    ? selectedStoreId
+    : selectedRemoteStock?.storeId || null;
+
+  const effectiveFulfillmentStoreName = selectedVariant?.availableStock && selectedVariant.availableStock > 0
+    ? selectedStoreName
+    : selectedRemoteStock?.storeName || '';
 
   const cartItemsCount = useMemo(() => {
     return cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -524,6 +578,9 @@ export function AdminPosPage() {
       setProducts(catalogWithStock);
       setCart((current) => current.flatMap((item) => {
         const row = stockMap.get(item.variantId);
+        if (item.fulfillmentStoreId !== storeId) {
+          return [item];
+        }
         const available = row?.available ?? 0;
         const nextQuantity = Math.max(0, Math.min(item.quantity, available));
         if (nextQuantity <= 0) {
@@ -538,6 +595,28 @@ export function AdminPosPage() {
       }));
     } finally {
       setLoadingStock(false);
+    }
+  }, []);
+
+  const loadRemoteStockOptions = useCallback(async (variantId: number, currentStoreId: number) => {
+    setLoadingRemoteStock(true);
+    setRemoteStockOptions([]);
+    setSelectedFulfillmentStoreId(null);
+    try {
+      const params = new URLSearchParams({ excludeStoreId: String(currentStoreId) });
+      const response = await fetch(`/api/admin/orders/remote-stock/${variantId}?${params.toString()}`, {
+        method: 'GET',
+        cache: 'no-store',
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        return;
+      }
+      const options = normalizeRemoteStockOptions(payload);
+      setRemoteStockOptions(options);
+      setSelectedFulfillmentStoreId(options[0]?.storeId || null);
+    } finally {
+      setLoadingRemoteStock(false);
     }
   }, []);
 
@@ -563,12 +642,32 @@ export function AdminPosPage() {
 
     setSelectedColor((current) => current || selectedVariant.colorName);
     setSelectedSize((current) => current || selectedVariant.sizeName);
+  }, [selectedProduct, selectedVariant]);
+
+  useEffect(() => {
+    if (!selectedVariant || !selectedStoreId) {
+      setRemoteStockOptions([]);
+      setSelectedFulfillmentStoreId(null);
+      return;
+    }
+
+    if (selectedVariant.availableStock > 0) {
+      setRemoteStockOptions([]);
+      setSelectedFulfillmentStoreId(null);
+      return;
+    }
+
+    loadRemoteStockOptions(selectedVariant.id, selectedStoreId);
+  }, [loadRemoteStockOptions, selectedStoreId, selectedVariant]);
+
+  useEffect(() => {
+    if (!selectedVariant) return;
     setVariantQuantity((current) => {
       const safe = Math.floor(Number(current || 1));
-      const max = Math.max(1, selectedVariant.availableStock);
+      const max = Math.max(1, effectiveVariantStock);
       return Math.max(1, Math.min(max, safe));
     });
-  }, [selectedProduct, selectedVariant]);
+  }, [effectiveVariantStock, selectedVariant]);
 
   function openVariantSelector(product: PosProduct) {
     if (!canSell) {
@@ -584,6 +683,8 @@ export function AdminPosPage() {
     setSelectedProductId(product.id);
     setSelectedColor(firstVariant.colorName);
     setSelectedSize(firstVariant.sizeName);
+    setRemoteStockOptions([]);
+    setSelectedFulfillmentStoreId(null);
     setVariantQuantity(Math.min(1, Math.max(1, firstVariant.availableStock || 1)));
   }
 
@@ -591,6 +692,8 @@ export function AdminPosPage() {
     setSelectedProductId(null);
     setSelectedColor('');
     setSelectedSize('');
+    setRemoteStockOptions([]);
+    setSelectedFulfillmentStoreId(null);
     setVariantQuantity(1);
   }
 
@@ -599,7 +702,7 @@ export function AdminPosPage() {
 
     const nextQuantity = Math.max(0, Math.min(Math.floor(Number(nextQuantityRaw || 0)), item.availableStock));
     setCart((current) => current.flatMap((row) => {
-      if (row.variantId !== item.variantId) return [row];
+      if (row.variantId !== item.variantId || row.fulfillmentStoreId !== item.fulfillmentStoreId) return [row];
       if (nextQuantity <= 0) return [];
       return [{
         ...row,
@@ -620,20 +723,25 @@ export function AdminPosPage() {
       return;
     }
 
-    if (selectedVariant.availableStock <= 0) {
-      showAlert('Esta variante no tiene stock disponible en la tienda seleccionada.', 'error');
+    if (!effectiveFulfillmentStoreId || effectiveVariantStock <= 0) {
+      showAlert('Esta variante no tiene stock disponible en la tienda seleccionada ni en tiendas alternativas.', 'error');
       return;
     }
 
-    const quantity = Math.max(1, Math.min(selectedVariant.availableStock, Math.floor(Number(variantQuantity || 1))));
+    const quantity = Math.max(1, Math.min(effectiveVariantStock, Math.floor(Number(variantQuantity || 1))));
 
     setCart((current) => {
-      const existingIndex = current.findIndex((row) => row.variantId === selectedVariant.id);
+      const existingIndex = current.findIndex((row) => (
+        row.variantId === selectedVariant.id
+        && row.fulfillmentStoreId === effectiveFulfillmentStoreId
+      ));
       if (existingIndex === -1) {
         return [
           ...current,
           {
             variantId: selectedVariant.id,
+            fulfillmentStoreId: effectiveFulfillmentStoreId,
+            fulfillmentStoreName: effectiveFulfillmentStoreName || selectedStoreName,
             productId: selectedProduct.id,
             productName: selectedProduct.name,
             colorName: selectedVariant.colorName,
@@ -642,7 +750,7 @@ export function AdminPosPage() {
             imageUrl: selectedVariant.imageUrl || selectedProduct.imageUrl,
             unitPrice: selectedVariant.price,
             quantity,
-            availableStock: selectedVariant.availableStock,
+            availableStock: effectiveVariantStock,
             subtotal: quantity * selectedVariant.price,
           },
         ];
@@ -673,9 +781,11 @@ export function AdminPosPage() {
     setShowMobileCart(false);
   }
 
-  function removeFromCart(variantId: number) {
+  function removeFromCart(variantId: number, fulfillmentStoreId: number) {
     if (!canSell) return;
-    setCart((current) => current.filter((item) => item.variantId !== variantId));
+    setCart((current) => current.filter((item) => (
+      item.variantId !== variantId || item.fulfillmentStoreId !== fulfillmentStoreId
+    )));
   }
 
   function openPaymentPanel() {
@@ -696,6 +806,90 @@ export function AdminPosPage() {
   function closePaymentPanel() {
     if (submittingPayment) return;
     setShowPaymentDrawer(false);
+  }
+
+  async function validateCartStockSnapshot(): Promise<boolean> {
+    const requestedByStoreAndVariant = new Map<string, {
+      storeId: number;
+      variantId: number;
+      productName: string;
+      storeName: string;
+      quantity: number;
+    }>();
+
+    cart.forEach((item) => {
+      const key = `${item.fulfillmentStoreId}:${item.variantId}`;
+      const current = requestedByStoreAndVariant.get(key);
+      requestedByStoreAndVariant.set(key, {
+        storeId: item.fulfillmentStoreId,
+        variantId: item.variantId,
+        productName: item.productName,
+        storeName: item.fulfillmentStoreName,
+        quantity: (current?.quantity || 0) + item.quantity,
+      });
+    });
+
+    const requestsByStore = new Map<number, Array<{
+      variantId: number;
+      productName: string;
+      storeName: string;
+      quantity: number;
+    }>>();
+
+    requestedByStoreAndVariant.forEach((request) => {
+      const bucket = requestsByStore.get(request.storeId) || [];
+      bucket.push({
+        variantId: request.variantId,
+        productName: request.productName,
+        storeName: request.storeName,
+        quantity: request.quantity,
+      });
+      requestsByStore.set(request.storeId, bucket);
+    });
+
+    for (const [storeId, requests] of requestsByStore.entries()) {
+      const params = new URLSearchParams({
+        storeId: String(storeId),
+        variantIds: requests.map((request) => request.variantId).join(','),
+      });
+      const response = await fetch(`/api/admin/orders/variant-stock?${params.toString()}`, {
+        method: 'GET',
+        cache: 'no-store',
+      }).catch(() => null);
+
+      if (!response) {
+        showAlert('No se pudo validar el stock actual antes del cobro.', 'error');
+        return false;
+      }
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        showAlert(
+          String((payload as { error?: unknown; message?: unknown } | null)?.error
+            || (payload as { error?: unknown; message?: unknown } | null)?.message
+            || 'No se pudo validar el stock actual antes del cobro.'),
+          'error',
+        );
+        return false;
+      }
+
+      const stockByVariant = new Map(
+        normalizeVariantStockResponse(payload).map((row) => [row.variantId, row])
+      );
+
+      for (const request of requests) {
+        const availableStock = Math.max(0, Number(stockByVariant.get(request.variantId)?.availableStock || 0));
+        if (availableStock < request.quantity) {
+          showAlert(
+            `Stock insuficiente para ${request.productName} en ${request.storeName}. Solicitado: ${request.quantity}. Disponible: ${availableStock}.`,
+            'error',
+          );
+          return false;
+        }
+      }
+    }
+
+    return true;
   }
 
   async function submitPayment() {
@@ -720,7 +914,20 @@ export function AdminPosPage() {
 
     setSubmittingPayment(true);
     try {
+      const hasCurrentStock = await validateCartStockSnapshot();
+      if (!hasCurrentStock) {
+        return;
+      }
+
       const paymentReference = `POS-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+      const remoteFulfillmentStores = Array.from(new Map(
+        cart
+          .filter((item) => item.fulfillmentStoreId !== selectedStoreId)
+          .map((item) => [item.fulfillmentStoreId, item.fulfillmentStoreName])
+      ).values());
+      const fulfillmentNote = remoteFulfillmentStores.length > 0
+        ? `Reservas remotas generadas en tiendas: ${remoteFulfillmentStores.join(', ')}`
+        : '';
       const response = await fetch('/api/admin/orders', {
         method: 'POST',
         headers: {
@@ -728,16 +935,16 @@ export function AdminPosPage() {
         },
         body: JSON.stringify({
           sourceStoreId: selectedStoreId,
-          fulfillmentStoreId: selectedStoreId,
           applyIgv,
           clientName: asText(clientName, 'Cliente POS'),
           clientEmail: asText(clientEmail) || undefined,
           clientPhone: asText(clientPhone) || undefined,
-          note: buildOrderNote(orderNote, selectedPaymentMethod, paymentReference, amountPaid, change),
+          note: buildOrderNote([orderNote, fulfillmentNote].filter(Boolean).join(' | '), selectedPaymentMethod, paymentReference, amountPaid, change),
           items: cart.map((item) => ({
             variantId: item.variantId,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
+            fulfillmentStoreId: item.fulfillmentStoreId,
           })),
         }),
       });
@@ -903,13 +1110,16 @@ export function AdminPosPage() {
           ) : (
             <div className="admin-pos-cart-items-next">
               {cart.map((item) => (
-                <article key={item.variantId} className="admin-pos-cart-item-next">
+                <article key={`${item.variantId}-${item.fulfillmentStoreId}`} className="admin-pos-cart-item-next">
                   <div className="admin-pos-cart-item-image-next">
                     {item.imageUrl ? <img src={item.imageUrl} alt={item.productName} /> : <span>N/A</span>}
                   </div>
                   <div className="admin-pos-cart-item-main-next">
                     <h5>{item.productName}</h5>
                     <p className="admin-pos-item-variant-next">{item.colorName} / {item.sizeName}</p>
+                    {item.fulfillmentStoreId !== selectedStoreId ? (
+                      <p className="admin-pos-item-store-next">Reserva: {item.fulfillmentStoreName}</p>
+                    ) : null}
                     <p className="admin-pos-item-price-next">{formatCurrency(item.unitPrice)}</p>
                   </div>
                   <div className="admin-pos-item-quantity-next">
@@ -932,7 +1142,7 @@ export function AdminPosPage() {
                       type="button"
                       className="admin-pos-remove-btn-next"
                       disabled={!canSell}
-                      onClick={() => removeFromCart(item.variantId)}
+                      onClick={() => removeFromCart(item.variantId, item.fulfillmentStoreId)}
                       aria-label={`Quitar ${item.productName}`}
                     >
                       x
@@ -1087,8 +1297,41 @@ export function AdminPosPage() {
               </div>
 
               <div className="admin-pos-stock-info-next">
-                <p>Stock: {selectedVariant.availableStock} disponible(s)</p>
+                <p>
+                  Stock en {selectedStoreName}: {selectedVariant.availableStock} disponible(s)
+                </p>
+                {effectiveFulfillmentStoreId && effectiveFulfillmentStoreId !== selectedStoreId ? (
+                  <p>Reserva desde: {effectiveFulfillmentStoreName} ({effectiveVariantStock} disp.)</p>
+                ) : null}
               </div>
+
+              {selectedVariant.availableStock <= 0 ? (
+                <div className="admin-pos-remote-stock-next">
+                  <div className="admin-pos-remote-stock-head-next">
+                    <strong>Disponible en otras tiendas</strong>
+                    {loadingRemoteStock ? <span>Buscando...</span> : null}
+                  </div>
+                  {loadingRemoteStock ? (
+                    <p className="admin-muted-text">Consultando stock multitienda...</p>
+                  ) : remoteStockOptions.length === 0 ? (
+                    <p className="admin-muted-text">No hay stock disponible en otras tiendas para esta variante.</p>
+                  ) : (
+                    <div className="admin-pos-remote-store-list-next">
+                      {remoteStockOptions.map((option) => (
+                        <button
+                          key={option.storeId}
+                          type="button"
+                          className={`admin-pos-remote-store-btn-next ${selectedFulfillmentStoreId === option.storeId ? 'active' : ''}`}
+                          onClick={() => setSelectedFulfillmentStoreId(option.storeId)}
+                        >
+                          <span>{option.storeName}</span>
+                          <strong>{option.availableStock} disp.</strong>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : null}
 
               <div className="admin-pos-variant-section-next">
                 <label htmlFor="posVariantQuantity">Cantidad</label>
@@ -1096,7 +1339,7 @@ export function AdminPosPage() {
                   <button
                     type="button"
                     onClick={() => {
-                      const max = Math.max(1, selectedVariant.availableStock);
+                      const max = Math.max(1, effectiveVariantStock);
                       setVariantQuantity((current) => Math.max(1, Math.min(max, current - 1)));
                     }}
                   >
@@ -1106,18 +1349,18 @@ export function AdminPosPage() {
                     id="posVariantQuantity"
                     type="number"
                     min={1}
-                    max={Math.max(1, selectedVariant.availableStock)}
+                    max={Math.max(1, effectiveVariantStock)}
                     value={variantQuantity}
                     onChange={(event) => {
                       const next = Math.floor(Number(event.target.value || 1));
-                      const safe = Math.max(1, Math.min(Math.max(1, selectedVariant.availableStock), next));
+                      const safe = Math.max(1, Math.min(Math.max(1, effectiveVariantStock), next));
                       setVariantQuantity(safe);
                     }}
                   />
                   <button
                     type="button"
                     onClick={() => {
-                      const max = Math.max(1, selectedVariant.availableStock);
+                      const max = Math.max(1, effectiveVariantStock);
                       setVariantQuantity((current) => Math.max(1, Math.min(max, current + 1)));
                     }}
                   >
@@ -1131,7 +1374,7 @@ export function AdminPosPage() {
               <button
                 type="button"
                 className="admin-pos-drawer-primary-btn-next"
-                disabled={!canSell || selectedVariant.availableStock <= 0}
+                disabled={!canSell || effectiveVariantStock <= 0 || !effectiveFulfillmentStoreId}
                 onClick={addSelectedVariantToCart}
               >
                 Agregar al carrito

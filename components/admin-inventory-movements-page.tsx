@@ -3,12 +3,24 @@
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
+import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
 import { useAdminUi } from '@/components/admin-ui-provider';
 import { InventoryMovement, InventoryMovementType, normalizeInventoryMovements } from '@/lib/admin-inventory-types';
 
 type MovementTypeFilter = 'ALL' | InventoryMovementType;
 
 const ALLOWED_TYPES: MovementTypeFilter[] = ['ALL', 'IN', 'OUT', 'ADJUSTMENT', 'TRANSFER_OUT', 'TRANSFER_IN', 'RESERVED', 'UNRESERVED'];
+
+const MOVEMENT_TYPE_OPTIONS: AdminSelectOption<MovementTypeFilter>[] = [
+  { value: 'ALL', label: 'Todos' },
+  { value: 'IN', label: 'Ingreso' },
+  { value: 'OUT', label: 'Salida' },
+  { value: 'ADJUSTMENT', label: 'Ajuste' },
+  { value: 'TRANSFER_OUT', label: 'Transferencia salida' },
+  { value: 'TRANSFER_IN', label: 'Transferencia ingreso' },
+  { value: 'RESERVED', label: 'Comprometido' },
+  { value: 'UNRESERVED', label: 'Liberado' },
+];
 
 function parseInventoryId(value: string | null): number | null {
   const parsed = Number(value || 0);
@@ -157,7 +169,7 @@ export function AdminInventoryMovementsPage() {
 
       <article className="admin-card admin-filters-card-next inventory-filters-card">
         <fieldset className="admin-filters-fieldset-next">
-          <legend className="admin-filters-legend-next">Settings</legend>
+          <legend className="admin-filters-legend-next">Filtros</legend>
           <div className="inventory-movements-filter-grid">
             <label className="inventory-field">
               <span>Buscar movimiento</span>
@@ -169,22 +181,15 @@ export function AdminInventoryMovementsPage() {
               />
             </label>
 
-            <label className="inventory-field">
+            <div className="inventory-field">
               <span>Tipo</span>
-              <select
+              <AdminSelect
                 value={movementTypeFilter}
-                onChange={(event) => setMovementTypeFilter(ALLOWED_TYPES.includes(event.target.value as MovementTypeFilter) ? (event.target.value as MovementTypeFilter) : 'ALL')}
-              >
-                <option value="ALL">Todos</option>
-                <option value="IN">Ingreso</option>
-                <option value="OUT">Salida</option>
-                <option value="ADJUSTMENT">Ajuste</option>
-                <option value="TRANSFER_OUT">Transferencia salida</option>
-                <option value="TRANSFER_IN">Transferencia ingreso</option>
-                <option value="RESERVED">Comprometido</option>
-                <option value="UNRESERVED">Liberado</option>
-              </select>
-            </label>
+                options={MOVEMENT_TYPE_OPTIONS}
+                ariaLabel="Filtrar movimientos por tipo"
+                onChange={(nextValue) => setMovementTypeFilter(ALLOWED_TYPES.includes(nextValue) ? nextValue : 'ALL')}
+              />
+            </div>
 
             <div className="inventory-filter-inline-action">
               {inventoryIdFilter ? (

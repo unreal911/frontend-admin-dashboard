@@ -86,6 +86,11 @@ interface AdminProductModalSubmitPayload {
   payload: Record<string, unknown>;
 }
 
+type ProductModalFieldErrors = Partial<Record<
+  'name' | 'category' | 'variants' | 'variantPrices' | 'marketplaceVariants',
+  string
+>>;
+
 interface AdminProductModalProps {
   open: boolean;
   product: AdminProductDetail | null;
@@ -135,6 +140,15 @@ function fileToBase64(file: File): Promise<string> {
     reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(file);
   });
+}
+
+function LoadingSpinnerIcon() {
+  return (
+    <svg className="admin-loading-spinner" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M21 12a9 9 0 0 0-9-9" />
+    </svg>
+  );
 }
 
 function extractPublicIdFromUrl(url: string): string {
@@ -196,11 +210,16 @@ export function AdminProductModal({
   const [marketplaceColorImages, setMarketplaceColorImages] = useState<MarketplaceColorImageForm[]>([]);
   const [variantGroupImages, setVariantGroupImages] = useState<VariantGroupImageForm[]>([]);
   const [productImages, setProductImages] = useState<ProductImageForm[]>([]);
-  const [submitted, setSubmitted] = useState(false);
   const [formError, setFormError] = useState('');
   const [formMessage, setFormMessage] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<ProductModalFieldErrors>({});
   const [isGeneratingVariants, setIsGeneratingVariants] = useState(false);
   const [deletingImageIndex, setDeletingImageIndex] = useState<number | null>(null);
+  const formRef = useRef<HTMLFormElement | null>(null);
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
+  const categorySelectRef = useRef<HTMLSelectElement | null>(null);
+  const generateVariantsButtonRef = useRef<HTMLButtonElement | null>(null);
+  const marketplaceGenerateButtonRef = useRef<HTMLButtonElement | null>(null);
   const descriptionEditorRef = useRef<HTMLDivElement | null>(null);
 
   const isEditing = Boolean(product?.id);
@@ -212,9 +231,9 @@ export function AdminProductModal({
       return;
     }
 
-    setSubmitted(false);
     setFormError('');
     setFormMessage('');
+    setFieldErrors({});
     setDeletingImageIndex(null);
     setIsGeneratingVariants(false);
 
@@ -385,9 +404,16 @@ export function AdminProductModal({
 
     setMarketplaceColorImages((current) => {
       const byColorId = new Map(current.map((image) => [image.colorId, image]));
+      for (const image of product?.marketplaceColorImages || []) {
+        const colorId = toPositiveNumber(image.colorId);
+        const imageUrl = String(image.imageUrl || '').trim();
+        if (colorId && imageUrl && !byColorId.has(colorId)) {
+          byColorId.set(colorId, { colorId, imageUrl, imagePreview: imageUrl });
+        }
+      }
       return selectedColorIds.map((colorId) => byColorId.get(colorId) || { colorId });
     });
-  }, [open, isSimpleMode, marketplaceVariantsEnabled, selectedColorIds]);
+  }, [open, isSimpleMode, marketplaceVariantsEnabled, selectedColorIds, product]);
 
   useEffect(() => {
     if (!open || isSimpleMode) {
@@ -551,6 +577,8 @@ export function AdminProductModal({
 
   function toggleColor(colorId: number, checked: boolean) {
     setFormError('');
+    clearFieldError('variants');
+    clearFieldError('marketplaceVariants');
     setSelectedColorIds((current) => {
       const next = checked ? [...current, colorId] : current.filter((id) => id !== colorId);
       return uniqueNumbers(next);
@@ -559,6 +587,8 @@ export function AdminProductModal({
 
   function toggleSize(sizeId: number, checked: boolean) {
     setFormError('');
+    clearFieldError('variants');
+    clearFieldError('marketplaceVariants');
     setSelectedSizeIds((current) => {
       const next = checked ? [...current, sizeId] : current.filter((id) => id !== sizeId);
       return uniqueNumbers(next);
@@ -584,24 +614,6 @@ export function AdminProductModal({
       next[index] = {
         ...next[index],
         isActive: checked,
-      };
-      return next;
-    });
-  }
-
-  function onVariantImageFileChange(index: number, event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
-
-    const preview = URL.createObjectURL(file);
-    setVariants((current) => {
-      const next = [...current];
-      next[index] = {
-        ...next[index],
-        imageFile: file,
-        imagePreview: preview,
       };
       return next;
     });
@@ -696,6 +708,8 @@ export function AdminProductModal({
       const withoutCurrent = current.filter((image) => image.colorId !== colorId);
       return [...withoutCurrent, nextImage].sort((a, b) => selectedColorIds.indexOf(a.colorId) - selectedColorIds.indexOf(b.colorId));
     });
+    setFormError('');
+    setFormMessage(`Preview actualizada para ${getColorName(colorId)}. Guarda cambios para publicarla.`);
     event.target.value = '';
   }
 
@@ -705,11 +719,13 @@ export function AdminProductModal({
         ? { colorId }
         : image
     )));
+    setFormMessage(`Imagen de ${getColorName(colorId)} quitada. Guarda cambios para aplicar.`);
   }
 
   async function generateVariants() {
     setFormError('');
     setFormMessage('');
+    clearFieldError('variants');
 
     if (isSimpleMode) {
       setFormError('En modo producto unico no necesitas generar variantes.');
@@ -734,6 +750,7 @@ export function AdminProductModal({
         });
       });
       setVariants(merged);
+      clearFieldError('variantPrices');
       return;
     }
 
@@ -775,6 +792,7 @@ export function AdminProductModal({
         });
       });
       setVariants(merged);
+      clearFieldError('variantPrices');
     } catch {
       setFormError('No se pudieron generar variantes.');
     } finally {
@@ -785,6 +803,7 @@ export function AdminProductModal({
   async function generateMarketplaceVariants() {
     setFormError('');
     setFormMessage('');
+    clearFieldError('marketplaceVariants');
 
     if (!isSimpleMode || !marketplaceVariantsEnabled) {
       return;
@@ -830,6 +849,7 @@ export function AdminProductModal({
         }));
 
       setMarketplaceVariants(generated);
+      clearFieldError('marketplaceVariants');
     } catch {
       setFormError('No se pudieron generar variantes de marketplace.');
     } finally {
@@ -1005,45 +1025,113 @@ export function AdminProductModal({
     return result;
   }
 
+  function clearFieldError(field: keyof ProductModalFieldErrors) {
+    setFieldErrors((current) => {
+      if (!current[field]) {
+        return current;
+      }
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  }
+
+  function focusInvalidControl(errors: ProductModalFieldErrors, firstInvalidPriceIndex: number) {
+    window.setTimeout(() => {
+      if (errors.name) {
+        nameInputRef.current?.focus();
+        nameInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+
+      if (errors.category) {
+        categorySelectRef.current?.focus();
+        categorySelectRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+
+      if (errors.variants) {
+        generateVariantsButtonRef.current?.focus();
+        generateVariantsButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+
+      if (errors.variantPrices && firstInvalidPriceIndex >= 0) {
+        const priceInput = formRef.current?.querySelector<HTMLInputElement>(
+          `[data-variant-price-index="${firstInvalidPriceIndex}"]`,
+        );
+        priceInput?.focus();
+        priceInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+
+      if (errors.marketplaceVariants) {
+        marketplaceGenerateButtonRef.current?.focus();
+        marketplaceGenerateButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 0);
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSubmitted(true);
     setFormError('');
     setFormMessage('');
+    setFieldErrors({});
 
     const normalizedName = String(name || '').trim();
     const normalizedDescription = String(description || '').trim();
     const normalizedCategoryId = Number(categoryId);
+    const nextFieldErrors: ProductModalFieldErrors = {};
+    const firstInvalidPriceIndex = variants.findIndex((variant) => toNumber(variant.price) <= 0);
+    const baseVariant = variants[0];
+    const normalizedMarketplaceColorIds = uniqueNumbers(selectedColorIds);
+    const normalizedMarketplaceSizeIds = uniqueNumbers(selectedSizeIds);
+    const effectiveMarketplaceVariants = isSimpleMode && marketplaceVariantsEnabled && baseVariant
+      ? normalizedMarketplaceColorIds.flatMap((colorId) => (
+        normalizedMarketplaceSizeIds.map((sizeId) => ({
+          colorId,
+          sizeId,
+          price: toNumber(baseVariant.price),
+          isActive: true,
+        }))
+      ))
+      : [];
 
     if (!normalizedName || normalizedName.length < 3) {
-      setFormError('El nombre es obligatorio y debe tener al menos 3 caracteres.');
-      return;
+      nextFieldErrors.name = 'El nombre es obligatorio y debe tener al menos 3 caracteres.';
     }
     if (!Number.isInteger(normalizedCategoryId) || normalizedCategoryId < 1) {
-      setFormError('Selecciona una categoria valida.');
-      return;
+      nextFieldErrors.category = 'Selecciona una categoria valida.';
     }
 
     if (!variants.length) {
-      setFormError(
-        isSimpleMode
+      nextFieldErrors.variants = isSimpleMode
           ? 'Configura el precio de la variante unica antes de guardar.'
-          : 'Genera las variantes antes de guardar.',
-      );
+          : 'Genera las variantes antes de guardar.';
+    }
+
+    if (firstInvalidPriceIndex >= 0) {
+      nextFieldErrors.variantPrices = 'Cada variante debe tener un precio mayor que 0.';
+    }
+
+    if (isSimpleMode && marketplaceVariantsEnabled) {
+      if (!normalizedMarketplaceColorIds.length || !normalizedMarketplaceSizeIds.length) {
+        nextFieldErrors.marketplaceVariants = 'Selecciona al menos un color y una talla para publicar imagenes por color en marketplace.';
+      } else if (!baseVariant) {
+        nextFieldErrors.marketplaceVariants = 'Configura primero la variante unica antes de publicar variantes marketplace.';
+      } else if (effectiveMarketplaceVariants.length === 0) {
+        nextFieldErrors.marketplaceVariants = 'No se pudieron preparar las combinaciones marketplace. Revisa colores y tallas.';
+      }
+    }
+
+    if (Object.keys(nextFieldErrors).length > 0) {
+      setFieldErrors(nextFieldErrors);
+      setFormError('Revisa los campos marcados antes de guardar.');
+      focusInvalidControl(nextFieldErrors, firstInvalidPriceIndex);
       return;
     }
 
-    if (variants.some((variant) => toNumber(variant.price) <= 0)) {
-      setFormError('Cada variante debe tener un precio mayor que 0.');
-      return;
-    }
-
-    if (isSimpleMode && marketplaceVariantsEnabled && marketplaceVariants.length === 0) {
-      setFormError('Genera las variantes para marketplace o desactiva esa opcion.');
-      return;
-    }
-
-    const shouldPersistMarketplaceDimensions = isSimpleMode && marketplaceVariantsEnabled && marketplaceVariants.length > 0;
+    const shouldPersistMarketplaceDimensions = isSimpleMode && marketplaceVariantsEnabled && effectiveMarketplaceVariants.length > 0;
     const imageUrls = productImages.filter((image) => image.url).map((image) => image.url as string);
     const imageFiles = await buildImageFilesPayload();
     const payloadVariants = await buildVariantPayload(variants, variantMode);
@@ -1056,8 +1144,8 @@ export function AdminProductModal({
       description: normalizedDescription,
       categoryId: normalizedCategoryId,
       variantMode,
-      colorIds: variantMode === 'MATRIX' || shouldPersistMarketplaceDimensions ? uniqueNumbers(selectedColorIds) : [],
-      sizeIds: isSimpleMode && !shouldPersistMarketplaceDimensions ? [] : uniqueNumbers(selectedSizeIds),
+      colorIds: variantMode === 'MATRIX' || shouldPersistMarketplaceDimensions ? normalizedMarketplaceColorIds : [],
+      sizeIds: isSimpleMode && !shouldPersistMarketplaceDimensions ? [] : normalizedMarketplaceSizeIds,
       imageUrls,
       variants: payloadVariants,
     };
@@ -1072,18 +1160,26 @@ export function AdminProductModal({
 
     if (isEditing && product?.id) {
       commonPayload.isActive = isActive;
-      await onSubmit({
-        mode: 'edit',
-        id: product.id,
-        payload: commonPayload,
-      });
+      try {
+        await onSubmit({
+          mode: 'edit',
+          id: product.id,
+          payload: commonPayload,
+        });
+      } catch (error) {
+        setFormError(error instanceof Error ? error.message : 'No se pudo actualizar el producto.');
+      }
       return;
     }
 
-    await onSubmit({
-      mode: 'create',
-      payload: commonPayload,
-    });
+    try {
+      await onSubmit({
+        mode: 'create',
+        payload: commonPayload,
+      });
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'No se pudo crear el producto.');
+    }
   }
 
   function getColorName(colorId: number) {
@@ -1109,6 +1205,17 @@ export function AdminProductModal({
     return String(image?.imagePreview || image?.imageUrl || '').trim();
   }
 
+  function getMarketplaceColorImageLabel(colorId: number): string {
+    const image = marketplaceColorImages.find((item) => item.colorId === colorId);
+    if (image?.imageFile?.name) {
+      return image.imageFile.name;
+    }
+    if (image?.imageUrl) {
+      return 'Imagen guardada';
+    }
+    return 'Sin imagen seleccionada';
+  }
+
   function getVariantGroupPreview(groupType: 'color' | 'size', groupId: number): string {
     const groupImage = variantGroupImages.find((image) => image.groupType === groupType && image.groupId === groupId);
     const groupPreview = String(groupImage?.imagePreview || groupImage?.imageUrl || '').trim();
@@ -1125,7 +1232,7 @@ export function AdminProductModal({
   }
 
   return (
-    <div className="admin-modal-overlay" role="presentation" onClick={onClose}>
+    <div className="admin-modal-overlay" role="presentation" onClick={isSubmitting ? undefined : onClose}>
       <div
         className="admin-modal-dialog admin-product-modal-dialog"
         role="dialog"
@@ -1156,23 +1263,46 @@ export function AdminProductModal({
         {formError ? <p className="admin-modal-error">{formError}</p> : null}
         {formMessage ? <p className="admin-modal-success">{formMessage}</p> : null}
 
-        <form className="admin-modal-form admin-product-modal-form" onSubmit={handleSubmit}>
+        <form ref={formRef} className="admin-modal-form admin-product-modal-form" onSubmit={handleSubmit}>
           <div className="admin-product-basic-grid">
             <label>
               <span>Nombre</span>
               <input
+                ref={nameInputRef}
                 type="text"
                 placeholder="Nombre del producto"
                 value={name}
-                onChange={(event) => setName(event.target.value)}
+                className={fieldErrors.name ? 'admin-field-invalid' : undefined}
+                aria-invalid={Boolean(fieldErrors.name)}
+                aria-describedby={fieldErrors.name ? 'product-name-error' : undefined}
+                disabled={isSubmitting}
+                onChange={(event) => {
+                  setName(event.target.value);
+                  clearFieldError('name');
+                  setFormError('');
+                }}
               />
+              {fieldErrors.name ? (
+                <small id="product-name-error" className="admin-field-error-text">
+                  {fieldErrors.name}
+                </small>
+              ) : null}
             </label>
 
             <label>
               <span>Categoria</span>
               <select
+                ref={categorySelectRef}
                 value={categoryId ?? ''}
-                onChange={(event) => setCategoryId(toPositiveNumber(event.target.value) || null)}
+                className={fieldErrors.category ? 'admin-field-invalid' : undefined}
+                aria-invalid={Boolean(fieldErrors.category)}
+                aria-describedby={fieldErrors.category ? 'product-category-error' : undefined}
+                disabled={isSubmitting}
+                onChange={(event) => {
+                  setCategoryId(toPositiveNumber(event.target.value) || null);
+                  clearFieldError('category');
+                  setFormError('');
+                }}
               >
                 <option value="">Selecciona una categoria</option>
                 {categories.map((category) => (
@@ -1181,6 +1311,11 @@ export function AdminProductModal({
                   </option>
                 ))}
               </select>
+              {fieldErrors.category ? (
+                <small id="product-category-error" className="admin-field-error-text">
+                  {fieldErrors.category}
+                </small>
+              ) : null}
             </label>
           </div>
 
@@ -1315,7 +1450,11 @@ export function AdminProductModal({
                 <input
                   type="checkbox"
                   checked={marketplaceVariantsEnabled}
-                  onChange={(event) => setMarketplaceVariantsEnabled(event.target.checked)}
+                  onChange={(event) => {
+                    setMarketplaceVariantsEnabled(event.target.checked);
+                    clearFieldError('marketplaceVariants');
+                    setFormError('');
+                  }}
                 />
                 Variantes para marketplace (color/talla)
               </label>
@@ -1358,6 +1497,7 @@ export function AdminProductModal({
 
                   <div className="admin-product-inline-actions">
                     <button
+                      ref={marketplaceGenerateButtonRef}
                       type="button"
                       className="admin-primary-btn"
                       onClick={generateMarketplaceVariants}
@@ -1367,6 +1507,11 @@ export function AdminProductModal({
                     </button>
                     <span>Combinaciones: {marketplaceVariants.length}</span>
                   </div>
+                  {fieldErrors.marketplaceVariants ? (
+                    <p className="admin-field-error-text admin-product-block-error">
+                      {fieldErrors.marketplaceVariants}
+                    </p>
+                  ) : null}
 
                   {selectedColorIds.length ? (
                     <section className="admin-marketplace-color-images-next">
@@ -1397,11 +1542,17 @@ export function AdminProductModal({
                                   <td>{index + 1}</td>
                                   <td>{getColorName(colorId)}</td>
                                   <td>
-                                    <input
-                                      type="file"
-                                      accept="image/*"
-                                      onChange={(event) => onMarketplaceColorImageFileChange(colorId, event)}
-                                    />
+                                    <label className="admin-file-picker-next">
+                                      <span>Seleccionar imagen</span>
+                                      <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(event) => onMarketplaceColorImageFileChange(colorId, event)}
+                                      />
+                                    </label>
+                                    <small className="admin-file-picker-name-next">
+                                      {getMarketplaceColorImageLabel(colorId)}
+                                    </small>
                                   </td>
                                   <td>
                                     {preview ? (
@@ -1529,6 +1680,7 @@ export function AdminProductModal({
           {!isSimpleMode ? (
             <div className="admin-product-inline-actions">
               <button
+                ref={generateVariantsButtonRef}
                 type="button"
                 className="admin-primary-btn"
                 onClick={generateVariants}
@@ -1537,6 +1689,11 @@ export function AdminProductModal({
                 {isGeneratingVariants ? 'Generando...' : isSizeOnlyMode ? 'Generar por talla' : 'Generar variantes'}
               </button>
             </div>
+          ) : null}
+          {fieldErrors.variants ? (
+            <p className="admin-field-error-text admin-product-block-error">
+              {fieldErrors.variants}
+            </p>
           ) : null}
 
           {!isSimpleMode && (isSizeOnlyMode ? selectedSizeIds.length : selectedColorIds.length) ? (
@@ -1641,7 +1798,13 @@ export function AdminProductModal({
                           min="0"
                           step="0.01"
                           value={toNumber(variant.price)}
-                          onChange={(event) => onVariantPriceChange(index, event.target.value)}
+                          data-variant-price-index={index}
+                          className={fieldErrors.variantPrices && toNumber(variant.price) <= 0 ? 'admin-field-invalid' : undefined}
+                          aria-invalid={Boolean(fieldErrors.variantPrices && toNumber(variant.price) <= 0)}
+                          onChange={(event) => {
+                            onVariantPriceChange(index, event.target.value);
+                            clearFieldError('variantPrices');
+                          }}
                         />
                       </td>
                       <td>
@@ -1657,6 +1820,11 @@ export function AdminProductModal({
               </table>
             </div>
           ) : null}
+          {fieldErrors.variantPrices ? (
+            <p className="admin-field-error-text admin-product-block-error">
+              {fieldErrors.variantPrices}
+            </p>
+          ) : null}
 
           {isEditing ? (
             <label className="admin-checkbox">
@@ -1669,18 +1837,19 @@ export function AdminProductModal({
             </label>
           ) : null}
 
-          {submitted && (!name.trim() || name.trim().length < 3 || !categoryId) ? (
-            <p className="admin-modal-error">
-              Revisa los campos obligatorios antes de guardar.
-            </p>
-          ) : null}
-
           <div className="admin-modal-actions">
             <button type="button" className="admin-ghost-btn" onClick={onClose} disabled={isSubmitting}>
               Cancelar
             </button>
-            <button type="submit" className="admin-primary-btn" disabled={isSubmitting}>
-              {isSubmitting ? 'Guardando...' : isEditing ? 'Actualizar' : 'Crear producto'}
+            <button type="submit" className="admin-primary-btn admin-submit-btn-next" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <LoadingSpinnerIcon />
+                  {isEditing ? 'Actualizando...' : 'Creando...'}
+                </>
+              ) : (
+                isEditing ? 'Actualizar' : 'Crear producto'
+              )}
             </button>
           </div>
         </form>

@@ -3,10 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3001",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
+    "test:unit": "playwright test -c playwright.unit.config.ts",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed"
   },

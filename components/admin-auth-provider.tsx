@@ -1,11 +1,13 @@
 'use client';
 
+import { usePathname, useRouter } from 'next/navigation';
 import {
   createContext,
   useCallback,
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 
@@ -74,8 +76,25 @@ function normalizeAuthUser(payload: unknown): AdminAuthUser | null {
 }
 
 export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname() || '/admin/dashboard';
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<AdminAuthUser | null>(null);
+  const redirectingToLoginRef = useRef(false);
+
+  const redirectToLogin = useCallback(() => {
+    if (redirectingToLoginRef.current) {
+      return;
+    }
+
+    redirectingToLoginRef.current = true;
+    const returnUrl = typeof window === 'undefined'
+      ? pathname
+      : `${window.location.pathname}${window.location.search}`;
+    const loginUrl = `/login?returnUrl=${encodeURIComponent(returnUrl.startsWith('/admin') ? returnUrl : pathname)}`;
+    router.replace(loginUrl);
+    router.refresh();
+  }, [pathname, router]);
 
   const refreshUser = useCallback(async () => {
     setLoading(true);
@@ -87,6 +106,9 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
         setUser(null);
+        if (response.status === 401) {
+          redirectToLogin();
+        }
         return;
       }
       setUser(normalizeAuthUser(payload));
@@ -95,7 +117,36 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [redirectToLogin]);
+
+  useEffect(() => {
+    const originalFetch = window.fetch.bind(window);
+
+    window.fetch = async (input, init) => {
+      const response = await originalFetch(input, init);
+      const url = typeof input === 'string'
+        ? input
+        : input instanceof URL
+          ? input.pathname
+          : input.url;
+      const path = url.startsWith('http') ? new URL(url).pathname : url;
+      const isAdminApi = path.startsWith('/api/admin/');
+      const isSessionEndpoint = path.startsWith('/api/admin/session');
+
+      if (response.status === 401 && isAdminApi && !isSessionEndpoint) {
+        setUser(null);
+        void originalFetch('/api/admin/session', { method: 'DELETE' }).finally(() => {
+          redirectToLogin();
+        });
+      }
+
+      return response;
+    };
+
+    return () => {
+      window.fetch = originalFetch;
+    };
+  }, [redirectToLogin]);
 
   useEffect(() => {
     refreshUser();
@@ -145,4 +196,3 @@ export function useAdminAuth() {
   }
   return context;
 }
-

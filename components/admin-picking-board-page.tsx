@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useAdminAuth } from '@/components/admin-auth-provider';
 import { useAdminUi } from '@/components/admin-ui-provider';
 import {
@@ -23,6 +24,11 @@ const STATUS_SHORTCUTS: Array<{ value: '' | AdminOrderStatus; label: string }> =
   { value: 'PREPARING', label: 'Preparando' },
   { value: 'READY', label: 'Listos' },
 ];
+
+function toPickingStatusFilter(value: string | null): '' | AdminOrderStatus {
+  const normalized = String(value || '').trim().toUpperCase() as AdminOrderStatus;
+  return STATUS_SHORTCUTS.some((shortcut) => shortcut.value === normalized) ? normalized : '';
+}
 
 function getStatusLabel(status: string): string {
   const labels: Record<string, string> = {
@@ -131,6 +137,7 @@ function getItemKey(item: AdminOrderItem): string {
 }
 
 export function AdminPickingBoardPage() {
+  const searchParams = useSearchParams();
   const { showAlert } = useAdminUi();
   const { hasPermission, user } = useAdminAuth();
 
@@ -334,6 +341,19 @@ export function AdminPickingBoardPage() {
   useEffect(() => {
     void loadOrders(statusFilter);
   }, [loadOrders, statusFilter]);
+
+  useEffect(() => {
+    const nextStatus = toPickingStatusFilter(searchParams.get('status'));
+    setStatusFilter(nextStatus);
+    setSelectedOrderId(null);
+    setSelectedOrder(null);
+    setRequestingResponsibilityMode(null);
+    setResolvingRequestIds([]);
+    setRequestingUnpickItemIds([]);
+    setResolvingUnpickRequestIds([]);
+    setOpenUnpickRequestItemId(null);
+    setUnpickDraftByItemId({});
+  }, [searchParams]);
 
   useEffect(() => {
     if (!selectedOrderId) {

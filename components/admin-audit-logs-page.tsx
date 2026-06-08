@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, Fragment, useEffect, useState } from 'react';
+import { AdminSelect } from '@/components/admin-select';
 import { useAdminUi } from '@/components/admin-ui-provider';
 
 interface AuditActor {
@@ -326,17 +327,15 @@ export function AdminAuditLogsPage() {
             value={filters.search}
             onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
           />
-          <select
+          <AdminSelect
             value={filters.method}
-            onChange={(event) => setFilters((current) => ({ ...current, method: event.target.value }))}
-          >
-            <option value="">Todos los metodos</option>
-            {HTTP_METHODS.map((method) => (
-              <option key={method} value={method}>
-                {method}
-              </option>
-            ))}
-          </select>
+            options={[
+              { value: '', label: 'Todos los metodos' },
+              ...HTTP_METHODS.map((method) => ({ value: method, label: method })),
+            ]}
+            ariaLabel="Filtrar auditoria por metodo HTTP"
+            onChange={(nextValue) => setFilters((current) => ({ ...current, method: nextValue }))}
+          />
           <input
             type="number"
             min={100}

@@ -4,11 +4,13 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAdminAuth } from '@/components/admin-auth-provider';
+import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
 import { useAdminUi } from '@/components/admin-ui-provider';
 import {
   AdminOrder,
   AdminOrderItem,
   AdminOrderReservation,
+  AdminSimpleUser,
   AdminOrderStatus,
   normalizeOrderDetailResponse,
   normalizeOrderPickingResponse,
@@ -53,6 +55,17 @@ const AVAILABLE_TRANSITIONS: Record<AdminOrderStatus, AdminOrderStatus[]> = {
 
 type PrintLayout = 'invoice' | 'ticket';
 type AssignRole = 'seller' | 'picker' | 'dispenser';
+
+const PRINT_LAYOUT_OPTIONS: AdminSelectOption<PrintLayout>[] = [
+  { value: 'invoice', label: 'Boleta A4' },
+  { value: 'ticket', label: 'Ticket termico' },
+];
+
+const ASSIGN_ROLE_OPTIONS: AdminSelectOption<AssignRole>[] = [
+  { value: 'seller', label: 'Vendedor' },
+  { value: 'picker', label: 'Picker' },
+  { value: 'dispenser', label: 'Despachador' },
+];
 
 interface TimelineEvent {
   label: string;
@@ -476,7 +489,48 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
     return allPicked;
   }, [canCompletePickingPermission, canCurrentUserOperatePickingByResponsibility, finishingPicking, isPickingFinalizedForDetail, order]);
   const isReturnPendingOrder = useMemo(() => String(order?.status || '').toUpperCase() === 'RETURN_PENDING', [order?.status]);
-  const returnWorkflow = order?.returnWorkflow || null;
+  const returnWorkflow = useMemo(() => {
+    const rawWorkflow = order?.returnWorkflow || null;
+    if (!order || !isReturnPendingOrder) {
+      return rawWorkflow;
+    }
+
+    const currentUserFallback: AdminSimpleUser | null = user
+      ? {
+        id: Number(user.id),
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+      }
+      : null;
+    const effectiveResponsible = rawWorkflow?.responsible
+      || rawWorkflow?.cancelledBy
+      || order.dispenserUser
+      || order.pickerUser
+      || order.sellerUser
+      || order.primaryResponsible
+      || currentUserFallback
+      || null;
+    const effectiveCancelledBy = rawWorkflow?.cancelledBy || effectiveResponsible;
+    const hasDelegation = Boolean(rawWorkflow?.delegatedBy);
+    const rawAcceptanceStatus = String(rawWorkflow?.acceptanceStatus || '').trim().toUpperCase();
+    const shouldTreatInitialReturnAsAccepted = Boolean(effectiveResponsible)
+      && !hasDelegation
+      && (!rawAcceptanceStatus || rawAcceptanceStatus === 'PENDING');
+    const acceptanceStatus = shouldTreatInitialReturnAsAccepted
+      ? 'ACCEPTED'
+      : rawWorkflow?.acceptanceStatus || null;
+
+    return {
+      requestedAt: rawWorkflow?.requestedAt || order.updatedAt || null,
+      returnedAt: rawWorkflow?.returnedAt || null,
+      acceptanceStatus,
+      acceptedAt: rawWorkflow?.acceptedAt || (shouldTreatInitialReturnAsAccepted ? rawWorkflow?.requestedAt || order.updatedAt || null : null),
+      cancelledBy: effectiveCancelledBy,
+      responsible: effectiveResponsible,
+      delegatedBy: rawWorkflow?.delegatedBy || null,
+    };
+  }, [isReturnPendingOrder, order, user]);
   const isReturnResponsibilityAccepted = useMemo(
     () => String(returnWorkflow?.acceptanceStatus || '').toUpperCase() === 'ACCEPTED',
     [returnWorkflow?.acceptanceStatus],
@@ -1128,6 +1182,10 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
     return String(order?.sourceStore?.name || '-');
   }
 
+  function getItemFulfillmentStoreName(item: AdminOrderItem): string {
+    return String(item.fulfillmentStore?.name || order?.fulfillmentStore?.name || order?.sourceStore?.name || 'N/A');
+  }
+
   function getReturnReservationStatusLabel(status: string): string {
     if (String(status || '').toUpperCase() === 'ACTIVE' && isReturnPendingOrder) {
       return 'Activa (pendiente devolucion)';
@@ -1350,13 +1408,15 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
           <p className="order-detail-client-next">{order.clientName || 'Cliente'} - {order.clientEmail || '-'}</p>
         </div>
         <div className="order-detail-header-actions-next">
-          <label className="inventory-field order-detail-print-picker-next">
+          <div className="inventory-field order-detail-print-picker-next">
             <span>Formato</span>
-            <select value={printLayout} onChange={(event) => setPrintLayout(event.target.value as PrintLayout)}>
-              <option value="invoice">Boleta A4</option>
-              <option value="ticket">Ticket termico</option>
-            </select>
-          </label>
+            <AdminSelect
+              value={printLayout}
+              options={PRINT_LAYOUT_OPTIONS}
+              ariaLabel="Seleccionar formato de impresion"
+              onChange={setPrintLayout}
+            />
+          </div>
           <button type="button" className="admin-ghost-btn order-detail-header-btn-next" onClick={printOrder}>Imprimir</button>
           <Link href="/admin/orders/list" className="admin-ghost-btn order-detail-header-btn-next">Volver al listado</Link>
           <Link href="/admin/orders/picking" className="admin-ghost-btn order-detail-header-btn-next">Tablero de picking</Link>
@@ -1394,18 +1454,17 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
           </div>
 
           <div className="order-status-update-next">
-            <label className="inventory-field">
+            <div className="inventory-field">
               <span>Cambiar estado</span>
-              <select
+              <AdminSelect
                 value={selectedStatus}
                 disabled={!canUpdateOrderStatus || nextStates.length === 0}
-                onChange={(event) => setSelectedStatus(event.target.value as AdminOrderStatus)}
-              >
-                {(nextStates.length > 0 ? nextStates : (normalizedCurrentOrderStatus ? [normalizedCurrentOrderStatus] : [])).map((status) => (
-                  <option key={status} value={status}>{getStatusLabel(status)}</option>
-                ))}
-              </select>
-            </label>
+                options={(nextStates.length > 0 ? nextStates : (normalizedCurrentOrderStatus ? [normalizedCurrentOrderStatus] : []))
+                  .map((status) => ({ value: status, label: getStatusLabel(status) }))}
+                ariaLabel="Cambiar estado de orden"
+                onChange={setSelectedStatus}
+              />
+            </div>
             <label className="inventory-field order-status-note-field-next">
               <span>Nota (opcional)</span>
               <textarea
@@ -1610,6 +1669,7 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
               <tr>
                 <th>Producto</th>
                 <th>Variante</th>
+                <th>Reserva</th>
                 <th>Cantidad</th>
                 <th>Precio Unit.</th>
                 <th>Subtotal</th>
@@ -1620,13 +1680,14 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
             <tbody>
               {order.items.length === 0 ? (
                 <tr>
-                  <td colSpan={7}>No hay items en el pedido.</td>
+                  <td colSpan={8}>No hay items en el pedido.</td>
                 </tr>
               ) : (
                 order.items.map((item) => (
                   <tr key={item.id}>
                     <td>{item.variant.productName}</td>
                     <td>{item.variant.colorName} - {item.variant.sizeName}</td>
+                    <td>{getItemFulfillmentStoreName(item)}</td>
                     <td>{item.quantity}</td>
                     <td>{formatMoney(item.unitPrice)}</td>
                     <td>{formatMoney(item.subtotal)}</td>
@@ -1654,6 +1715,10 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
                   <div className="order-detail-mobile-field-next">
                     <span>Variante</span>
                     <strong>{item.variant.colorName || '-'} - {item.variant.sizeName || '-'}</strong>
+                  </div>
+                  <div className="order-detail-mobile-field-next">
+                    <span>Reserva</span>
+                    <strong>{getItemFulfillmentStoreName(item)}</strong>
                   </div>
                   <div className="order-detail-mobile-field-next">
                     <span>Cantidad</span>
@@ -2008,34 +2073,32 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
                 void submitAssignResponsible();
               }}
             >
-              <label>
+              <div className="admin-field-block">
                 <span>Rol</span>
-                <select
+                <AdminSelect
                   value={assignRole}
                   disabled={assigningResponsible}
-                  onChange={(event) => setAssignRole(event.target.value as AssignRole)}
-                >
-                  <option value="seller">Vendedor</option>
-                  <option value="picker">Picker</option>
-                  <option value="dispenser">Despachador</option>
-                </select>
-              </label>
+                  options={ASSIGN_ROLE_OPTIONS}
+                  ariaLabel="Seleccionar rol responsable"
+                  onChange={setAssignRole}
+                />
+              </div>
 
-              <label>
+              <div className="admin-field-block">
                 <span>Usuario</span>
-                <select
-                  value={assignUserId}
+                <AdminSelect
+                  value={String(assignUserId)}
                   disabled={assigningResponsible || loadingAssignUsers || assignUsers.length === 0}
-                  onChange={(event) => setAssignUserId(Number(event.target.value) || 0)}
-                >
-                  {assignUsers.length === 0 ? <option value={0}>Sin usuarios disponibles</option> : null}
-                  {assignUsers.map((userOption) => (
-                    <option key={`assign-user-${userOption.id}`} value={userOption.id}>
-                      {`${userOption.firstName} ${userOption.lastName}`.trim() || userOption.email}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  options={assignUsers.length === 0
+                    ? [{ value: '0', label: 'Sin usuarios disponibles' }]
+                    : assignUsers.map((userOption) => ({
+                      value: String(userOption.id),
+                      label: `${userOption.firstName} ${userOption.lastName}`.trim() || userOption.email,
+                    }))}
+                  ariaLabel="Seleccionar usuario responsable"
+                  onChange={(nextValue) => setAssignUserId(Number(nextValue) || 0)}
+                />
+              </div>
 
               {assignUsersError ? <p className="admin-modal-error">{assignUsersError}</p> : null}
 
@@ -2090,21 +2153,21 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
                 void delegateReturnResponsibility();
               }}
             >
-              <label>
+              <div className="admin-field-block">
                 <span>Usuario</span>
-                <select
-                  value={returnDelegateUserId}
+                <AdminSelect
+                  value={String(returnDelegateUserId)}
                   disabled={delegatingReturn || loadingAssignUsers || assignUsers.length === 0}
-                  onChange={(event) => setReturnDelegateUserId(Number(event.target.value) || 0)}
-                >
-                  {assignUsers.length === 0 ? <option value={0}>Sin usuarios disponibles</option> : null}
-                  {assignUsers.map((userOption) => (
-                    <option key={`delegate-user-${userOption.id}`} value={userOption.id}>
-                      {`${userOption.firstName} ${userOption.lastName}`.trim() || userOption.email}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  options={assignUsers.length === 0
+                    ? [{ value: '0', label: 'Sin usuarios disponibles' }]
+                    : assignUsers.map((userOption) => ({
+                      value: String(userOption.id),
+                      label: `${userOption.firstName} ${userOption.lastName}`.trim() || userOption.email,
+                    }))}
+                  ariaLabel="Seleccionar usuario delegado"
+                  onChange={(nextValue) => setReturnDelegateUserId(Number(nextValue) || 0)}
+                />
+              </div>
 
               <label>
                 <span>Nota</span>

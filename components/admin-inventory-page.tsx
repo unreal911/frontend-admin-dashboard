@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
+import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
 import { useAdminUi } from '@/components/admin-ui-provider';
 import {
   Inventory,
@@ -26,6 +27,30 @@ interface InventoryVariantOption {
 
 type InventoryStockScope = 'ALL' | 'OUT' | 'CRITICAL' | 'LOW' | 'NORMAL';
 
+const INVENTORY_STOCK_SCOPE_OPTIONS: AdminSelectOption<InventoryStockScope>[] = [
+  { value: 'ALL', label: 'Todos' },
+  { value: 'OUT', label: 'Sin stock' },
+  { value: 'CRITICAL', label: 'Critico (1-3)' },
+  { value: 'LOW', label: 'Bajo (4-10)' },
+  { value: 'NORMAL', label: 'Normal' },
+];
+
+const INVENTORY_MOVEMENT_TYPE_OPTIONS: AdminSelectOption<InventoryMovementType>[] = [
+  { value: 'IN', label: 'Ingreso' },
+  { value: 'OUT', label: 'Salida' },
+  { value: 'ADJUSTMENT', label: 'Ajuste' },
+];
+
+function toInventoryStockScope(value: string | null): InventoryStockScope {
+  const normalized = String(value || '').trim().toUpperCase().replace('-', '_');
+  if (normalized === 'OUT') return 'OUT';
+  if (normalized === 'CRITICAL') return 'CRITICAL';
+  if (normalized === 'LOW') return 'LOW';
+  if (normalized === 'NORMAL') return 'NORMAL';
+  if (normalized === 'CRITICAL_TOTAL') return 'ALL';
+  return 'ALL';
+}
+
 function toPositiveInt(value: string): number | null {
   const numeric = Number(value);
   if (!Number.isInteger(numeric) || numeric < 1) {
@@ -42,8 +67,24 @@ function computeAvailableStock(item: Inventory): number {
   return Number(item.stock || 0) - Number(item.reservedStock || 0);
 }
 
+function normalizeInventoryAttribute(value?: string | null): string {
+  const normalized = String(value || '').trim();
+  if (!normalized || normalized.startsWith('__SIN_')) {
+    return '';
+  }
+  return normalized;
+}
+
+function getInventoryVariantDisplay(item: Inventory): string {
+  const sizeName = normalizeInventoryAttribute(item.variant.size?.name);
+  const colorName = normalizeInventoryAttribute(item.variant.color?.name);
+  const parts = [colorName, sizeName].filter(Boolean);
+  return parts.length ? parts.join(' / ') : 'Unico';
+}
+
 export function AdminInventoryPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { confirm, showAlert } = useAdminUi();
 
   const [inventoryData, setInventoryData] = useState<Inventory[]>([]);
@@ -52,7 +93,6 @@ export function AdminInventoryPage() {
   const [storeOptions, setStoreOptions] = useState<InventoryStore[]>([]);
 
   const [isLoadingInventory, setIsLoadingInventory] = useState(false);
-  const [isLoadingReservations, setIsLoadingReservations] = useState(false);
   const [creatingMovement, setCreatingMovement] = useState(false);
   const [reconcilingReserved, setReconcilingReserved] = useState(false);
 
@@ -210,6 +250,22 @@ export function AdminInventoryPage() {
     }).length;
   }, [filteredInventories, reservationsData]);
 
+  const inventoryMetrics = useMemo(() => {
+    return filteredInventories.reduce((acc, item) => {
+      const available = computeAvailableStock(item);
+      acc.available += available;
+      acc.reserved += Number(item.reservedStock || 0);
+      if (available <= 0) acc.out += 1;
+      if (available > 0 && available <= 10) acc.low += 1;
+      return acc;
+    }, {
+      available: 0,
+      reserved: 0,
+      out: 0,
+      low: 0,
+    });
+  }, [filteredInventories]);
+
   const canSaveMovement = Boolean(movementStoreId && movementVariantId && movementQuantity > 0 && !creatingMovement);
 
   async function loadInventories() {
@@ -240,7 +296,6 @@ export function AdminInventoryPage() {
   }
 
   async function loadReservations() {
-    setIsLoadingReservations(true);
     try {
       const response = await fetch('/api/admin/inventory/reservations', {
         method: 'GET',
@@ -254,8 +309,6 @@ export function AdminInventoryPage() {
       setReservationsData(normalizeReservations(payload));
     } catch {
       setReservationsData([]);
-    } finally {
-      setIsLoadingReservations(false);
     }
   }
 
@@ -298,6 +351,19 @@ export function AdminInventoryPage() {
   useEffect(() => {
     loadInventories();
   }, [includeZero]);
+
+  useEffect(() => {
+    const normalizedScopeParam = searchParams.get('stockScope')?.toUpperCase().replace('-', '_');
+    const nextScope = toInventoryStockScope(searchParams.get('stockScope'));
+    setStockScope(nextScope);
+    setShowAdvancedFilters(searchParams.get('showAdvanced') === '1' || nextScope !== 'ALL');
+    if (normalizedScopeParam === 'CRITICAL_TOTAL') {
+      setLowStockThreshold(3);
+      setIncludeZero(true);
+    } else {
+      setLowStockThreshold(0);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     loadReservations();
@@ -471,9 +537,16 @@ export function AdminInventoryPage() {
   return (
     <section className="admin-dashboard-grid">
       <article className="admin-card inventory-header-card">
-        <div>
+        <div className="inventory-header-copy-next">
           <p className="section-kicker">Administracion de inventario</p>
           <h1 className="section-title">Inventario</h1>
+          <p className="admin-muted-text">Controla stock, reservas y movimientos por tienda.</p>
+          <div className="inventory-metric-strip-next">
+            <span><strong>{filteredInventories.length}</strong> items</span>
+            <span><strong>{inventoryMetrics.available}</strong> disp.</span>
+            <span><strong>{inventoryMetrics.reserved}</strong> reserv.</span>
+            <span><strong>{inventoryMetrics.low}</strong> bajo stock</span>
+          </div>
         </div>
         <div className="inventory-header-actions">
           <Link href="/admin/inventory/movements" className="admin-ghost-btn">Movimientos</Link>
@@ -492,7 +565,7 @@ export function AdminInventoryPage() {
 
       <article className="admin-card admin-filters-card-next inventory-filters-card">
         <fieldset className="admin-filters-fieldset-next">
-          <legend className="admin-filters-legend-next">Settings</legend>
+          <legend className="admin-filters-legend-next">Filtros</legend>
           <div className="inventory-filter-top">
             <label className="inventory-field">
               <span>Buscar inventario</span>
@@ -525,71 +598,67 @@ export function AdminInventoryPage() {
                 />
               </label>
 
-              <label className="inventory-field">
+              <div className="inventory-field">
                 <span>Tienda</span>
-                <select
-                  value={selectedStoreId || ''}
-                  onChange={(event) => setSelectedStoreId(toPositiveInt(event.target.value))}
-                >
-                  <option value="">Todas las tiendas</option>
-                  {storeOptions.map((store) => (
-                    <option key={store.id} value={store.id}>{store.name} ({store.code})</option>
-                  ))}
-                </select>
-              </label>
+                <AdminSelect
+                  value={String(selectedStoreId || '')}
+                  options={[
+                    { value: '', label: 'Todas las tiendas' },
+                    ...storeOptions.map((store) => ({ value: String(store.id), label: `${store.name} (${store.code})` })),
+                  ]}
+                  ariaLabel="Filtrar inventario por tienda"
+                  onChange={(nextValue) => setSelectedStoreId(toPositiveInt(nextValue))}
+                />
+              </div>
 
-              <label className="inventory-field">
+              <div className="inventory-field">
                 <span>Producto</span>
-                <select
-                  value={selectedProductId || ''}
-                  onChange={(event) => setSelectedProductId(toPositiveInt(event.target.value))}
-                >
-                  <option value="">Todos</option>
-                  {productOptions.map((product) => (
-                    <option key={product.id} value={product.id}>{product.name}</option>
-                  ))}
-                </select>
-              </label>
+                <AdminSelect
+                  value={String(selectedProductId || '')}
+                  options={[
+                    { value: '', label: 'Todos' },
+                    ...productOptions.map((product) => ({ value: String(product.id), label: product.name })),
+                  ]}
+                  ariaLabel="Filtrar inventario por producto"
+                  onChange={(nextValue) => setSelectedProductId(toPositiveInt(nextValue))}
+                />
+              </div>
 
-              <label className="inventory-field">
+              <div className="inventory-field">
                 <span>Talla</span>
-                <select
-                  value={selectedSizeId || ''}
-                  onChange={(event) => setSelectedSizeId(toPositiveInt(event.target.value))}
-                >
-                  <option value="">Todas</option>
-                  {sizeOptions.map((size) => (
-                    <option key={size.id} value={size.id}>{size.name}</option>
-                  ))}
-                </select>
-              </label>
+                <AdminSelect
+                  value={String(selectedSizeId || '')}
+                  options={[
+                    { value: '', label: 'Todas' },
+                    ...sizeOptions.map((size) => ({ value: String(size.id), label: size.name })),
+                  ]}
+                  ariaLabel="Filtrar inventario por talla"
+                  onChange={(nextValue) => setSelectedSizeId(toPositiveInt(nextValue))}
+                />
+              </div>
 
-              <label className="inventory-field">
+              <div className="inventory-field">
                 <span>Color</span>
-                <select
-                  value={selectedColorId || ''}
-                  onChange={(event) => setSelectedColorId(toPositiveInt(event.target.value))}
-                >
-                  <option value="">Todos</option>
-                  {colorOptions.map((color) => (
-                    <option key={color.id} value={color.id}>{color.name}</option>
-                  ))}
-                </select>
-              </label>
+                <AdminSelect
+                  value={String(selectedColorId || '')}
+                  options={[
+                    { value: '', label: 'Todos' },
+                    ...colorOptions.map((color) => ({ value: String(color.id), label: color.name })),
+                  ]}
+                  ariaLabel="Filtrar inventario por color"
+                  onChange={(nextValue) => setSelectedColorId(toPositiveInt(nextValue))}
+                />
+              </div>
 
-              <label className="inventory-field">
+              <div className="inventory-field">
                 <span>Estado de stock</span>
-                <select
+                <AdminSelect
                   value={stockScope}
-                  onChange={(event) => setStockScope(event.target.value as InventoryStockScope)}
-                >
-                  <option value="ALL">Todos</option>
-                  <option value="OUT">Sin stock</option>
-                  <option value="CRITICAL">Critico (1-3)</option>
-                  <option value="LOW">Bajo (4-10)</option>
-                  <option value="NORMAL">Normal</option>
-                </select>
-              </label>
+                  options={INVENTORY_STOCK_SCOPE_OPTIONS}
+                  ariaLabel="Filtrar inventario por estado de stock"
+                  onChange={setStockScope}
+                />
+              </div>
 
               <label className="inventory-field">
                 <span>Stock disponible {'<='}</span>
@@ -639,7 +708,7 @@ export function AdminInventoryPage() {
       </article>
 
       <article className="admin-card">
-        <div className="admin-table-wrap">
+        <div className="admin-table-wrap inventory-table-wrap-next">
           <table className="admin-table mobile-card-table">
             <thead>
               <tr>
@@ -666,13 +735,12 @@ export function AdminInventoryPage() {
                   <tr key={item.id}>
                     <td data-label="#">{index + 1}</td>
                     <td data-label="Producto">
-                      <div>
+                      <div className="inventory-mobile-product-next">
                         <strong>{item.variant.product.name}</strong>
-                        <br />
-                        <small>{item.variant.size.name} - {item.variant.color.name}</small>
+                        <small>{getInventoryVariantDisplay(item)}</small>
                       </div>
                     </td>
-                    <td data-label="SKU">{item.variant.sku}</td>
+                    <td data-label="SKU" className="inventory-sku-cell-next">{item.variant.sku}</td>
                     <td data-label="Tienda">{item.store.name}</td>
                     <td data-label="Disponible">{computeAvailableStock(item)}</td>
                     <td data-label="Reservado">
@@ -689,37 +757,75 @@ export function AdminInventoryPage() {
                       </div>
                     </td>
                     <td data-label="Accion">
-                      <details className="inventory-actions-menu-next">
-                        <summary className="inventory-actions-trigger-next" aria-label="Abrir acciones">
-                          ⋮
-                        </summary>
-                        <div className="inventory-actions-list-next">
-                          <button type="button" onClick={() => openMovementDrawer(item, 'IN')}>
-                            Ingreso
-                          </button>
-                          <button type="button" onClick={() => openMovementDrawer(item, 'OUT')}>
-                            Salida
-                          </button>
-                          <button type="button" onClick={() => openMovementDrawer(item, 'ADJUSTMENT')}>
-                            Ajuste
-                          </button>
-                          <button type="button" onClick={() => router.push(`/admin/inventory/movements?inventoryId=${item.id}`)}>
-                            Ver movimientos
-                          </button>
-                          <button type="button" onClick={() => router.push(`/admin/inventory/traceability?inventoryId=${item.id}`)}>
-                            Ver trazabilidad
-                          </button>
-                          {hasReservedMismatch(item) ? (
-                            <button
-                              type="button"
-                              disabled={reconcilingReserved}
-                              onClick={() => reconcileReservedStock(item)}
-                            >
-                              Reconciliar reservado
+                      <div className="inventory-row-actions-next">
+                        <button
+                          type="button"
+                          className="inventory-action-pill-next income"
+                          title="Registrar ingreso"
+                          aria-label="Registrar ingreso"
+                          onClick={() => openMovementDrawer(item, 'IN')}
+                        >
+                          I
+                        </button>
+                        <button
+                          type="button"
+                          className="inventory-action-pill-next outcome"
+                          title="Registrar salida"
+                          aria-label="Registrar salida"
+                          onClick={() => openMovementDrawer(item, 'OUT')}
+                        >
+                          S
+                        </button>
+                        <button
+                          type="button"
+                          className="inventory-action-pill-next adjustment"
+                          title="Registrar ajuste"
+                          aria-label="Registrar ajuste"
+                          onClick={() => openMovementDrawer(item, 'ADJUSTMENT')}
+                        >
+                          A
+                        </button>
+                        <button
+                          type="button"
+                          className="inventory-action-pill-next mobile-extra movements"
+                          title="Ver movimientos"
+                          aria-label="Ver movimientos"
+                          onClick={() => router.push(`/admin/inventory/movements?inventoryId=${item.id}`)}
+                        >
+                          M
+                        </button>
+                        <button
+                          type="button"
+                          className="inventory-action-pill-next mobile-extra traceability"
+                          title="Ver trazabilidad"
+                          aria-label="Ver trazabilidad"
+                          onClick={() => router.push(`/admin/inventory/traceability?inventoryId=${item.id}`)}
+                        >
+                          T
+                        </button>
+                        <details className="inventory-actions-menu-next">
+                          <summary className="inventory-actions-trigger-next" aria-label="Abrir mas acciones">
+                            Mas
+                          </summary>
+                          <div className="inventory-actions-list-next">
+                            <button type="button" onClick={() => router.push(`/admin/inventory/movements?inventoryId=${item.id}`)}>
+                              Ver movimientos
                             </button>
-                          ) : null}
-                        </div>
-                      </details>
+                            <button type="button" onClick={() => router.push(`/admin/inventory/traceability?inventoryId=${item.id}`)}>
+                              Ver trazabilidad
+                            </button>
+                            {hasReservedMismatch(item) ? (
+                              <button
+                                type="button"
+                                disabled={reconcilingReserved}
+                                onClick={() => reconcileReservedStock(item)}
+                              >
+                                Reconciliar reservado
+                              </button>
+                            ) : null}
+                          </div>
+                        </details>
+                      </div>
                       {hasReservedMismatch(item) ? (
                         <div className="inventory-row-warning-next">
                           Descuadre
@@ -753,35 +859,35 @@ export function AdminInventoryPage() {
               <button type="button" className="admin-ghost-btn" onClick={closeMovementDrawer}>Cerrar</button>
             </div>
 
-            {movementErrorMessage ? (
-              <p className="admin-feedback error">{movementErrorMessage}</p>
-            ) : null}
-
             <div className="inventory-drawer-body">
-              <label className="inventory-field">
-                <span>Tipo de movimiento</span>
-                <select
-                  value={movementType}
-                  onChange={(event) => setMovementType(event.target.value as InventoryMovementType)}
-                >
-                  <option value="IN">Ingreso</option>
-                  <option value="OUT">Salida</option>
-                  <option value="ADJUSTMENT">Ajuste</option>
-                </select>
-              </label>
+              {movementErrorMessage ? (
+                <div className="admin-feedback error inventory-drawer-feedback" role="alert">
+                  {movementErrorMessage}
+                </div>
+              ) : null}
 
-              <label className="inventory-field">
+              <div className="inventory-field">
+                <span>Tipo de movimiento</span>
+                <AdminSelect
+                  value={movementType}
+                  options={INVENTORY_MOVEMENT_TYPE_OPTIONS}
+                  ariaLabel="Seleccionar tipo de movimiento"
+                  onChange={setMovementType}
+                />
+              </div>
+
+              <div className="inventory-field">
                 <span>Tienda destino</span>
-                <select
-                  value={movementStoreId || ''}
-                  onChange={(event) => setMovementStoreId(toPositiveInt(event.target.value))}
-                >
-                  <option value="">Selecciona una tienda</option>
-                  {storeOptions.map((store) => (
-                    <option key={store.id} value={store.id}>{store.name} ({store.code})</option>
-                  ))}
-                </select>
-              </label>
+                <AdminSelect
+                  value={String(movementStoreId || '')}
+                  options={[
+                    { value: '', label: 'Selecciona una tienda' },
+                    ...storeOptions.map((store) => ({ value: String(store.id), label: `${store.name} (${store.code})` })),
+                  ]}
+                  ariaLabel="Seleccionar tienda destino"
+                  onChange={(nextValue) => setMovementStoreId(toPositiveInt(nextValue))}
+                />
+              </div>
 
               <label className="inventory-field">
                 <span>Buscar variante</span>
@@ -793,18 +899,18 @@ export function AdminInventoryPage() {
                 />
               </label>
 
-              <label className="inventory-field">
+              <div className="inventory-field">
                 <span>Variante</span>
-                <select
-                  value={movementVariantId || ''}
-                  onChange={(event) => setMovementVariantId(toPositiveInt(event.target.value))}
-                >
-                  <option value="">Selecciona una variante</option>
-                  {filteredVariantCatalog.map((variant) => (
-                    <option key={variant.variantId} value={variant.variantId}>{variant.label}</option>
-                  ))}
-                </select>
-              </label>
+                <AdminSelect
+                  value={String(movementVariantId || '')}
+                  options={[
+                    { value: '', label: 'Selecciona una variante' },
+                    ...filteredVariantCatalog.map((variant) => ({ value: String(variant.variantId), label: variant.productName })),
+                  ]}
+                  ariaLabel="Seleccionar variante"
+                  onChange={(nextValue) => setMovementVariantId(toPositiveInt(nextValue))}
+                />
+              </div>
 
               {selectedMovementVariant ? (
                 <div className="inventory-summary-card">
@@ -848,3 +954,4 @@ export function AdminInventoryPage() {
     </section>
   );
 }
+

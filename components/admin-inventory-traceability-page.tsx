@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
 import { useAdminUi } from '@/components/admin-ui-provider';
 import {
   InventoryReservation,
@@ -13,6 +14,13 @@ import {
 type ReservationStatusFilter = 'ALL' | InventoryReservationStatus;
 
 const ALLOWED_STATUS: ReservationStatusFilter[] = ['ALL', 'ACTIVE', 'RELEASED', 'COMPLETED'];
+
+const RESERVATION_STATUS_OPTIONS: AdminSelectOption<ReservationStatusFilter>[] = [
+  { value: 'ALL', label: 'Todos' },
+  { value: 'ACTIVE', label: 'Activa' },
+  { value: 'RELEASED', label: 'Liberada' },
+  { value: 'COMPLETED', label: 'Completada' },
+];
 
 function parseInventoryId(value: string | null): number | null {
   const parsed = Number(value || 0);
@@ -191,7 +199,7 @@ export function AdminInventoryTraceabilityPage() {
 
       <article className="admin-card admin-filters-card-next inventory-filters-card">
         <fieldset className="admin-filters-fieldset-next">
-          <legend className="admin-filters-legend-next">Settings</legend>
+          <legend className="admin-filters-legend-next">Filtros</legend>
           <div className="inventory-traceability-filter-grid">
             <label className="inventory-field">
               <span>Buscar reserva</span>
@@ -203,15 +211,15 @@ export function AdminInventoryTraceabilityPage() {
               />
             </label>
 
-            <label className="inventory-field">
+            <div className="inventory-field">
               <span>Estado</span>
-              <select value={statusFilter} onChange={(event) => onStatusFilterChange(event.target.value)}>
-                <option value="ALL">Todos</option>
-                <option value="ACTIVE">Activa</option>
-                <option value="RELEASED">Liberada</option>
-                <option value="COMPLETED">Completada</option>
-              </select>
-            </label>
+              <AdminSelect
+                value={statusFilter}
+                options={RESERVATION_STATUS_OPTIONS}
+                ariaLabel="Filtrar reservas por estado"
+                onChange={onStatusFilterChange}
+              />
+            </div>
 
             <div className="inventory-filter-inline-action">
               {inventoryIdFilter ? (

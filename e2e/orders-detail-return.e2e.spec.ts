@@ -171,15 +171,16 @@ test('confirma devolucion desde detalle y muestra datos de pago POS', async ({ p
 
   await expect(page.getByRole('heading', { name: 'ORD-RETURN-0077' })).toBeVisible();
   await expect(page.getByText('Devolucion de inventario pendiente:')).toBeVisible();
-  await expect(page.getByText('S/ 50.00')).toBeVisible();
-  await expect(page.getByText('S/ 14.00')).toBeVisible();
+  await expect(page.getByText('S/ 50.00', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('S/ 14.00', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('2 unidades')).toBeVisible();
+  await expect(page.getByText('Devuelve los items listados y luego confirma la devolucion para cerrar la cancelacion.')).toBeVisible();
 
   await page.getByRole('button', { name: 'Confirmar devolucion' }).click();
   await expect(page.getByRole('dialog', { name: 'Confirmar devolucion' })).toBeVisible();
   await expect.poll(() => state.statusPatchCount).toBe(0);
 
-  await page.getByRole('button', { name: 'Confirmar' }).click();
+  await page.getByRole('button', { name: 'Confirmar', exact: true }).click();
 
   await expect.poll(() => state.statusPatchCount).toBe(1);
   expect(state.lastStatusPayload).toMatchObject({

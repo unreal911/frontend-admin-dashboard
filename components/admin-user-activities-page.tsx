@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { AdminSelect } from '@/components/admin-select';
 import { useAdminUi } from '@/components/admin-ui-provider';
 
 interface UserActivityProduct {
@@ -299,15 +300,18 @@ export function AdminUserActivitiesPage() {
             />
           </label>
 
-          <label>
+          <div className="admin-field-block">
             <span>Modulo</span>
-            <select value={moduleName} onChange={(event) => setModuleName(event.target.value)}>
-              <option value="">Todos</option>
-              {moduleOptions.map((moduleItem) => (
-                <option key={moduleItem} value={moduleItem}>{moduleItem}</option>
-              ))}
-            </select>
-          </label>
+            <AdminSelect
+              value={moduleName}
+              options={[
+                { value: '', label: 'Todos' },
+                ...moduleOptions.map((moduleItem) => ({ value: moduleItem, label: moduleItem })),
+              ]}
+              ariaLabel="Filtrar actividades por modulo"
+              onChange={setModuleName}
+            />
+          </div>
 
           <label>
             <span>Tipo de accion</span>

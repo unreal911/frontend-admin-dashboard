@@ -62,6 +62,8 @@ export interface AdminOrderItem {
   orderItemId?: number;
   pickingItemId?: number;
   variantId: number;
+  fulfillmentStoreId?: number;
+  fulfillmentStore?: AdminSimpleStore | null;
   quantity: number;
   unitPrice: number;
   subtotal: number;
@@ -288,6 +290,8 @@ function normalizeOrderItem(raw: unknown): AdminOrderItem | null {
   const pickingItemId = toInt(raw.pickingItemId, 0);
   const variantRaw = isObject(raw.variant) ? raw.variant : null;
   const variantId = toInt(raw.variantId, toInt(variantRaw?.id, 0));
+  const fulfillmentStore = normalizeSimpleStore(raw.fulfillmentStore);
+  const fulfillmentStoreId = toInt(raw.fulfillmentStoreId, fulfillmentStore?.id || 0);
   const id = rawId > 0 ? rawId : (orderItemId > 0 ? orderItemId : pickingItemId);
   const quantity = Math.max(0, toNum(raw.quantity, toNum(raw.requestedQuantity, 0)));
   const unitPrice = Math.max(0, toNum(raw.unitPrice, 0));
@@ -320,6 +324,8 @@ function normalizeOrderItem(raw: unknown): AdminOrderItem | null {
     orderItemId: orderItemId > 0 ? orderItemId : undefined,
     pickingItemId: pickingItemId > 0 ? pickingItemId : undefined,
     variantId,
+    fulfillmentStoreId: fulfillmentStoreId > 0 ? fulfillmentStoreId : undefined,
+    fulfillmentStore,
     quantity,
     unitPrice,
     subtotal,

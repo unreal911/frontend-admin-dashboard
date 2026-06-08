@@ -1,8 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAdminAuth } from '@/components/admin-auth-provider';
+import { AdminSelect } from '@/components/admin-select';
 import {
   AdminOrder,
   AdminOrderStatus,
@@ -77,6 +78,11 @@ const ORDER_STATUS_LABELS: Record<AdminOrderStatus, string> = {
 
 const PAGE_SIZE = 10;
 
+function toOrderStatusFilter(value: string | null): '' | AdminOrderStatus {
+  const normalized = String(value || '').trim().toUpperCase() as AdminOrderStatus;
+  return STATUS_OPTIONS.some((option) => option.value === normalized) ? normalized : '';
+}
+
 function formatDateTime(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
@@ -146,6 +152,7 @@ function getResponsibleLabel(order: AdminOrder): string {
 
 export function AdminOrdersListPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { hasPermission } = useAdminAuth();
 
   const [stores, setStores] = useState<Array<{ id: number; name: string }>>([]);
@@ -314,6 +321,27 @@ export function AdminOrdersListPage() {
   useEffect(() => {
     loadStores();
   }, [loadStores]);
+
+  useEffect(() => {
+    const nextFilters: FiltersState = {
+      search: String(searchParams.get('search') || '').trim(),
+      channel: String(searchParams.get('channel') || '').toUpperCase() as FiltersState['channel'],
+      status: toOrderStatusFilter(searchParams.get('status')),
+      storeId: '',
+      startDate: String(searchParams.get('startDate') || ''),
+      endDate: String(searchParams.get('endDate') || ''),
+    };
+    const storeId = Number(searchParams.get('storeId') || 0);
+    if (Number.isInteger(storeId) && storeId > 0) {
+      nextFilters.storeId = storeId;
+    }
+    if (!CHANNEL_OPTIONS.some((option) => option.value === nextFilters.channel)) {
+      nextFilters.channel = '';
+    }
+    setFilterDraft(nextFilters);
+    setAppliedFilters(nextFilters);
+    setCurrentPage(1);
+  }, [searchParams]);
 
   useEffect(() => {
     loadOrders(currentPage, appliedFilters);
@@ -495,46 +523,42 @@ export function AdminOrdersListPage() {
                     placeholder="Codigo, cliente, correo o telefono"
                   />
                 </label>
-                <label className="inventory-field">
+                <div className="inventory-field">
                   <span>Canal</span>
-                  <select
+                  <AdminSelect
                     value={filterDraft.channel}
-                    onChange={(event) => setFilterDraft((current) => ({ ...current, channel: event.target.value as FiltersState['channel'] }))}
-                  >
-                    {CHANNEL_OPTIONS.map((option) => (
-                      <option key={option.value || 'all'} value={option.value}>{option.label}</option>
-                    ))}
-                  </select>
-                </label>
-                <label className="inventory-field">
+                    options={CHANNEL_OPTIONS}
+                    ariaLabel="Filtrar ordenes por canal"
+                    onChange={(nextValue) => setFilterDraft((current) => ({ ...current, channel: nextValue as FiltersState['channel'] }))}
+                  />
+                </div>
+                <div className="inventory-field">
                   <span>Estado</span>
-                  <select
+                  <AdminSelect
                     value={filterDraft.status}
-                    onChange={(event) => setFilterDraft((current) => ({ ...current, status: event.target.value as FiltersState['status'] }))}
-                  >
-                    {STATUS_OPTIONS.map((option) => (
-                      <option key={option.value || 'all'} value={option.value}>{option.label}</option>
-                    ))}
-                  </select>
-                </label>
-                <label className="inventory-field">
+                    options={STATUS_OPTIONS}
+                    ariaLabel="Filtrar ordenes por estado"
+                    onChange={(nextValue) => setFilterDraft((current) => ({ ...current, status: nextValue as FiltersState['status'] }))}
+                  />
+                </div>
+                <div className="inventory-field">
                   <span>Tienda</span>
-                  <select
-                    value={filterDraft.storeId}
-                    onChange={(event) => {
-                      const numeric = Number(event.target.value);
+                  <AdminSelect
+                    value={String(filterDraft.storeId)}
+                    options={[
+                      { value: '', label: 'Todas las tiendas' },
+                      ...stores.map((store) => ({ value: String(store.id), label: store.name })),
+                    ]}
+                    ariaLabel="Filtrar ordenes por tienda"
+                    onChange={(nextValue) => {
+                      const numeric = Number(nextValue);
                       setFilterDraft((current) => ({
                         ...current,
                         storeId: Number.isInteger(numeric) && numeric > 0 ? numeric : '',
                       }));
                     }}
-                  >
-                    <option value="">Todas las tiendas</option>
-                    {stores.map((store) => (
-                      <option key={store.id} value={store.id}>{store.name}</option>
-                    ))}
-                  </select>
-                </label>
+                  />
+                </div>
                 <label className="inventory-field">
                   <span>Desde</span>
                   <input

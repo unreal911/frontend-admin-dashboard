@@ -48,9 +48,9 @@ export function AdminAccessGate({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!loading && !user) {
-      router.replace('/login');
+      router.replace(`/login?returnUrl=${encodeURIComponent(pathname)}`);
     }
-  }, [loading, router, user]);
+  }, [loading, pathname, router, user]);
 
   if (loading) {
     return (
@@ -97,4 +97,3 @@ export function AdminAccessGate({ children }: { children: React.ReactNode }) {
 
   return <>{children}</>;
 }
-

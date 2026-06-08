@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
 import { useAdminUi } from '@/components/admin-ui-provider';
 import {
   Inventory,
@@ -39,6 +40,15 @@ const ALLOWED_STATUS_FILTERS: TransferStatusFilter[] = [
   'IN_TRANSIT',
   'RECEIVED',
   'CANCELLED',
+];
+
+const TRANSFER_STATUS_OPTIONS: AdminSelectOption<TransferStatusFilter>[] = [
+  { value: 'ALL', label: 'Todos' },
+  { value: 'TO_RECEIVE', label: 'Pendientes de recepcion' },
+  { value: 'PENDING', label: 'Pendiente' },
+  { value: 'IN_TRANSIT', label: 'En transito' },
+  { value: 'RECEIVED', label: 'Recibida' },
+  { value: 'CANCELLED', label: 'Cancelada' },
 ];
 
 function toPositiveInt(value: string): number | null {
@@ -586,17 +596,15 @@ export function AdminTransfersPage() {
             />
           </label>
 
-          <label className="inventory-field">
+          <div className="inventory-field">
             <span>Estado</span>
-            <select value={statusFilter} onChange={(event) => setStatusFilter(toStatusFilter(event.target.value))}>
-              <option value="ALL">Todos</option>
-              <option value="TO_RECEIVE">Pendientes de recepcion</option>
-              <option value="PENDING">Pendiente</option>
-              <option value="IN_TRANSIT">En transito</option>
-              <option value="RECEIVED">Recibida</option>
-              <option value="CANCELLED">Cancelada</option>
-            </select>
-          </label>
+            <AdminSelect
+              value={statusFilter}
+              options={TRANSFER_STATUS_OPTIONS}
+              ariaLabel="Filtrar transferencias por estado"
+              onChange={(nextValue) => setStatusFilter(toStatusFilter(nextValue))}
+            />
+          </div>
         </div>
       </article>
 
@@ -805,31 +813,31 @@ export function AdminTransfersPage() {
             </div>
 
             <div className="inventory-drawer-body">
-              <label className="inventory-field">
+              <div className="inventory-field">
                 <span>Tienda origen</span>
-                <select
-                  value={fromStoreId || ''}
-                  onChange={(event) => setFromStoreId(toPositiveInt(event.target.value))}
-                >
-                  <option value="">Selecciona tienda origen</option>
-                  {storeOptions.map((store) => (
-                    <option key={store.id} value={store.id}>{store.name} ({store.code})</option>
-                  ))}
-                </select>
-              </label>
+                <AdminSelect
+                  value={String(fromStoreId || '')}
+                  options={[
+                    { value: '', label: 'Selecciona tienda origen' },
+                    ...storeOptions.map((store) => ({ value: String(store.id), label: `${store.name} (${store.code})` })),
+                  ]}
+                  ariaLabel="Seleccionar tienda origen"
+                  onChange={(nextValue) => setFromStoreId(toPositiveInt(nextValue))}
+                />
+              </div>
 
-              <label className="inventory-field">
+              <div className="inventory-field">
                 <span>Tienda destino</span>
-                <select
-                  value={toStoreId || ''}
-                  onChange={(event) => setToStoreId(toPositiveInt(event.target.value))}
-                >
-                  <option value="">Selecciona tienda destino</option>
-                  {storeOptions.map((store) => (
-                    <option key={store.id} value={store.id}>{store.name} ({store.code})</option>
-                  ))}
-                </select>
-              </label>
+                <AdminSelect
+                  value={String(toStoreId || '')}
+                  options={[
+                    { value: '', label: 'Selecciona tienda destino' },
+                    ...storeOptions.map((store) => ({ value: String(store.id), label: `${store.name} (${store.code})` })),
+                  ]}
+                  ariaLabel="Seleccionar tienda destino"
+                  onChange={(nextValue) => setToStoreId(toPositiveInt(nextValue))}
+                />
+              </div>
 
               <label className="inventory-field">
                 <span>Buscar variante</span>
@@ -861,18 +869,19 @@ export function AdminTransfersPage() {
                 <div className="transfer-draft-list-next">
                   {draftItems.map((item) => (
                     <article key={item.rowId} className="transfer-draft-item-next">
-                      <select
-                        value={item.variantId || ''}
+                      <AdminSelect
+                        value={String(item.variantId || '')}
                         disabled={!fromStoreId || loadingOriginInventory}
-                        onChange={(event) => setDraftVariant(item.rowId, event.target.value)}
-                      >
-                        <option value="">Selecciona variante</option>
-                        {filteredVariantCatalog.map((variant) => (
-                          <option key={variant.variantId} value={variant.variantId}>
-                            {variant.label} - Disp: {getOriginVariantAvailableStock(variant.variantId)}
-                          </option>
-                        ))}
-                      </select>
+                        options={[
+                          { value: '', label: 'Selecciona variante' },
+                          ...filteredVariantCatalog.map((variant) => ({
+                            value: String(variant.variantId),
+                            label: `${variant.productName} - Disp: ${getOriginVariantAvailableStock(variant.variantId)}`,
+                          })),
+                        ]}
+                        ariaLabel="Seleccionar variante para transferencia"
+                        onChange={(nextValue) => setDraftVariant(item.rowId, nextValue)}
+                      />
 
                       <input
                         type="number"

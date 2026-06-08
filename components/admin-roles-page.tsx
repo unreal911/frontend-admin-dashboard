@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
 import { useAdminUi } from '@/components/admin-ui-provider';
 
 interface RoleUserLite {
@@ -39,6 +40,14 @@ interface PermissionGroup {
   module: string;
   permissions: PermissionCatalogItem[];
 }
+
+type RoleStatusFilter = 'all' | 'active' | 'inactive';
+
+const ROLE_STATUS_OPTIONS: AdminSelectOption<RoleStatusFilter>[] = [
+  { value: 'all', label: 'Todos' },
+  { value: 'active', label: 'Activos' },
+  { value: 'inactive', label: 'Inactivos' },
+];
 
 const DEFAULT_ROLE_FORM: RoleFormState = {
   name: '',
@@ -550,11 +559,12 @@ export function AdminRolesPage() {
               />
             </div>
             <div className="roles-status-select-next">
-              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as 'all' | 'active' | 'inactive')}>
-                <option value="all">Todos</option>
-                <option value="active">Activos</option>
-                <option value="inactive">Inactivos</option>
-              </select>
+              <AdminSelect
+                value={statusFilter}
+                options={ROLE_STATUS_OPTIONS}
+                ariaLabel="Filtrar roles por estado"
+                onChange={setStatusFilter}
+              />
             </div>
             <div className="admin-filters-actions-next">
               <button type="submit" className="admin-primary-btn" disabled={isLoading}>
