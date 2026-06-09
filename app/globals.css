@@ -3090,6 +3090,15 @@ a {
   box-shadow: none;
 }
 
+.admin-primary-btn.disabled,
+.admin-ghost-btn.disabled {
+  opacity: 0.68;
+  pointer-events: none;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 .admin-submit-btn-next {
   gap: 0.45rem;
 }
@@ -4727,6 +4736,32 @@ a {
   gap: 0;
   overflow: auto;
   background: var(--admin-surface);
+}
+
+.admin-product-page-shell {
+  width: 100%;
+  min-width: 0;
+}
+
+.admin-product-form-card {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.admin-product-form-card .admin-product-modal-head {
+  position: static;
+  padding: 1rem;
+}
+
+.admin-product-form-card .admin-product-modal-head h3 {
+  font-size: 1.2rem;
+}
+
+.admin-product-form-card .admin-product-modal-form > .admin-modal-actions {
+  bottom: 0;
+  margin-bottom: 0;
 }
 
 .admin-product-modal-head {

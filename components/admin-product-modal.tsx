@@ -80,7 +80,7 @@ interface VariantGroupImageForm {
   imagePreview?: string;
 }
 
-interface AdminProductModalSubmitPayload {
+export interface AdminProductModalSubmitPayload {
   mode: 'create' | 'edit';
   id?: number;
   payload: Record<string, unknown>;
@@ -93,11 +93,15 @@ type ProductModalFieldErrors = Partial<Record<
 
 interface AdminProductModalProps {
   open: boolean;
+  variant?: 'modal' | 'page';
   product: AdminProductDetail | null;
   categories: AdminCategoryOption[];
   colors: AdminColorOption[];
   sizes: AdminSizeOption[];
   isSubmitting?: boolean;
+  title?: string;
+  description?: string;
+  cancelLabel?: string;
   onClose: () => void;
   onSubmit: (payload: AdminProductModalSubmitPayload) => Promise<void> | void;
 }
@@ -189,11 +193,15 @@ function sanitizeDescriptionHtml(html: string): string {
 
 export function AdminProductModal({
   open,
+  variant = 'modal',
   product,
   categories,
   colors,
   sizes,
   isSubmitting = false,
+  title,
+  description: helperText,
+  cancelLabel = 'Cancelar',
   onClose,
   onSubmit,
 }: AdminProductModalProps) {
@@ -223,11 +231,13 @@ export function AdminProductModal({
   const descriptionEditorRef = useRef<HTMLDivElement | null>(null);
 
   const isEditing = Boolean(product?.id);
+  const isPage = variant === 'page';
+  const isFormVisible = open || isPage;
   const isSimpleMode = variantMode === 'SIMPLE';
   const isSizeOnlyMode = variantMode === 'SIZE_ONLY';
 
   useEffect(() => {
-    if (!open) {
+    if (!isFormVisible) {
       return;
     }
 
@@ -361,11 +371,11 @@ export function AdminProductModal({
         .filter((image): image is ProductImageForm => Boolean(image)),
     );
     syncDescriptionEditorWithValue(nextDescription);
-  }, [open, product]);
+  }, [isFormVisible, product]);
 
   useEffect(() => {
-    if (!open || !isSimpleMode || !marketplaceVariantsEnabled) {
-      if (!open || !isSimpleMode) {
+    if (!isFormVisible || !isSimpleMode || !marketplaceVariantsEnabled) {
+      if (!isFormVisible || !isSimpleMode) {
         setMarketplaceVariants([]);
         setMarketplaceColorImages([]);
       }
@@ -395,10 +405,10 @@ export function AdminProductModal({
       }
     }
     setMarketplaceVariants(nextVariants);
-  }, [open, isSimpleMode, marketplaceVariantsEnabled, selectedColorIds, selectedSizeIds, variants]);
+  }, [isFormVisible, isSimpleMode, marketplaceVariantsEnabled, selectedColorIds, selectedSizeIds, variants]);
 
   useEffect(() => {
-    if (!open || !isSimpleMode || !marketplaceVariantsEnabled) {
+    if (!isFormVisible || !isSimpleMode || !marketplaceVariantsEnabled) {
       return;
     }
 
@@ -413,10 +423,10 @@ export function AdminProductModal({
       }
       return selectedColorIds.map((colorId) => byColorId.get(colorId) || { colorId });
     });
-  }, [open, isSimpleMode, marketplaceVariantsEnabled, selectedColorIds, product]);
+  }, [isFormVisible, isSimpleMode, marketplaceVariantsEnabled, selectedColorIds, product]);
 
   useEffect(() => {
-    if (!open || isSimpleMode) {
+    if (!isFormVisible || isSimpleMode) {
       setVariantGroupImages([]);
       return;
     }
@@ -448,10 +458,10 @@ export function AdminProductModal({
         };
       });
     });
-  }, [open, isSimpleMode, isSizeOnlyMode, selectedColorIds, selectedSizeIds, variants]);
+  }, [isFormVisible, isSimpleMode, isSizeOnlyMode, selectedColorIds, selectedSizeIds, variants]);
 
   useEffect(() => {
-    if (!open) {
+    if (!open || isPage) {
       return;
     }
 
@@ -465,7 +475,7 @@ export function AdminProductModal({
     return () => {
       window.removeEventListener('keydown', onEscape);
     };
-  }, [open, isSubmitting, onClose]);
+  }, [open, isPage, isSubmitting, onClose]);
 
   const availableColorRows = useMemo(() => {
     return colors.map((color) => ({
@@ -484,7 +494,7 @@ export function AdminProductModal({
     }));
   }, [sizes, selectedSizeIds]);
 
-  if (!open) {
+  if (!isFormVisible) {
     return null;
   }
 
@@ -1232,32 +1242,38 @@ export function AdminProductModal({
   }
 
   return (
-    <div className="admin-modal-overlay" role="presentation" onClick={isSubmitting ? undefined : onClose}>
+    <div
+      className={isPage ? 'admin-product-page-shell' : 'admin-modal-overlay'}
+      role={isPage ? undefined : 'presentation'}
+      onClick={isPage || isSubmitting ? undefined : onClose}
+    >
       <div
-        className="admin-modal-dialog admin-product-modal-dialog"
-        role="dialog"
-        aria-modal="true"
+        className={isPage ? 'admin-card admin-product-form-card' : 'admin-modal-dialog admin-product-modal-dialog'}
+        role={isPage ? undefined : 'dialog'}
+        aria-modal={isPage ? undefined : true}
         aria-labelledby="admin-product-modal-title"
-        onClick={(event) => event.stopPropagation()}
+        onClick={isPage ? undefined : (event) => event.stopPropagation()}
       >
         <div className="admin-product-modal-head">
           <div>
-            <h3 id="admin-product-modal-title">{isEditing ? 'Editar producto' : 'Crear producto'}</h3>
+            <h3 id="admin-product-modal-title">{title || (isEditing ? 'Editar producto' : 'Crear producto')}</h3>
             <p>
-              {isEditing
+              {helperText || (isEditing
                 ? 'Actualiza los datos del producto existente.'
-                : 'Completa los campos para crear un producto nuevo.'}
+                : 'Completa los campos para crear un producto nuevo.')}
             </p>
           </div>
-          <button
-            type="button"
-            className="admin-modal-close-next"
-            onClick={onClose}
-            disabled={isSubmitting}
-            aria-label="Cerrar modal de producto"
-          >
-            x
-          </button>
+          {!isPage ? (
+            <button
+              type="button"
+              className="admin-modal-close-next"
+              onClick={onClose}
+              disabled={isSubmitting}
+              aria-label="Cerrar modal de producto"
+            >
+              x
+            </button>
+          ) : null}
         </div>
 
         {formError ? <p className="admin-modal-error">{formError}</p> : null}
@@ -1839,7 +1855,7 @@ export function AdminProductModal({
 
           <div className="admin-modal-actions">
             <button type="button" className="admin-ghost-btn" onClick={onClose} disabled={isSubmitting}>
-              Cancelar
+              {cancelLabel}
             </button>
             <button type="submit" className="admin-primary-btn admin-submit-btn-next" disabled={isSubmitting}>
               {isSubmitting ? (

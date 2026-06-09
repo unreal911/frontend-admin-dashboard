@@ -13,8 +13,18 @@ import { useAdminAuth } from '@/components/admin-auth-provider';
 const ADMIN_THEME_KEY = 'admin_theme';
 const MOBILE_MEDIA_QUERY = '(max-width: 960px)';
 const NOTIFICATION_REFRESH_MS = 45_000;
+export const ADMIN_LIVE_UPDATE_EVENT = 'admin-live-update';
 
 type AdminTheme = 'dark' | 'light';
+
+export interface AdminLiveUpdateDetail {
+  type?: string;
+  entity?: string;
+  entityId?: number | null;
+  entityCode?: string | null;
+  status?: string | null;
+  timestamp?: string;
+}
 
 export interface PendingAssignment {
   orderId: number;
@@ -216,6 +226,61 @@ export function AdminShellProvider({ children }: { children: React.ReactNode }) 
     };
   }, [refreshPendingAssignments]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof EventSource === 'undefined') {
+      return undefined;
+    }
+
+    const userId = Number(user?.id || 0);
+    if (!Number.isInteger(userId) || userId < 1) {
+      return undefined;
+    }
+
+    let refreshTimer: number | null = null;
+    const eventSource = new EventSource('/api/admin/events/stream');
+
+    const refreshSoon = () => {
+      if (refreshTimer) {
+        window.clearTimeout(refreshTimer);
+      }
+      refreshTimer = window.setTimeout(() => {
+        void refreshPendingAssignments();
+      }, 120);
+    };
+
+    const onAdminUpdate = (event: MessageEvent<string>) => {
+      try {
+        const detail = JSON.parse(event.data || '{}') as AdminLiveUpdateDetail;
+        refreshSoon();
+        window.dispatchEvent(new CustomEvent<AdminLiveUpdateDetail>(ADMIN_LIVE_UPDATE_EVENT, { detail }));
+      } catch {
+        refreshSoon();
+      }
+    };
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        refreshSoon();
+      }
+    };
+
+    eventSource.addEventListener('admin-update', onAdminUpdate);
+    window.addEventListener('focus', refreshSoon);
+    window.addEventListener('online', refreshSoon);
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      if (refreshTimer) {
+        window.clearTimeout(refreshTimer);
+      }
+      eventSource.removeEventListener('admin-update', onAdminUpdate);
+      eventSource.close();
+      window.removeEventListener('focus', refreshSoon);
+      window.removeEventListener('online', refreshSoon);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [refreshPendingAssignments, user?.id]);
+
   const openSidebar = useCallback(() => {
     setIsSidebarOpen(true);
   }, []);
@@ -282,4 +347,3 @@ export function useAdminShell() {
   }
   return context;
 }
-

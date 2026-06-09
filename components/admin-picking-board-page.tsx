@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAdminAuth } from '@/components/admin-auth-provider';
+import { ADMIN_LIVE_UPDATE_EVENT } from '@/components/admin-shell-provider';
 import { useAdminUi } from '@/components/admin-ui-provider';
 import {
   AdminOrder,
@@ -260,8 +261,10 @@ export function AdminPickingBoardPage() {
     });
   }, [canCompletePickingPermission, canCurrentUserOperatePicking, completingPicking, selectedOrder]);
 
-  const loadOrders = useCallback(async (status: '' | AdminOrderStatus) => {
-    setLoadingOrders(true);
+  const loadOrders = useCallback(async (status: '' | AdminOrderStatus, options?: { silent?: boolean }) => {
+    if (!options?.silent) {
+      setLoadingOrders(true);
+    }
     try {
       const params = new URLSearchParams({
         page: '1',
@@ -290,7 +293,9 @@ export function AdminPickingBoardPage() {
       showAlert('No se pudieron cargar pedidos para picking.', 'error');
       setOrders([]);
     } finally {
-      setLoadingOrders(false);
+      if (!options?.silent) {
+        setLoadingOrders(false);
+      }
     }
   }, [showAlert]);
 
@@ -341,6 +346,39 @@ export function AdminPickingBoardPage() {
   useEffect(() => {
     void loadOrders(statusFilter);
   }, [loadOrders, statusFilter]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    let refreshTimer: number | null = null;
+    const refresh = (event: Event) => {
+      const detail = (event as CustomEvent<{ entity?: string; entityId?: number | null }>).detail;
+      if (detail?.entity && detail.entity !== 'ORDER') {
+        return;
+      }
+      if (refreshTimer) {
+        window.clearTimeout(refreshTimer);
+      }
+      refreshTimer = window.setTimeout(() => {
+        void loadOrders(statusFilter, { silent: true });
+        const eventOrderId = Number(detail?.entityId || 0);
+        const orderId = selectedOrderId || eventOrderId;
+        if (Number.isInteger(orderId) && orderId > 0) {
+          void loadOrderDetail(orderId);
+        }
+      }, 150);
+    };
+
+    window.addEventListener(ADMIN_LIVE_UPDATE_EVENT, refresh);
+    return () => {
+      if (refreshTimer) {
+        window.clearTimeout(refreshTimer);
+      }
+      window.removeEventListener(ADMIN_LIVE_UPDATE_EVENT, refresh);
+    };
+  }, [loadOrderDetail, loadOrders, selectedOrderId, statusFilter]);
 
   useEffect(() => {
     const nextStatus = toPickingStatusFilter(searchParams.get('status'));

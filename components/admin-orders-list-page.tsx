@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAdminAuth } from '@/components/admin-auth-provider';
+import { ADMIN_LIVE_UPDATE_EVENT } from '@/components/admin-shell-provider';
 import { AdminSelect } from '@/components/admin-select';
 import {
   AdminOrder,
@@ -220,8 +221,10 @@ export function AdminOrdersListPage() {
   const hasActiveFilters = activeFilterTags.length > 0;
   const activeFilterCount = activeFilterTags.length;
 
-  const loadOrders = useCallback(async (page: number, filters: FiltersState) => {
-    setLoading(true);
+  const loadOrders = useCallback(async (page: number, filters: FiltersState, options?: { silent?: boolean }) => {
+    if (!options?.silent) {
+      setLoading(true);
+    }
     setLoadError('');
     try {
       const query = buildOrdersQuery(page, filters);
@@ -248,7 +251,9 @@ export function AdminOrdersListPage() {
       setLoadError('No se pudieron cargar las ordenes.');
       setOrders([]);
     } finally {
-      setLoading(false);
+      if (!options?.silent) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -346,6 +351,31 @@ export function AdminOrdersListPage() {
   useEffect(() => {
     loadOrders(currentPage, appliedFilters);
   }, [appliedFilters, currentPage, loadOrders]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    let refreshTimer: number | null = null;
+    const refresh = () => {
+      if (refreshTimer) {
+        window.clearTimeout(refreshTimer);
+      }
+      refreshTimer = window.setTimeout(() => {
+        void loadOrders(currentPage, appliedFilters, { silent: true });
+        void loadQuickStatusCounts(appliedFilters);
+      }, 150);
+    };
+
+    window.addEventListener(ADMIN_LIVE_UPDATE_EVENT, refresh);
+    return () => {
+      if (refreshTimer) {
+        window.clearTimeout(refreshTimer);
+      }
+      window.removeEventListener(ADMIN_LIVE_UPDATE_EVENT, refresh);
+    };
+  }, [appliedFilters, currentPage, loadOrders, loadQuickStatusCounts]);
 
   useEffect(() => {
     loadQuickStatusCounts(appliedFilters);

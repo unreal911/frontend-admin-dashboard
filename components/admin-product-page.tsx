@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import {
   AdminCategoryOption,
   AdminColorOption,
@@ -225,11 +226,6 @@ export function AdminProductPage() {
     return categories.find((category) => category.id === item.categoryId)?.name || String(item.categoryId);
   }
 
-  function openCreateModal() {
-    setEditingProduct(null);
-    setModalOpen(true);
-  }
-
   async function openEditModal(item: AdminProductListItem) {
     setIsLoadingDetail(true);
     try {
@@ -380,9 +376,13 @@ export function AdminProductPage() {
               </label>
             </div>
             <div className="admin-filters-actions-next">
-              <button type="button" className="admin-primary-btn" onClick={openCreateModal} disabled={isMutating || isLoadingDetail}>
+              <Link
+                href="/admin/product/create"
+                className={`admin-primary-btn ${isMutating || isLoadingDetail ? 'disabled' : ''}`}
+                aria-disabled={isMutating || isLoadingDetail}
+              >
                 Agregar
-              </button>
+              </Link>
             </div>
           </div>
         </fieldset>
