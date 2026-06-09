@@ -2,7 +2,6 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  output: 'standalone',
   allowedDevOrigins: ['192.168.1.81','127.0.0.1'],
 };
 
