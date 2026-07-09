@@ -355,7 +355,7 @@ export function AdminUserActivitiesPage() {
       </p>
 
       <div className="activity-table-wrapper admin-table-wrap">
-        <table className="admin-table mobile-card-table">
+        <table className="admin-table mobile-card-table list-cards-next">
           <thead>
             <tr>
               <th>#</th>

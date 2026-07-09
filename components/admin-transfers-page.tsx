@@ -610,7 +610,7 @@ export function AdminTransfersPage() {
 
       <article className="admin-card">
         <div className="admin-table-wrap">
-          <table className="admin-table mobile-card-table">
+          <table className="admin-table mobile-card-table ops-cards-next">
             <thead>
               <tr>
                 <th>Codigo</th>
@@ -630,14 +630,14 @@ export function AdminTransfersPage() {
               ) : (
                 filteredTransfers.map((transfer) => (
                   <tr key={transfer.id}>
-                    <td data-label="Codigo">
+                    <td data-label="Codigo" className="list-card-title-next">
                       <div>
                         <strong>{transfer.code}</strong>
                         <br />
                         <small>#{transfer.id}</small>
                       </div>
                     </td>
-                    <td data-label="Estado">
+                    <td data-label="Estado" className="ops-status-next">
                       <span className={`admin-status-badge ${getStatusClass(transfer.status)}`}>
                         {getStatusLabel(transfer.status)}
                       </span>

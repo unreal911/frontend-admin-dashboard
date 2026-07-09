@@ -6,6 +6,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAdminAuth } from '@/components/admin-auth-provider';
 import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
 import { useAdminUi } from '@/components/admin-ui-provider';
+import { EcommerceFulfillmentPanel } from '@/components/ecommerce-fulfillment-panel';
+import { PickingScanPanel } from '@/components/picking-scan-panel';
 import {
   AdminOrder,
   AdminOrderItem,
@@ -137,7 +139,7 @@ function formatDateTimeFromDate(value: Date | null): string {
 }
 
 function parsePaymentMethod(note: string): string {
-  const match = String(note || '').match(/Metodo de pago:\s*([^|]+)/i);
+  const match = String(note || '').match(/(?:Metodo de pago|METODO_PAGO)\s*:\s*([^|]+)/i);
   return match?.[1]?.trim() || 'No especificado';
 }
 
@@ -160,6 +162,29 @@ function parsePaymentAmountLabel(note: string, labels: string[]): string {
   return value === null ? 'No disponible' : formatMoney(value);
 }
 
+function getDisplayNote(note: string): string {
+  const segments = String(note || '')
+    .split('|')
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+  const customerNote = segments.find((segment) => /^NOTA_CLIENTE\s*:/i.test(segment));
+  if (customerNote) {
+    return customerNote.replace(/^NOTA_CLIENTE\s*:\s*/i, '').trim() || '-';
+  }
+
+  const visibleSegments = segments.filter((segment) => {
+    if (/^(CHANNEL|ORIGIN|DELIVERY_TYPE|EMPRESA|RUC|DIRECCION|REFERENCIA|RECOJO_TIENDA_ID|METODO_PAGO_ID|METODO_PAGO|MKT_GUIDE_ITEMS|RESERVA)\s*:/i.test(segment)) {
+      return false;
+    }
+    if (/^(Metodo de pago|Ref|Monto recibido|Monto pagado|Pagado|Vuelto|Cambio)\s*:/i.test(segment)) {
+      return false;
+    }
+    return true;
+  });
+
+  return visibleSegments.join(' | ') || '-';
+}
+
 function getStatusProgress(status: AdminOrderStatus): number {
   const sequence: AdminOrderStatus[] = ['PENDING', 'CONFIRMED', 'WAITING_TRANSFER', 'PREPARING', 'READY', 'DELIVERED'];
   const index = sequence.indexOf(status);
@@ -180,6 +205,18 @@ function getPickedQuantity(item: AdminOrderItem): number {
 
 function getRequestedQuantity(item: AdminOrderItem): number {
   return Math.max(0, Number(item.requestedQuantity ?? item.quantity ?? 0));
+}
+
+function getReservedQuantity(item: AdminOrderItem): number {
+  return Math.max(0, Number(item.reservedQuantity ?? item.reserved ?? 0));
+}
+
+function getShortageQuantity(item: AdminOrderItem): number {
+  return Math.max(0, Number(item.shortageQuantity ?? 0));
+}
+
+function getPendingReservationQuantity(item: AdminOrderItem): number {
+  return Math.max(0, getRequestedQuantity(item) - getReservedQuantity(item) - getShortageQuantity(item));
 }
 
 function getPickingItemLimit(item: AdminOrderItem): number {
@@ -217,6 +254,259 @@ function getPickingStatusClass(item: AdminOrderItem): 'is-picked' | 'is-partial'
   if (status === 'COMPLETED') return 'is-picked';
   if (status === 'PARTIAL') return 'is-partial';
   return 'is-pending';
+}
+
+type DetailPickingStatus = 'PENDING' | 'PARTIAL' | 'COMPLETED';
+
+type DetailPickingGroup = {
+  key: string;
+  items: AdminOrderItem[];
+  representative: AdminOrderItem;
+  requested: number;
+  picked: number;
+  limit: number;
+  missing: number;
+  status: DetailPickingStatus;
+};
+
+// Agrupa las lineas del mismo producto + color + talla en una sola fila de
+// picking, sumando Solicitada/Separada/Faltante. Se agrupa por color/talla (NO
+// por variantId): en "producto unico" todas las filas comparten el mismo
+// variantId y el color/talla es solo display, asi que Blanco-L, Negro-L y
+// Melange-XL deben quedar en filas distintas y solo se suman las de igual
+// color+talla del mismo producto.
+// Clave de agrupacion de una fila de picking: producto + color + talla.
+function detailGroupKeyOf(item: AdminOrderItem): string {
+  return `${item.variant.productName}|${item.variant.colorName}|${item.variant.sizeName}`;
+}
+
+function groupDetailPickingItems(items: AdminOrderItem[]): DetailPickingGroup[] {
+  const buckets = new Map<string, AdminOrderItem[]>();
+  const order: string[] = [];
+  items.forEach((item) => {
+    const key = detailGroupKeyOf(item);
+    if (!buckets.has(key)) {
+      buckets.set(key, []);
+      order.push(key);
+    }
+    buckets.get(key)!.push(item);
+  });
+
+  return order.map((key) => {
+    const groupItems = buckets.get(key)!;
+    const requested = groupItems.reduce((sum, item) => sum + getRequestedQuantity(item), 0);
+    const picked = groupItems.reduce((sum, item) => sum + getPickedQuantity(item), 0);
+    const limit = groupItems.reduce((sum, item) => sum + getPickingItemLimit(item), 0);
+    let status: DetailPickingStatus = 'PENDING';
+    if (picked <= 0) {
+      status = 'PENDING';
+    } else if (picked >= requested && requested > 0) {
+      status = 'COMPLETED';
+    } else {
+      status = 'PARTIAL';
+    }
+    return {
+      key,
+      items: groupItems,
+      representative: groupItems[0],
+      requested,
+      picked,
+      limit,
+      missing: Math.max(0, requested - picked),
+      status,
+    };
+  });
+}
+
+function detailPickingStatusLabel(status: DetailPickingStatus): string {
+  if (status === 'COMPLETED') return 'Completo';
+  if (status === 'PARTIAL') return 'Parcial';
+  return 'Pendiente';
+}
+
+function detailPickingStatusClass(status: DetailPickingStatus): 'is-picked' | 'is-partial' | 'is-pending' {
+  if (status === 'COMPLETED') return 'is-picked';
+  if (status === 'PARTIAL') return 'is-partial';
+  return 'is-pending';
+}
+
+function detailPickingStatusFromCounts(picked: number, requested: number): DetailPickingStatus {
+  if (picked <= 0) return 'PENDING';
+  if (picked >= requested && requested > 0) return 'COMPLETED';
+  return 'PARTIAL';
+}
+
+type DetailPickingProductSection = {
+  key: string;
+  productName: string;
+  initial: string;
+  groups: DetailPickingGroup[];
+};
+
+// Forma minima del picking devuelto por el PATCH que consumimos para el patch
+// local (respuesta parcial sin recargar todo el pedido).
+type PickingSyncPayload = {
+  orderStatus?: unknown;
+  pickingResponsibility?: { enabled?: unknown } | null;
+  summary?: { progress?: unknown } | null;
+  items?: Array<{ orderItemId?: unknown; pickedQuantity?: unknown }> | null;
+};
+
+// Tarjeta compacta de un producto en el picking movil: encabezado (miniatura +
+// nombre + estado agregado) y una fila por variante con Solic/Sep/Falt y las
+// acciones (- / + / Completar → "C"). Se extrae como componente para no anidar
+// dos .map en el render del padre (el react-compiler lo marca como acceso a
+// refs en render); aqui el map de variantes es de un solo nivel.
+function PickingMobileProductSection({
+  section,
+  getEffectivePicked,
+  isGroupUpdatingDetail,
+  onMark,
+  onSetAbsolute,
+  canUpdate,
+  canOperate,
+  selectedKeys,
+  onToggleSelect,
+}: {
+  section: DetailPickingProductSection;
+  getEffectivePicked: (item: AdminOrderItem) => number;
+  isGroupUpdatingDetail: (group: DetailPickingGroup) => boolean;
+  onMark: (group: DetailPickingGroup, action: 'inc' | 'dec' | 'complete') => void;
+  onSetAbsolute: (group: DetailPickingGroup, value: number) => void;
+  canUpdate: boolean;
+  canOperate: boolean;
+  selectedKeys: Set<string>;
+  onToggleSelect: (key: string) => void;
+}) {
+  const sectionPicked = section.groups.reduce(
+    (sum, g) => sum + g.items.reduce((s, item) => s + getEffectivePicked(item), 0),
+    0,
+  );
+  const allCompleted = section.groups.every((g) => {
+    const p = g.items.reduce((s, item) => s + getEffectivePicked(item), 0);
+    return p >= g.requested && g.requested > 0;
+  });
+  const sectionStatus: DetailPickingStatus = allCompleted ? 'COMPLETED' : sectionPicked > 0 ? 'PARTIAL' : 'PENDING';
+  return (
+    <div className="pk-product">
+      <div className="pk-product-head">
+        <span className="pk-thumb" aria-hidden>{section.initial}</span>
+        <span className="pk-product-name">{section.productName}</span>
+        <span className={`pk-status ${detailPickingStatusClass(sectionStatus)}`}>{detailPickingStatusLabel(sectionStatus)}</span>
+      </div>
+      <div className="pk-rows">
+        {section.groups.map((group) => {
+          const representative = group.representative;
+          const isSyncing = isGroupUpdatingDetail(group);
+          const picked = group.items.reduce((sum, item) => sum + getEffectivePicked(item), 0);
+          const missing = Math.max(0, group.requested - picked);
+          const status = detailPickingStatusFromCounts(picked, group.requested);
+          return (
+            <div key={`picking-mobile-row-${group.key}`} className={`pk-row ${detailPickingStatusClass(status)}`}>
+              <input
+                type="checkbox"
+                className="pk-row-select"
+                aria-label="Seleccionar variante"
+                checked={selectedKeys.has(group.key)}
+                onChange={() => onToggleSelect(group.key)}
+              />
+              <div className="pk-var">
+                <span className="pk-var-name">
+                  {representative.variant.colorName || '-'} · {representative.variant.sizeName || '-'}
+                </span>
+                {group.items.length > 1 ? <small className="admin-muted-text">({group.items.length} lineas)</small> : null}
+              </div>
+              <div className="pk-metrics">
+                <span className="pk-metric"><b>{group.requested}</b><small>Solic</small></span>
+                <span className="pk-metric is-picked"><b>{picked}</b><small>Sep</small></span>
+                <span className={`pk-metric${missing > 0 ? ' is-missing' : ''}`}><b>{missing}</b><small>Falt</small></span>
+              </div>
+              <div className="pk-row-actions">
+                <button
+                  type="button"
+                  className="pk-step"
+                  aria-label="Quitar una unidad separada"
+                  onClick={() => onMark(group, 'dec')}
+                  disabled={!canUpdate || !canOperate || isSyncing || picked <= 0}
+                >
+                  -
+                </button>
+                <input
+                  className="pk-picked-input"
+                  type="text"
+                  inputMode="numeric"
+                  aria-label="Cantidad separada"
+                  value={picked}
+                  disabled={!canUpdate || !canOperate || isSyncing}
+                  onChange={(event) => onSetAbsolute(group, Number(event.target.value.replace(/\D/g, '')) || 0)}
+                />
+                <button
+                  type="button"
+                  className="pk-step"
+                  aria-label="Separar una unidad"
+                  onClick={() => onMark(group, 'inc')}
+                  disabled={!canUpdate || !canOperate || isSyncing || picked >= group.limit}
+                >
+                  +
+                </button>
+                <button
+                  type="button"
+                  className="pk-complete"
+                  title="Completar"
+                  aria-label="Completar"
+                  onClick={() => onMark(group, 'complete')}
+                  disabled={!canUpdate || !canOperate || isSyncing || picked >= group.limit}
+                >
+                  <span className="pk-complete-short" aria-hidden>C</span>
+                  <span className="pk-complete-full">Completar</span>
+                </button>
+                {isSyncing ? <span className="ff-spinner ff-spinner-sm order-detail-pick-spin-next" aria-hidden /> : null}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Debounce de la separacion en vivo en "Picking Operativo": tras +/- se espera
+// este lapso antes de llamar a la API (igual que la reserva del panel).
+const PICKING_SYNC_DEBOUNCE_MS = 1500;
+
+// Identificadores de linea de picking (puros: solo leen campos del item).
+function getOrderItemId(item: AdminOrderItem): number {
+  const raw = Number(item.orderItemId ?? item.id ?? 0);
+  return Number.isInteger(raw) && raw > 0 ? raw : 0;
+}
+
+function getPickingItemId(item: AdminOrderItem): number {
+  const raw = Number(item.pickingItemId || 0);
+  return Number.isInteger(raw) && raw > 0 ? raw : 0;
+}
+
+function getNormalizedVariantId(item: AdminOrderItem): number {
+  const raw = Number(item.variantId || item.variant?.id || 0);
+  return Number.isInteger(raw) && raw > 0 ? raw : 0;
+}
+
+function getPickingUpdateKey(item: AdminOrderItem): string {
+  const orderItemId = getOrderItemId(item);
+  if (orderItemId > 0) {
+    return `order-item:${orderItemId}`;
+  }
+
+  const pickingItemId = getPickingItemId(item);
+  if (pickingItemId > 0) {
+    return `picking-item:${pickingItemId}`;
+  }
+
+  const variantId = getNormalizedVariantId(item);
+  if (variantId > 0) {
+    return `variant:${variantId}`;
+  }
+
+  return '';
 }
 
 function getReservationStatusLabel(status: string): string {
@@ -362,11 +652,34 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
   const [selectedStatus, setSelectedStatus] = useState<AdminOrderStatus>('PENDING');
   const [statusNote, setStatusNote] = useState('');
   const [printLayout, setPrintLayout] = useState<PrintLayout>('invoice');
+  const [activeTab, setActiveTab] = useState<'prep' | 'products' | 'reservations' | 'history'>('prep');
+  const [showOrderDetails, setShowOrderDetails] = useState(false);
+  // Menú compacto de acciones de cabecera (movil) y form de cambio de estado
+  // colapsado por defecto para reducir scroll en operador interno.
+  const [showHeaderMenu, setShowHeaderMenu] = useState(false);
+  const [showStatusForm, setShowStatusForm] = useState(false);
   const [lastAutoPrintedOrderId, setLastAutoPrintedOrderId] = useState<number | null>(null);
   const [startingPicking, setStartingPicking] = useState(false);
   const [finishingPicking, setFinishingPicking] = useState(false);
+  const [pickingAll, setPickingAll] = useState(false);
+  const [scanMode, setScanMode] = useState(false);
+  const [fullscreenPicking, setFullscreenPicking] = useState(false);
+  const [selectedGroupKeys, setSelectedGroupKeys] = useState<Set<string>>(new Set());
+  // Edicion "en caliente" del pedido durante el picking (agregar/cambiar/quitar).
+  const [editingDuringPicking, setEditingDuringPicking] = useState(false);
   const [deliveringOrder, setDeliveringOrder] = useState(false);
-  const [updatingPickingItemIds, setUpdatingPickingItemIds] = useState<string[]>([]);
+  // Separacion en vivo (optimista + debounce POR FILA/grupo). Override de cantidad
+  // separada por linea (para pintar en vivo) y set de FILAS con PATCH en vuelo
+  // (para spinner/bloqueo de botones). El debounce es por grupo: cada +/- reinicia
+  // el timer de esa fila y recien tras 1.5s inactiva se postean sus lineas.
+  const [pickedOverrides, setPickedOverrides] = useState<Record<string, number>>({});
+  const [syncingGroupKeys, setSyncingGroupKeys] = useState<string[]>([]);
+  const pickedOverridesRef = useRef<Record<string, number>>({});
+  const pickingDebounceRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const pickingInFlightRef = useRef<Set<string>>(new Set());
+  const pickingDirtyRef = useRef<Set<string>>(new Set());
+  const schedulePickingGroupSyncRef = useRef<((groupKey: string) => void) | null>(null);
+  const orderRef = useRef<AdminOrder | null>(null);
   const [assignUsers, setAssignUsers] = useState<AssignableUserOption[]>([]);
   const [loadingAssignUsers, setLoadingAssignUsers] = useState(false);
   const [assignUsersError, setAssignUsersError] = useState('');
@@ -432,6 +745,28 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
     () => normalizeOrderStatus(order?.status) || null,
     [order?.status],
   );
+
+  const detailPickingGroups = useMemo(
+    () => groupDetailPickingItems(order?.items ?? []),
+    [order?.items],
+  );
+  // Agrupa las filas de picking por producto para el layout compacto en movil:
+  // un encabezado por producto (miniatura + nombre) y sus variantes debajo, una
+  // por fila. El estado agregado se calcula en el render con el separado en vivo.
+  const detailPickingProductSections = useMemo(() => {
+    const map = new Map<string, { key: string; productName: string; initial: string; groups: DetailPickingGroup[] }>();
+    const order: string[] = [];
+    for (const group of detailPickingGroups) {
+      const name = group.representative.variant.productName || 'Producto';
+      const key = `prod:${name}`;
+      if (!map.has(key)) {
+        map.set(key, { key, productName: name, initial: (name.trim().charAt(0) || '?').toUpperCase(), groups: [] });
+        order.push(key);
+      }
+      map.get(key)!.groups.push(group);
+    }
+    return order.map((key) => map.get(key)!);
+  }, [detailPickingGroups]);
   const nextStates = useMemo(
     () => (order && normalizedCurrentOrderStatus ? getNextStates(normalizedCurrentOrderStatus) : []),
     [order, normalizedCurrentOrderStatus],
@@ -461,20 +796,82 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
     if (totalRequested <= 0) return 0;
     return Math.round((totalPicked / totalRequested) * 100);
   }, [order]);
+  const hasActiveReservations = useMemo(() => (
+    Boolean(order?.reservations.some((reservation) => String(reservation.status || '').toUpperCase() === 'ACTIVE'))
+  ), [order?.reservations]);
+  const activeReservations = useMemo(() => (
+    order?.reservations.filter((reservation) => String(reservation.status || '').toUpperCase() === 'ACTIVE') || []
+  ), [order?.reservations]);
+  const releasedReservations = useMemo(() => (
+    order?.reservations.filter((reservation) => String(reservation.status || '').toUpperCase() !== 'ACTIVE') || []
+  ), [order?.reservations]);
+  const isEcommerceProformaOpen = useMemo(() => {
+    if (!order || order.salesChannel !== 'ECOMMERCE' || order.pickingSession?.id) {
+      return false;
+    }
+    const status = String(order.status || '').toUpperCase();
+    return status === 'PENDING' || status === 'WAITING_STOCK' || status === 'CONFIRMED';
+  }, [order]);
+  const pendingReservationItems = useMemo(() => (
+    order?.items.filter((item) => getPendingReservationQuantity(item) > 0) || []
+  ), [order?.items]);
+  const hasPendingReservationItems = pendingReservationItems.length > 0;
+  const shouldShowEcommerceProformaPanel = Boolean(
+    order
+    && isEcommerceProformaOpen
+    && (
+      hasPendingReservationItems
+      || !hasActiveReservations
+      || String(order.status || '').toUpperCase() !== 'CONFIRMED'
+    ),
+  );
+  // Habilitar picking NO es bloqueante: basta >=1 reserva activa. Las lineas sin
+  // reservar / sin stock quedan pendientes y editables en el panel de reserva, que
+  // sigue disponible (isEcommerceProformaOpen) hasta iniciar la preparacion, para
+  // reservar o agregar lo que falte mas tarde.
+  const canConfirmMarketplaceGuide = useMemo(() => (
+    Boolean(
+      order
+      && isEcommerceProformaOpen
+      && hasActiveReservations
+      && canUpdateOrderStatus
+      && !updatingStatus
+      && nextStates.includes('CONFIRMED'),
+    )
+  ), [canUpdateOrderStatus, hasActiveReservations, isEcommerceProformaOpen, nextStates, order, updatingStatus]);
+  const canMarkMarketplaceGuideWithoutStock = useMemo(() => (
+    Boolean(
+      order
+      && isEcommerceProformaOpen
+      && canUpdateOrderStatus
+      && !updatingStatus
+      && nextStates.includes('WAITING_STOCK'),
+    )
+  ), [canUpdateOrderStatus, isEcommerceProformaOpen, nextStates, order, updatingStatus]);
   const canStartPickingFromDetail = useMemo(() => {
     if (!order || startingPicking) return false;
     if (!canStartPickingPermission) return false;
     if (!canCurrentUserOperatePickingByResponsibility) return false;
     if (order.pickingSession?.id) return false;
+    if (!hasActiveReservations) return false;
     const status = String(order.status || '').toUpperCase();
     return status === 'CONFIRMED' || status === 'PREPARING' || status === 'WAITING_TRANSFER';
-  }, [canCurrentUserOperatePickingByResponsibility, canStartPickingPermission, order, startingPicking]);
+  }, [canCurrentUserOperatePickingByResponsibility, canStartPickingPermission, hasActiveReservations, order, startingPicking]);
   const isPickingFinalizedForDetail = useMemo(() => {
     if (!order?.pickingSession?.id) return false;
     const sessionStatus = String(order.pickingSession.status || '').toUpperCase();
     const orderStatus = String(order.status || '').toUpperCase();
     return sessionStatus === 'COMPLETED' && (orderStatus === 'READY' || orderStatus === 'DELIVERED');
   }, [order]);
+  // Permite abrir el panel de proforma DURANTE el picking (ecommerce) para que el
+  // cliente cambie de opinion en caliente. Bloqueado si el picking ya finalizo o el
+  // pedido esta en estado final.
+  const canEditDuringPicking = useMemo(() => {
+    if (!order || order.salesChannel !== 'ECOMMERCE' || !order.pickingSession?.id) return false;
+    if (!canUpdateOrderStatus || isPickingFinalizedForDetail) return false;
+    const status = String(order.status || '').toUpperCase();
+    return !['READY', 'DELIVERED', 'CANCELLED', 'RETURN_PENDING'].includes(status);
+  }, [order, canUpdateOrderStatus, isPickingFinalizedForDetail]);
   const canCompletePickingFromDetail = useMemo(() => {
     if (!order || finishingPicking) return false;
     if (!canCompletePickingPermission) return false;
@@ -488,6 +885,11 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
     });
     return allPicked;
   }, [canCompletePickingPermission, canCurrentUserOperatePickingByResponsibility, finishingPicking, isPickingFinalizedForDetail, order]);
+  // Paso activo del asistente de preparacion (mobile-first): Paso 1 = Reservar,
+  // Paso 2 = Separar (picking). Se deriva del estado; sin estado propio nuevo.
+  // Con pickingSession dominamos el Paso 2; "editingDuringPicking" vuelve al Paso 1
+  // encima del picking para editar productos en caliente.
+  const currentPrepStep: 1 | 2 = (order?.pickingSession?.id && !editingDuringPicking) ? 2 : 1;
   const isReturnPendingOrder = useMemo(() => String(order?.status || '').toUpperCase() === 'RETURN_PENDING', [order?.status]);
   const returnWorkflow = useMemo(() => {
     const rawWorkflow = order?.returnWorkflow || null;
@@ -809,6 +1211,21 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
   }, [assigningResponsible, delegatingReturn, showAssignModal, showReturnDelegateModal]);
 
   useEffect(() => {
+    if (!showOrderDetails) {
+      return undefined;
+    }
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowOrderDetails(false);
+      }
+    };
+    window.addEventListener('keydown', onEscape);
+    return () => {
+      window.removeEventListener('keydown', onEscape);
+    };
+  }, [showOrderDetails]);
+
+  useEffect(() => {
     if (!order || !shouldAutoPrint) {
       return;
     }
@@ -864,94 +1281,14 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
     setShowReturnDelegateModal(false);
   }
 
-  function getOrderItemId(item: AdminOrderItem): number {
-    const raw = Number(item.orderItemId ?? item.id ?? 0);
-    return Number.isInteger(raw) && raw > 0 ? raw : 0;
-  }
 
-  function getPickingItemId(item: AdminOrderItem): number {
-    const raw = Number(item.pickingItemId || 0);
-    return Number.isInteger(raw) && raw > 0 ? raw : 0;
-  }
-
-  function getNormalizedVariantId(item: AdminOrderItem): number {
-    const raw = Number(item.variantId || item.variant?.id || 0);
-    return Number.isInteger(raw) && raw > 0 ? raw : 0;
-  }
-
-  function getPickingUpdateKey(item: AdminOrderItem): string {
-    const orderItemId = getOrderItemId(item);
-    if (orderItemId > 0) {
-      return `order-item:${orderItemId}`;
+  // Cantidad separada efectiva = override optimista si existe, si no la del server.
+  function getEffectivePicked(item: AdminOrderItem): number {
+    const key = getPickingUpdateKey(item);
+    if (key && key in pickedOverrides) {
+      return Math.max(0, pickedOverrides[key]);
     }
-
-    const pickingItemId = getPickingItemId(item);
-    if (pickingItemId > 0) {
-      return `picking-item:${pickingItemId}`;
-    }
-
-    const variantId = getNormalizedVariantId(item);
-    if (variantId > 0) {
-      return `variant:${variantId}`;
-    }
-
-    return '';
-  }
-
-  function getPickingGroupItems(item: AdminOrderItem): AdminOrderItem[] {
-    if (!order || !Array.isArray(order.items) || order.items.length === 0) {
-      return [item];
-    }
-
-    const pickingItemId = getPickingItemId(item);
-    if (pickingItemId > 0) {
-      const groupedByPickingItemId = order.items.filter((candidate) => getPickingItemId(candidate) === pickingItemId);
-      if (groupedByPickingItemId.length > 0) {
-        return groupedByPickingItemId;
-      }
-    }
-
-    const variantId = getNormalizedVariantId(item);
-    if (variantId > 0) {
-      const groupedByVariantId = order.items.filter((candidate) => getNormalizedVariantId(candidate) === variantId);
-      if (groupedByVariantId.length > 0) {
-        return groupedByVariantId;
-      }
-    }
-
-    return [item];
-  }
-
-  function resolveNextPickingUpdateQuantity(item: AdminOrderItem, action: 'inc' | 'dec' | 'complete'): number {
-    const currentRowQuantity = getPickedQuantity(item);
-    const rowLimit = getPickingItemLimit(item);
-
-    let targetRowQuantity = currentRowQuantity;
-    if (action === 'inc') targetRowQuantity = Math.min(rowLimit, currentRowQuantity + 1);
-    if (action === 'dec') targetRowQuantity = Math.max(0, currentRowQuantity - 1);
-    if (action === 'complete') targetRowQuantity = rowLimit;
-
-    const orderItemId = getOrderItemId(item);
-    if (orderItemId > 0) {
-      return targetRowQuantity;
-    }
-
-    const groupedItems = getPickingGroupItems(item);
-    if (groupedItems.length <= 1) {
-      return targetRowQuantity;
-    }
-
-    const groupCurrentTotal = groupedItems.reduce((sum, groupItem) => sum + getPickedQuantity(groupItem), 0);
-    const groupLimitTotal = groupedItems.reduce((sum, groupItem) => sum + getPickingItemLimit(groupItem), 0);
-    const delta = targetRowQuantity - currentRowQuantity;
-    const nextGroupTotal = groupCurrentTotal + delta;
-
-    return Math.max(0, Math.min(groupLimitTotal, nextGroupTotal));
-  }
-
-  function isUpdatingPickingItem(item: AdminOrderItem): boolean {
-    const updateKey = getPickingUpdateKey(item);
-    return updateKey.length > 0 && updatingPickingItemIds.includes(updateKey);
+    return getPickedQuantity(item);
   }
 
   async function startPickingFromDetail() {
@@ -991,7 +1328,13 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
     }
   }
 
-  async function markPickingItemFromDetail(item: AdminOrderItem, action: 'inc' | 'dec' | 'complete') {
+  // Separa de una vez todo lo disponible del pedido (1 request atomico backend).
+  // Pensado para tienda rapida: evita N clicks "+". Recarga tras el commit para
+  // reflejar la verdad del server (limpia optimistas pendientes antes).
+  async function pickAllAvailableFromDetail() {
+    if (!order || pickingAll) {
+      return;
+    }
     if (!canUpdatePickingPermission) {
       showAlert('No tienes permiso para actualizar picking.', 'error');
       return;
@@ -1001,56 +1344,381 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
       return;
     }
 
-    if (!order) {
-      return;
-    }
-
-    const updateKey = getPickingUpdateKey(item);
-    if (!updateKey || isUpdatingPickingItem(item)) {
-      return;
-    }
-
-    const currentPicked = getPickedQuantity(item);
-    const nextPicked = resolveNextPickingUpdateQuantity(item, action);
-
-    if (nextPicked === currentPicked) {
-      return;
-    }
-
-    const orderItemId = getOrderItemId(item);
-    const pickingItemId = getPickingItemId(item);
-
-    let endpoint = '';
-    if (orderItemId > 0) {
-      endpoint = `/api/admin/orders/${order.id}/picking/order-items/${orderItemId}`;
-    } else if (pickingItemId > 0) {
-      endpoint = `/api/admin/orders/picking/items/${pickingItemId}`;
-    } else {
-      showAlert('No se pudo identificar el item de picking.', 'error');
-      return;
-    }
-
-    setUpdatingPickingItemIds((current) => [...current, updateKey]);
+    setPickingAll(true);
     try {
-      const response = await fetch(endpoint, {
+      const response = await fetch(`/api/admin/orders/${order.id}/picking/pick-all`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ pickedQuantity: nextPicked }),
+        body: JSON.stringify({}),
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
         showAlert(String((payload as { error?: unknown; message?: unknown } | null)?.error
           || (payload as { error?: unknown; message?: unknown } | null)?.message
-          || 'No se pudo actualizar item de picking.'), 'error');
+          || 'No se pudo separar todo lo disponible.'), 'error');
         return;
       }
-
+      setPickedOverrides({});
       await loadOrder();
+      showAlert('Separado todo lo disponible.', 'success');
     } catch {
-      showAlert('No se pudo actualizar item de picking.', 'error');
+      showAlert('No se pudo separar todo lo disponible.', 'error');
     } finally {
-      setUpdatingPickingItemIds((current) => current.filter((key) => key !== updateKey));
+      setPickingAll(false);
     }
+  }
+
+  // Escaneo (pistola/teclado/camara): busca la variante por SKU y separa +1.
+  function handlePickingScan(rawCode: string) {
+    const code = String(rawCode || '').trim().toLowerCase();
+    if (!code) {
+      return;
+    }
+    if (!canUpdatePickingPermission || !canCurrentUserOperatePickingByResponsibility) {
+      showAlert('No tienes permiso para separar en este picking.', 'error');
+      return;
+    }
+    const matches = detailPickingGroups.filter(
+      (group) => String(group.representative.variant.sku || '').trim().toLowerCase() === code,
+    );
+    if (matches.length === 0) {
+      showAlert(`SKU no está en el pedido: ${rawCode}`, 'warning');
+      return;
+    }
+    // Producto unico: varias filas comparten SKU; separa la primera con pendiente.
+    const target = matches.find((group) => {
+      const picked = group.items.reduce((sum, item) => sum + getEffectivePicked(item), 0);
+      return picked < group.limit;
+    });
+    if (!target) {
+      showAlert('Ese producto ya está completo.', 'info');
+      return;
+    }
+    markPickingGroupFromDetail(target, 'inc');
+    const variant = target.representative.variant;
+    showAlert(`+1 ${variant.productName} · ${variant.colorName}/${variant.sizeName}`, 'success', 1400);
+  }
+
+  // Seleccion multiple de grupos de picking + accion en lote.
+  function toggleGroupSelection(key: string) {
+    setSelectedGroupKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }
+
+  function clearGroupSelection() {
+    setSelectedGroupKeys(new Set());
+  }
+
+  function separateSelectedGroups() {
+    if (!canUpdatePickingPermission || !canCurrentUserOperatePickingByResponsibility) {
+      showAlert('No tienes permiso para separar en este picking.', 'error');
+      return;
+    }
+    const groups = detailPickingGroups.filter((group) => selectedGroupKeys.has(group.key));
+    if (groups.length === 0) {
+      return;
+    }
+    for (const group of groups) {
+      markPickingGroupFromDetail(group, 'complete');
+    }
+    showAlert(`Separados ${groups.length} producto(s) seleccionado(s).`, 'success');
+    clearGroupSelection();
+  }
+
+  const clearPickedOverrideIfEquals = useCallback((key: string, value: number) => {
+    setPickedOverrides((prev) => {
+      if (!(key in prev) || prev[key] !== value) {
+        return prev;
+      }
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  }, []);
+
+  // Sincroniza UNA FILA (grupo) con el backend tras el debounce: postea SOLO las
+  // lineas cuya cantidad separada cambio (PATCH absoluto), una sola vez por fila.
+  // Toast "Actualizando…" al empezar + toast de confirmacion al terminar.
+  const syncPickingGroup = useCallback(async (groupKey: string) => {
+    const currentOrder = orderRef.current;
+    if (!currentOrder || !Array.isArray(currentOrder.items)) {
+      return;
+    }
+    if (pickingInFlightRef.current.has(groupKey)) {
+      pickingDirtyRef.current.add(groupKey);
+      return;
+    }
+
+    const groupItems = currentOrder.items.filter((item) => detailGroupKeyOf(item) === groupKey);
+    const overrides = pickedOverridesRef.current;
+    const pending = groupItems
+      .map((item) => {
+        const key = getPickingUpdateKey(item);
+        const serverPicked = getPickedQuantity(item);
+        const target = key && key in overrides ? overrides[key] : serverPicked;
+        return { item, key, serverPicked, target };
+      })
+      .filter((entry) => entry.key && entry.target !== entry.serverPicked);
+
+    if (pending.length === 0) {
+      // Limpia overrides que ya coinciden con el server.
+      for (const item of groupItems) {
+        clearPickedOverrideIfEquals(getPickingUpdateKey(item), getPickedQuantity(item));
+      }
+      return;
+    }
+
+    pickingInFlightRef.current.add(groupKey);
+    setSyncingGroupKeys((prev) => (prev.includes(groupKey) ? prev : [...prev, groupKey]));
+    showAlert('Actualizando separacion…', 'info');
+
+    let totalDelta = 0;
+    let errorMsg = '';
+    let lastPayload: PickingSyncPayload | null = null;
+    try {
+      for (const entry of pending) {
+        const orderItemId = getOrderItemId(entry.item);
+        const pickingItemId = getPickingItemId(entry.item);
+        let endpoint = '';
+        if (orderItemId > 0) {
+          endpoint = `/api/admin/orders/${currentOrder.id}/picking/order-items/${orderItemId}`;
+        } else if (pickingItemId > 0) {
+          endpoint = `/api/admin/orders/picking/items/${pickingItemId}`;
+        } else {
+          errorMsg = 'No se pudo identificar el item de picking.';
+          continue;
+        }
+        const response = await fetch(endpoint, {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ pickedQuantity: entry.target }),
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) {
+          errorMsg = String((payload as { error?: unknown; message?: unknown } | null)?.error
+            || (payload as { error?: unknown; message?: unknown } | null)?.message
+            || 'No se pudo actualizar item de picking.');
+          continue;
+        }
+        totalDelta += entry.target - entry.serverPicked;
+        // El controller envuelve el picking en { success, data, message }.
+        const wrapped = payload as { data?: unknown } | null;
+        lastPayload = (wrapped && typeof wrapped === 'object' && 'data' in wrapped
+          ? wrapped.data
+          : payload) as PickingSyncPayload;
+      }
+
+      // Respuesta parcial: si no cambio el estado del pedido ni esta activo el
+      // flujo de responsabilidad, aplicamos el picking devuelto por el PATCH y
+      // evitamos el GET completo del pedido (mas rapido en listas largas). En
+      // transiciones de estado o multi-responsable recargamos todo por precision
+      // (badges, contribuciones, reasignacion de responsable).
+      const currentStatus = String(currentOrder.status || '').toUpperCase();
+      const payloadStatus = String(lastPayload?.orderStatus || '').toUpperCase();
+      const responsibilityOn = Boolean(lastPayload?.pickingResponsibility?.enabled);
+      const canPatchLocally = !errorMsg
+        && lastPayload
+        && Array.isArray(lastPayload.items)
+        && payloadStatus === currentStatus
+        && !responsibilityOn;
+
+      if (canPatchLocally) {
+        const pickedByOrderItem = new Map<number, number>();
+        for (const it of (lastPayload?.items ?? []) as Array<{ orderItemId?: unknown; pickedQuantity?: unknown }>) {
+          const oiid = Number(it?.orderItemId || 0);
+          if (oiid > 0) {
+            pickedByOrderItem.set(oiid, Math.max(0, Number(it?.pickedQuantity || 0)));
+          }
+        }
+        const nextProgress = Number(lastPayload?.summary?.progress);
+        setOrder((prev) => {
+          if (!prev) return prev;
+          const items = prev.items.map((item) => {
+            const oiid = getOrderItemId(item);
+            if (oiid > 0 && pickedByOrderItem.has(oiid)) {
+              const value = pickedByOrderItem.get(oiid)!;
+              return { ...item, pickedQuantity: value, picked: value };
+            }
+            return item;
+          });
+          const pickingSummary = prev.pickingSummary && Number.isFinite(nextProgress)
+            ? { ...prev.pickingSummary, progress: nextProgress }
+            : prev.pickingSummary;
+          return { ...prev, items, pickingSummary };
+        });
+      } else {
+        await loadOrder();
+      }
+
+      for (const entry of pending) {
+        clearPickedOverrideIfEquals(entry.key, entry.target);
+      }
+
+      if (errorMsg) {
+        showAlert(errorMsg, 'error');
+      } else if (totalDelta > 0) {
+        showAlert(`Separadas ${totalDelta} unidad(es).`, 'success');
+      } else if (totalDelta < 0) {
+        showAlert(`Quitadas ${-totalDelta} unidad(es).`, 'success');
+      } else {
+        showAlert('Separacion actualizada.', 'success');
+      }
+    } catch {
+      showAlert('No se pudo actualizar la separacion.', 'error');
+      for (const entry of pending) {
+        clearPickedOverrideIfEquals(entry.key, entry.target);
+      }
+    } finally {
+      pickingInFlightRef.current.delete(groupKey);
+      setSyncingGroupKeys((prev) => prev.filter((k) => k !== groupKey));
+      if (pickingDirtyRef.current.has(groupKey)) {
+        pickingDirtyRef.current.delete(groupKey);
+        schedulePickingGroupSyncRef.current?.(groupKey);
+      }
+    }
+  }, [loadOrder, showAlert, clearPickedOverrideIfEquals]);
+
+  // Debounce POR FILA: cada +/- reinicia el timer; recien tras 1.5s inactiva postea.
+  const schedulePickingGroupSync = useCallback((groupKey: string) => {
+    if (!groupKey) {
+      return;
+    }
+    const existing = pickingDebounceRef.current.get(groupKey);
+    if (existing) {
+      clearTimeout(existing);
+    }
+    const timer = setTimeout(() => {
+      pickingDebounceRef.current.delete(groupKey);
+      void syncPickingGroup(groupKey);
+    }, PICKING_SYNC_DEBOUNCE_MS);
+    pickingDebounceRef.current.set(groupKey, timer);
+  }, [syncPickingGroup]);
+
+  useEffect(() => {
+    pickedOverridesRef.current = pickedOverrides;
+  }, [pickedOverrides]);
+
+  useEffect(() => {
+    orderRef.current = order;
+  }, [order]);
+
+  // Modo pantalla completa de picking: bloquea el scroll del fondo mientras esta
+  // activo (el contenedor .pk-fs-target.is-fullscreen se muestra fijo a pantalla).
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+    document.body.classList.toggle('pk-fullscreen-active', fullscreenPicking);
+    return () => {
+      document.body.classList.remove('pk-fullscreen-active');
+    };
+  }, [fullscreenPicking]);
+
+  useEffect(() => {
+    schedulePickingGroupSyncRef.current = schedulePickingGroupSync;
+  }, [schedulePickingGroupSync]);
+
+  useEffect(() => {
+    const timers = pickingDebounceRef.current;
+    return () => {
+      for (const timer of timers.values()) {
+        clearTimeout(timer);
+      }
+    };
+  }, []);
+
+  // Aplica el cambio optimista a una linea (sin agendar; el grupo agenda una vez).
+  function setPickedOverrideForItem(item: AdminOrderItem, nextPicked: number) {
+    const key = getPickingUpdateKey(item);
+    if (!key) {
+      return;
+    }
+    const clamped = Math.max(0, Math.min(getPickingItemLimit(item), nextPicked));
+    setPickedOverrides((prev) => ({ ...prev, [key]: clamped }));
+  }
+
+  function isGroupUpdatingDetail(group: DetailPickingGroup): boolean {
+    return syncingGroupKeys.includes(group.key);
+  }
+
+  // Acciones sobre una fila agrupada: cambian la cantidad efectiva de la linea
+  // subyacente (override optimista) y agendan UN solo debounce por fila.
+  function markPickingGroupFromDetail(group: DetailPickingGroup, action: 'inc' | 'dec' | 'complete') {
+    if (!canUpdatePickingPermission) {
+      showAlert('No tienes permiso para actualizar picking.', 'error');
+      return;
+    }
+    if (!canCurrentUserOperatePickingByResponsibility) {
+      showAlert('No tienes responsabilidad asignada para actualizar este picking.', 'warning');
+      return;
+    }
+
+    let changed = false;
+    if (action === 'inc') {
+      const target = group.items.find((item) => getEffectivePicked(item) < getPickingItemLimit(item));
+      if (target) {
+        setPickedOverrideForItem(target, getEffectivePicked(target) + 1);
+        changed = true;
+      }
+    } else if (action === 'dec') {
+      const target = [...group.items].reverse().find((item) => getEffectivePicked(item) > 0);
+      if (target) {
+        setPickedOverrideForItem(target, getEffectivePicked(target) - 1);
+        changed = true;
+      }
+    } else {
+      for (const item of group.items) {
+        if (getEffectivePicked(item) < getPickingItemLimit(item)) {
+          setPickedOverrideForItem(item, getPickingItemLimit(item));
+          changed = true;
+        }
+      }
+    }
+
+    if (changed) {
+      schedulePickingGroupSync(group.key);
+    }
+  }
+
+  // Fija la cantidad separada del grupo de forma ABSOLUTA (input numerico), sin
+  // pulsar + N veces. Distribuye el objetivo entre los items del grupo en una
+  // sola pasada (llena en orden hasta el limite de cada uno) y agenda un solo
+  // sync por fila. Evita el loop con estado stale de llamar 'inc' N veces.
+  function setGroupPickedAbsolute(group: DetailPickingGroup, value: number) {
+    if (!canUpdatePickingPermission) {
+      showAlert('No tienes permiso para actualizar picking.', 'error');
+      return;
+    }
+    if (!canCurrentUserOperatePickingByResponsibility) {
+      showAlert('No tienes responsabilidad asignada para actualizar este picking.', 'warning');
+      return;
+    }
+    const target = Math.max(0, Math.min(group.limit, Math.round(Number(value) || 0)));
+    let remaining = target;
+    const updates: Record<string, number> = {};
+    let changed = false;
+    for (const item of group.items) {
+      const itemLimit = getPickingItemLimit(item);
+      const assign = Math.max(0, Math.min(itemLimit, remaining));
+      remaining -= assign;
+      const key = getPickingUpdateKey(item);
+      if (key && getEffectivePicked(item) !== assign) {
+        updates[key] = assign;
+        changed = true;
+      }
+    }
+    if (!changed) {
+      return;
+    }
+    setPickedOverrides((prev) => ({ ...prev, ...updates }));
+    schedulePickingGroupSync(group.key);
   }
 
   async function completePickingFromDetail() {
@@ -1362,6 +2030,51 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
     }
   }
 
+  async function updateMarketplaceGuideStatus(status: AdminOrderStatus, note: string, successMessage: string) {
+    if (!canUpdateOrderStatus) {
+      showAlert('No tienes permiso para actualizar el estado de pedidos.', 'error');
+      return;
+    }
+    if (!order || updatingStatus) {
+      return;
+    }
+
+    const accepted = await confirm({
+      title: status === 'CONFIRMED' ? 'Confirmar disponibilidad' : 'Marcar sin stock',
+      message: status === 'CONFIRMED'
+        ? `Confirmar disponibilidad de la proforma ${order.code}? Las reservas deben estar generadas desde las sugerencias.`
+        : `Marcar la proforma ${order.code} como sin stock?`,
+      acceptText: status === 'CONFIRMED' ? 'Confirmar' : 'Marcar',
+      cancelText: 'Cancelar',
+    });
+    if (!accepted) {
+      return;
+    }
+
+    setUpdatingStatus(true);
+    try {
+      const response = await fetch(`/api/admin/orders/${order.id}/status`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ status, note }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        showAlert(String((payload as { error?: unknown; message?: unknown } | null)?.error
+          || (payload as { error?: unknown; message?: unknown } | null)?.message
+          || 'No se pudo actualizar la proforma ecommerce.'), 'error');
+        return;
+      }
+
+      showAlert(successMessage, 'success');
+      await loadOrder();
+    } catch {
+      showAlert('No se pudo actualizar la proforma ecommerce.', 'error');
+    } finally {
+      setUpdatingStatus(false);
+    }
+  }
+
   if (loading) {
     return (
       <section className="admin-dashboard-grid order-detail-page-next">
@@ -1398,9 +2111,60 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
       || order.clientPhone
       || '-'),
   );
+  const productStoreColumnLabel = order.salesChannel === 'ECOMMERCE' && !hasActiveReservations
+    ? 'Tienda ref.'
+    : 'Reserva';
+
+  const renderReservationTableRows = (rows: AdminOrderReservation[]) => (
+    rows.map((reservation: AdminOrderReservation) => {
+      const variantMeta = reservation.variantId ? reservationVariantLookup.get(reservation.variantId) : null;
+      return (
+        <tr key={reservation.id}>
+          <td>{variantMeta?.productName || '-'}</td>
+          <td>{variantMeta ? `${variantMeta.colorName} - ${variantMeta.sizeName}` : '-'}</td>
+          <td>{reservation.inventory?.storeName || '-'}</td>
+          <td>{reservation.quantity}</td>
+          <td>{getReturnReservationStatusLabel(reservation.status)}</td>
+          <td>{reservation.createdAt ? formatDateTime(reservation.createdAt) : '-'}</td>
+        </tr>
+      );
+    })
+  );
+
+  const renderReservationMobileCards = (rows: AdminOrderReservation[]) => (
+    rows.map((reservation) => {
+      const variantMeta = reservation.variantId ? reservationVariantLookup.get(reservation.variantId) : null;
+      return (
+        <article key={`reservation-mobile-${reservation.id}`} className="order-detail-mobile-card-next">
+          <div className="order-detail-mobile-card-head-next">
+            <h4>{variantMeta?.productName || '-'}</h4>
+            <span className="order-item-badge-next is-pending">{getReturnReservationStatusLabel(reservation.status)}</span>
+          </div>
+          <div className="order-detail-mobile-fields-next">
+            <div className="order-detail-mobile-field-next">
+              <span>Variante</span>
+              <strong>{variantMeta ? `${variantMeta.colorName} - ${variantMeta.sizeName}` : '-'}</strong>
+            </div>
+            <div className="order-detail-mobile-field-next">
+              <span>Tienda</span>
+              <strong>{reservation.inventory?.storeName || '-'}</strong>
+            </div>
+            <div className="order-detail-mobile-field-next">
+              <span>Cantidad reservada</span>
+              <strong>{reservation.quantity}</strong>
+            </div>
+            <div className="order-detail-mobile-field-next">
+              <span>Fecha</span>
+              <strong>{reservation.createdAt ? formatDateTime(reservation.createdAt) : '-'}</strong>
+            </div>
+          </div>
+        </article>
+      );
+    })
+  );
 
   return (
-    <section className={`admin-dashboard-grid order-detail-page-next print-layout-${printLayout}`}>
+    <section className={`admin-dashboard-grid order-detail-page-next print-layout-${printLayout}${isEcommerceProformaOpen ? ' order-detail-page-next--wide' : ''}`}>
       <div className="screen-content-next">
       <header className="order-detail-header-next">
         <div className="order-detail-header-left-next">
@@ -1408,83 +2172,123 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
           <p className="order-detail-client-next">{order.clientName || 'Cliente'} - {order.clientEmail || '-'}</p>
         </div>
         <div className="order-detail-header-actions-next">
-          <div className="inventory-field order-detail-print-picker-next">
-            <span>Formato</span>
-            <AdminSelect
-              value={printLayout}
-              options={PRINT_LAYOUT_OPTIONS}
-              ariaLabel="Seleccionar formato de impresion"
-              onChange={setPrintLayout}
+          {showHeaderMenu ? (
+            <button
+              type="button"
+              className="order-detail-actions-backdrop-next"
+              aria-label="Cerrar menu de acciones"
+              onClick={() => setShowHeaderMenu(false)}
             />
+          ) : null}
+          <div className={`order-detail-actions-menu-next${showHeaderMenu ? ' is-open' : ''}`}>
+            <button
+              type="button"
+              className="admin-ghost-btn order-detail-actions-trigger-next"
+              aria-haspopup="true"
+              aria-expanded={showHeaderMenu}
+              onClick={() => setShowHeaderMenu((value) => !value)}
+            >
+              Acciones ▾
+            </button>
+            <div className="order-detail-actions-pop-next" role="menu">
+              <div className="inventory-field order-detail-print-picker-next">
+                <span>Formato</span>
+                <AdminSelect
+                  value={printLayout}
+                  options={PRINT_LAYOUT_OPTIONS}
+                  ariaLabel="Seleccionar formato de impresion"
+                  onChange={setPrintLayout}
+                />
+              </div>
+              <button
+                type="button"
+                className="admin-ghost-btn order-detail-header-btn-next"
+                onClick={() => { setShowHeaderMenu(false); printOrder(); }}
+              >
+                Imprimir
+              </button>
+              <Link href="/admin/orders/list" className="admin-ghost-btn order-detail-header-btn-next">Volver al listado</Link>
+              <Link href="/admin/orders/picking" className="admin-ghost-btn order-detail-header-btn-next">Tablero de picking</Link>
+            </div>
           </div>
-          <button type="button" className="admin-ghost-btn order-detail-header-btn-next" onClick={printOrder}>Imprimir</button>
-          <Link href="/admin/orders/list" className="admin-ghost-btn order-detail-header-btn-next">Volver al listado</Link>
-          <Link href="/admin/orders/picking" className="admin-ghost-btn order-detail-header-btn-next">Tablero de picking</Link>
         </div>
       </header>
 
-      <section className="order-detail-grid-next">
+      <section className="order-detail-status-row-next">
         <article className="admin-card order-detail-summary-next">
           <h3>Estado Operativo</h3>
-          <div className="orders-status-pill-next order-detail-status-pill-next" style={{ backgroundColor: getStatusColor(order.status) }}>
-            {getStatusLabel(order.status)}
-          </div>
 
-          <div className="order-detail-progress-wrap-next">
-            <div className="order-detail-progress-label-next">
-              <span>Progreso</span>
-              <strong>{getStatusProgress(order.status)}%</strong>
-            </div>
-            <div className="order-detail-progress-track-next">
-              <div className="order-detail-progress-fill-next" style={{ width: `${getStatusProgress(order.status)}%` }} />
-            </div>
-          </div>
-
-          <div className="order-detail-transitions-next">
-            <p>Transiciones disponibles:</p>
-            {nextStates.length > 0 ? (
-              <div className="order-detail-transitions-list-next">
-                {nextStates.map((status) => (
-                  <span key={status} className="order-detail-transition-pill-next">{getStatusLabel(status)}</span>
-                ))}
+          <div className="order-detail-status-body-next">
+            <div className="order-detail-status-info-next">
+              <div className="orders-status-pill-next order-detail-status-pill-next" style={{ backgroundColor: getStatusColor(order.status) }}>
+                {getStatusLabel(order.status)}
               </div>
-            ) : (
-              <p className="admin-muted-text">Sin transiciones disponibles</p>
-            )}
-          </div>
 
-          <div className="order-status-update-next">
-            <div className="inventory-field">
-              <span>Cambiar estado</span>
-              <AdminSelect
-                value={selectedStatus}
-                disabled={!canUpdateOrderStatus || nextStates.length === 0}
-                options={(nextStates.length > 0 ? nextStates : (normalizedCurrentOrderStatus ? [normalizedCurrentOrderStatus] : []))
-                  .map((status) => ({ value: status, label: getStatusLabel(status) }))}
-                ariaLabel="Cambiar estado de orden"
-                onChange={setSelectedStatus}
-              />
+              <div className="order-detail-progress-wrap-next">
+                <div className="order-detail-progress-label-next">
+                  <span>Progreso</span>
+                  <strong>{getStatusProgress(order.status)}%</strong>
+                </div>
+                <div className="order-detail-progress-track-next">
+                  <div className="order-detail-progress-fill-next" style={{ width: `${getStatusProgress(order.status)}%` }} />
+                </div>
+              </div>
+
+              {nextStates.length === 0 ? (
+                <div className="order-detail-transitions-next">
+                  <p className="admin-muted-text">Pedido en estado final: no hay cambios de estado disponibles.</p>
+                </div>
+              ) : null}
             </div>
-            <label className="inventory-field order-status-note-field-next">
-              <span>Nota (opcional)</span>
-              <textarea
-                rows={2}
-                value={statusNote}
-                disabled={!canUpdateOrderStatus || updatingStatus}
-                placeholder="Motivo o comentario del cambio"
-                onChange={(event) => setStatusNote(event.target.value)}
-              />
-            </label>
-            <button
-              type="button"
-              className="admin-primary-btn order-detail-action-btn-next"
-              disabled={!canUpdateOrderStatus || updatingStatus || selectedStatus === normalizedCurrentOrderStatus || nextStates.length === 0}
-              onClick={updateStatus}
-            >
-              {updatingStatus ? 'Actualizando...' : 'Cambiar Estado'}
-            </button>
-            {!canUpdateOrderStatus ? (
-              <p className="admin-muted-text">No tienes permiso para actualizar estado.</p>
+
+            {nextStates.length > 0 ? (
+              <div className="order-status-update-next">
+                {canUpdateOrderStatus ? (
+                  !showStatusForm ? (
+                    <button
+                      type="button"
+                      className="admin-primary-btn order-detail-action-btn-next"
+                      onClick={() => setShowStatusForm(true)}
+                    >
+                      Cambiar estado
+                    </button>
+                  ) : (
+                  <>
+                    <p className="order-status-update-title-next">Actualizar estado</p>
+                    <div className="inventory-field">
+                      <span>Cambiar estado</span>
+                      <AdminSelect
+                        value={selectedStatus}
+                        disabled={updatingStatus}
+                        options={nextStates.map((status) => ({ value: status, label: getStatusLabel(status) }))}
+                        ariaLabel="Cambiar estado de la orden"
+                        onChange={setSelectedStatus}
+                      />
+                    </div>
+                    <label className="inventory-field order-status-note-field-next">
+                      <span>Nota (opcional)</span>
+                      <textarea
+                        rows={3}
+                        value={statusNote}
+                        disabled={updatingStatus}
+                        placeholder="Motivo o comentario del cambio"
+                        onChange={(event) => setStatusNote(event.target.value)}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className="admin-primary-btn order-detail-action-btn-next"
+                      disabled={updatingStatus || selectedStatus === normalizedCurrentOrderStatus}
+                      onClick={updateStatus}
+                    >
+                      {updatingStatus ? 'Actualizando...' : 'Cambiar estado'}
+                    </button>
+                  </>
+                  )
+                ) : (
+                  <p className="admin-muted-text">No tienes permiso para actualizar el estado.</p>
+                )}
+              </div>
             ) : null}
           </div>
 
@@ -1596,7 +2400,55 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
             </>
           ) : null}
         </article>
+      </section>
 
+      <article className="admin-card order-detail-meta-next">
+        <div className="order-detail-meta-summary-next">
+          <div className="order-detail-meta-chip-next"><span>Total</span><strong>{formatMoney(order.total)}</strong></div>
+          <div className="order-detail-meta-chip-next"><span>Canal</span><strong>{getChannelLabel(order.salesChannel)}</strong></div>
+          <div className="order-detail-meta-chip-next"><span>Fecha</span><strong>{formatDateTime(order.createdAt)}</strong></div>
+          <div className="order-detail-meta-chip-next"><span>Responsable</span><strong>{order.primaryResponsible ? `${order.primaryResponsible.firstName} ${order.primaryResponsible.lastName}`.trim() : 'Sin asignar'}</strong></div>
+          <div className="order-detail-meta-chip-next"><span>Fulfillment</span><strong>{order.fulfillmentStore?.name || order.sourceStore?.name || 'N/A'}</strong></div>
+          <button
+            type="button"
+            className="admin-ghost-btn order-detail-meta-toggle-next"
+            onClick={() => setShowOrderDetails(true)}
+          >
+            Ver detalle
+          </button>
+        </div>
+      </article>
+
+      <div
+        className={`order-detail-drawer-root${showOrderDetails ? ' is-open' : ''}`}
+        aria-hidden={!showOrderDetails}
+      >
+        <button
+          type="button"
+          className="order-detail-drawer-backdrop"
+          aria-label="Cerrar detalle"
+          tabIndex={showOrderDetails ? 0 : -1}
+          onClick={() => setShowOrderDetails(false)}
+        />
+        <aside
+          className="order-detail-drawer"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Detalle del pedido"
+        >
+          <header className="order-detail-drawer-head">
+            <h3>Detalle del pedido</h3>
+            <button
+              type="button"
+              className="order-detail-drawer-close"
+              aria-label="Cerrar"
+              onClick={() => setShowOrderDetails(false)}
+            >
+              ✕
+            </button>
+          </header>
+          <div className="order-detail-drawer-body">
+        <section className="order-detail-grid-next">
         <article className="admin-card">
           <h3>Informacion del Pedido</h3>
           <div className="order-detail-info-list-next">
@@ -1617,7 +2469,7 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
               <div className="order-detail-info-row-next"><label>Referencia:</label><span>{parsePaymentReference(order.note)}</span></div>
             <div className="order-detail-info-row-next"><label>Monto recibido:</label><span>{parsePaymentAmountLabel(order.note, ['Monto recibido', 'Monto pagado', 'Pagado'])}</span></div>
             <div className="order-detail-info-row-next"><label>Vuelto:</label><span>{parsePaymentAmountLabel(order.note, ['Vuelto', 'Cambio'])}</span></div>
-              <div className="order-detail-info-row-next"><label>Nota:</label><span>{order.note || '-'}</span></div>
+              <div className="order-detail-info-row-next"><label>Nota:</label><span>{getDisplayNote(order.note)}</span></div>
             </div>
           </article>
 
@@ -1659,8 +2511,47 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
             <div className="order-detail-info-row-next"><label>Tienda Fulfillment:</label><span>{order.fulfillmentStore?.name || 'N/A'}</span></div>
           </div>
         </article>
-      </section>
+        </section>
+          </div>
+        </aside>
+      </div>
 
+      <nav className="order-detail-tabs-next" role="tablist" aria-label="Secciones del pedido">
+        <button
+          type="button"
+          role="tab"
+          className={`order-detail-tab-next${activeTab === 'prep' ? ' is-active' : ''}`}
+          onClick={() => setActiveTab('prep')}
+        >
+          Preparacion
+        </button>
+        <button
+          type="button"
+          role="tab"
+          className={`order-detail-tab-next${activeTab === 'products' ? ' is-active' : ''}`}
+          onClick={() => setActiveTab('products')}
+        >
+          Productos
+        </button>
+        <button
+          type="button"
+          role="tab"
+          className={`order-detail-tab-next${activeTab === 'reservations' ? ' is-active' : ''}`}
+          onClick={() => setActiveTab('reservations')}
+        >
+          Reservas
+        </button>
+        <button
+          type="button"
+          role="tab"
+          className={`order-detail-tab-next${activeTab === 'history' ? ' is-active' : ''}`}
+          onClick={() => setActiveTab('history')}
+        >
+          Historial
+        </button>
+      </nav>
+
+      {activeTab === 'products' ? (
       <article className="admin-card">
         <h3>Productos de la Orden</h3>
         <div className="admin-table-wrap order-detail-desktop-only-next">
@@ -1669,7 +2560,7 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
               <tr>
                 <th>Producto</th>
                 <th>Variante</th>
-                <th>Reserva</th>
+                <th>{productStoreColumnLabel}</th>
                 <th>Cantidad</th>
                 <th>Precio Unit.</th>
                 <th>Subtotal</th>
@@ -1717,7 +2608,7 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
                     <strong>{item.variant.colorName || '-'} - {item.variant.sizeName || '-'}</strong>
                   </div>
                   <div className="order-detail-mobile-field-next">
-                    <span>Reserva</span>
+                    <span>{productStoreColumnLabel}</span>
                     <strong>{getItemFulfillmentStoreName(item)}</strong>
                   </div>
                   <div className="order-detail-mobile-field-next">
@@ -1742,10 +2633,101 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
           )}
         </div>
       </article>
+      ) : null}
 
-      <article className="admin-card">
-        <h3>Picking Operativo</h3>
-        {canStartPickingFromDetail ? (
+      {activeTab === 'prep' ? (
+      <>
+      <div className="prep-stepper" role="list" aria-label="Pasos de preparacion">
+        <div
+          className={`prep-step${currentPrepStep === 1 ? ' is-active' : ''}${order.pickingSession?.id ? ' is-done' : ''}`}
+          role="listitem"
+        >
+          <span className="prep-step-num">{order.pickingSession?.id ? '✓' : '1'}</span>
+          <span className="prep-step-label">Reservar</span>
+        </div>
+        <span className="prep-step-sep" aria-hidden />
+        <div
+          className={`prep-step${currentPrepStep === 2 ? ' is-active' : ''}${['READY', 'DELIVERED'].includes(String(order.status || '').toUpperCase()) ? ' is-done' : ''}`}
+          role="listitem"
+        >
+          <span className="prep-step-num">{['READY', 'DELIVERED'].includes(String(order.status || '').toUpperCase()) ? '✓' : '2'}</span>
+          <span className="prep-step-label">Separar</span>
+        </div>
+      </div>
+      {(isEcommerceProformaOpen || editingDuringPicking) ? (
+        <>
+          {editingDuringPicking ? (
+            <div className="admin-table-actions order-detail-hot-edit-banner-next">
+              <span className="admin-muted-text">
+                Estas en el Paso 1 (Reservar) durante el picking. Agrega o quita productos y reserva su stock; al terminar, vuelve a Separar.
+              </span>
+              <button
+                type="button"
+                className="admin-primary-btn order-detail-action-btn-next"
+                onClick={() => { void loadOrder().then(() => setEditingDuringPicking(false)); }}
+              >
+                Volver a Separar (Paso 2)
+              </button>
+            </div>
+          ) : null}
+          <EcommerceFulfillmentPanel order={order} canEdit={canUpdateOrderStatus} onReload={loadOrder} />
+        </>
+      ) : null}
+      <article className={`admin-card pk-fs-target${fullscreenPicking ? ' is-fullscreen' : ''}`}>
+        <div className="pk-fs-head">
+          <h3>{currentPrepStep === 1 ? 'Continuar preparacion' : 'Separar (Picking)'}</h3>
+          {order.pickingSession && !isPickingFinalizedForDetail ? (
+            <button
+              type="button"
+              className={`admin-ghost-btn order-detail-action-btn-next${fullscreenPicking ? ' is-active' : ''}`}
+              onClick={() => setFullscreenPicking((value) => !value)}
+            >
+              {fullscreenPicking ? 'Salir de pantalla completa' : 'Pantalla completa'}
+            </button>
+          ) : null}
+        </div>
+        {shouldShowEcommerceProformaPanel ? (
+          <>
+            <div className="admin-table-actions">
+              <button
+                type="button"
+                className="admin-primary-btn order-detail-action-btn-next"
+                disabled={!canConfirmMarketplaceGuide}
+                onClick={() => void updateMarketplaceGuideStatus(
+                  'CONFIRMED',
+                  'Disponibilidad confirmada. Reservas listas para picking.',
+                  'Disponibilidad confirmada. Ya puedes iniciar preparacion.',
+                )}
+              >
+                {updatingStatus ? 'Confirmando...' : 'Confirmar disponibilidad'}
+              </button>
+              <button
+                type="button"
+                className="admin-ghost-btn order-detail-action-btn-next"
+                disabled={!canMarkMarketplaceGuideWithoutStock}
+                onClick={() => void updateMarketplaceGuideStatus(
+                  'WAITING_STOCK',
+                  'Proforma ecommerce marcada sin stock disponible.',
+                  'Proforma marcada como sin stock.',
+                )}
+              >
+                Marcar sin stock
+              </button>
+            </div>
+            {!canUpdateOrderStatus ? (
+              <p className="admin-muted-text">No tienes permiso para confirmar disponibilidad.</p>
+            ) : null}
+            {String(order.status || '').toUpperCase() === 'CONFIRMED' && !hasActiveReservations ? (
+              <p className="admin-muted-text">La proforma figura confirmada, pero no tiene reservas activas. Genera reservas antes de iniciar preparacion.</p>
+            ) : null}
+            {hasPendingReservationItems ? (
+              <p className="admin-muted-text">
+                Quedan {pendingReservationItems.length} linea(s) sin reservar. Puedes habilitar el picking igual:
+                seguiran pendientes y podras reservar o agregar lo que falte mas tarde desde el panel de reserva.
+              </p>
+            ) : null}
+          </>
+        ) : canStartPickingFromDetail ? (
           <>
             <p className="admin-muted-text">La orden aun no tiene picking iniciado.</p>
             <div className="admin-table-actions">
@@ -1761,6 +2743,17 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
           </>
         ) : order.pickingSession ? (
           <>
+            {canEditDuringPicking && !editingDuringPicking ? (
+              <div className="admin-table-actions">
+                <button
+                  type="button"
+                  className="admin-ghost-btn order-detail-action-btn-next"
+                  onClick={() => setEditingDuringPicking(true)}
+                >
+                  ← Volver a reservar
+                </button>
+              </div>
+            ) : null}
             <div className="order-detail-progress-wrap-next">
               <div className="order-detail-progress-label-next">
                 <span>Progreso de picking</span>
@@ -1770,10 +2763,66 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
                 <div className="order-detail-progress-fill-next" style={{ width: `${pickingProgress}%` }} />
               </div>
             </div>
+            {!isPickingFinalizedForDetail ? (
+              <div className="admin-table-actions order-detail-pickall-next">
+                <button
+                  type="button"
+                  className="admin-primary-btn order-detail-action-btn-next"
+                  disabled={pickingAll || pickingProgress >= 100 || !canUpdatePickingPermission || !canCurrentUserOperatePickingByResponsibility}
+                  onClick={pickAllAvailableFromDetail}
+                >
+                  {pickingAll ? 'Separando…' : 'Separar todo lo disponible'}
+                </button>
+                <button
+                  type="button"
+                  className={`admin-ghost-btn order-detail-action-btn-next${scanMode ? ' is-active' : ''}`}
+                  disabled={!canUpdatePickingPermission || !canCurrentUserOperatePickingByResponsibility}
+                  onClick={() => setScanMode((value) => !value)}
+                >
+                  {scanMode ? 'Cerrar escaneo' : 'Modo escaneo'}
+                </button>
+              </div>
+            ) : null}
+            {scanMode && !isPickingFinalizedForDetail ? (
+              <PickingScanPanel
+                onScan={handlePickingScan}
+                disabled={!canUpdatePickingPermission || !canCurrentUserOperatePickingByResponsibility}
+              />
+            ) : null}
+            {selectedGroupKeys.size > 0 && !isPickingFinalizedForDetail ? (
+              <div className="admin-table-actions pk-batch-bar">
+                <span className="admin-muted-text">{selectedGroupKeys.size} seleccionado(s)</span>
+                <button
+                  type="button"
+                  className="admin-primary-btn order-detail-action-btn-next"
+                  disabled={!canUpdatePickingPermission || !canCurrentUserOperatePickingByResponsibility}
+                  onClick={separateSelectedGroups}
+                >
+                  Separar seleccionados
+                </button>
+                <button type="button" className="admin-ghost-btn order-detail-action-btn-next" onClick={clearGroupSelection}>
+                  Limpiar
+                </button>
+              </div>
+            ) : null}
             <div className="admin-table-wrap order-detail-desktop-only-next">
               <table className="admin-table order-detail-table-next">
                 <thead>
                   <tr>
+                    <th className="pk-select-col">
+                      <input
+                        type="checkbox"
+                        aria-label="Seleccionar todos"
+                        checked={detailPickingGroups.length > 0 && selectedGroupKeys.size === detailPickingGroups.length}
+                        onChange={(event) => {
+                          if (event.target.checked) {
+                            setSelectedGroupKeys(new Set(detailPickingGroups.map((group) => group.key)));
+                          } else {
+                            clearGroupSelection();
+                          }
+                        }}
+                      />
+                    </th>
                     <th>Producto</th>
                     <th>Variante</th>
                     <th>Solicitada</th>
@@ -1784,53 +2833,77 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {order.items.length === 0 ? (
+                  {detailPickingGroups.length === 0 ? (
                     <tr>
-                      <td colSpan={7}>No hay items para picking.</td>
+                      <td colSpan={8}>No hay items para picking.</td>
                     </tr>
                   ) : (
-                    order.items.map((item) => {
-                      const picked = getPickedQuantity(item);
-                      const requested = getRequestedQuantity(item);
-                      const limit = getPickingItemLimit(item);
-                      const missing = Math.max(0, requested - picked);
-                      const isUpdating = isUpdatingPickingItem(item);
+                    detailPickingGroups.map((group) => {
+                      const representative = group.representative;
+                      const isSyncing = isGroupUpdatingDetail(group);
+                      const picked = group.items.reduce((sum, item) => sum + getEffectivePicked(item), 0);
+                      const missing = Math.max(0, group.requested - picked);
+                      const status = detailPickingStatusFromCounts(picked, group.requested);
                       return (
-                        <tr key={`picking-${item.id}`}>
-                          <td>{item.variant.productName}</td>
-                          <td>{item.variant.colorName} - {item.variant.sizeName}</td>
-                          <td>{requested}</td>
-                          <td>{picked}</td>
+                        <tr key={`picking-${group.key}`}>
+                          <td className="pk-select-col">
+                            <input
+                              type="checkbox"
+                              aria-label="Seleccionar producto"
+                              checked={selectedGroupKeys.has(group.key)}
+                              onChange={() => toggleGroupSelection(group.key)}
+                            />
+                          </td>
+                          <td>{representative.variant.productName}</td>
+                          <td>
+                            {representative.variant.colorName} - {representative.variant.sizeName}
+                            {group.items.length > 1 ? (
+                              <small className="admin-muted-text"> ({group.items.length} lineas)</small>
+                            ) : null}
+                          </td>
+                          <td>{group.requested}</td>
+                          <td>
+                            <input
+                              className="pk-picked-input"
+                              type="text"
+                              inputMode="numeric"
+                              aria-label="Cantidad separada"
+                              value={picked}
+                              disabled={!canUpdatePickingPermission || !canCurrentUserOperatePickingByResponsibility || isSyncing}
+                              onChange={(event) => setGroupPickedAbsolute(group, Number(event.target.value.replace(/\D/g, '')) || 0)}
+                            />
+                          </td>
                           <td>{missing}</td>
                           <td>
-                            <span className={`order-item-badge-next ${getPickingStatusClass(item)}`}>{getPickingStatusLabel(item)}</span>
+                            <span className={`order-item-badge-next ${detailPickingStatusClass(status)}`}>{detailPickingStatusLabel(status)}</span>
                           </td>
                           <td>
                             <div className="order-detail-pick-actions-next">
                               <button
                                 type="button"
                                 className="order-detail-pick-step-next"
-                                onClick={() => void markPickingItemFromDetail(item, 'dec')}
-                                disabled={!canUpdatePickingPermission || !canCurrentUserOperatePickingByResponsibility || isUpdating || picked <= 0}
+                                onClick={() => markPickingGroupFromDetail(group, 'dec')}
+                                disabled={!canUpdatePickingPermission || !canCurrentUserOperatePickingByResponsibility || isSyncing || picked <= 0}
                               >
                                 -
                               </button>
                               <button
                                 type="button"
                                 className="order-detail-pick-step-next"
-                                onClick={() => void markPickingItemFromDetail(item, 'inc')}
-                                disabled={!canUpdatePickingPermission || !canCurrentUserOperatePickingByResponsibility || isUpdating || picked >= limit}
+                                onClick={() => markPickingGroupFromDetail(group, 'inc')}
+                                disabled={!canUpdatePickingPermission || !canCurrentUserOperatePickingByResponsibility || isSyncing || picked >= group.limit}
                               >
                                 +
                               </button>
                               <button
                                 type="button"
                                 className="order-detail-pick-complete-next"
-                                onClick={() => void markPickingItemFromDetail(item, 'complete')}
-                                disabled={!canUpdatePickingPermission || !canCurrentUserOperatePickingByResponsibility || isUpdating || picked >= limit}
+                                onClick={() => markPickingGroupFromDetail(group, 'complete')}
+                                disabled={!canUpdatePickingPermission || !canCurrentUserOperatePickingByResponsibility || isSyncing || picked >= group.limit}
                               >
                                 Completar
                               </button>
+                              {isSyncing ? <span className="ff-spinner ff-spinner-sm order-detail-pick-spin-next" aria-hidden /> : null}
                             </div>
                           </td>
                         </tr>
@@ -1840,69 +2913,24 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
                 </tbody>
               </table>
             </div>
-            <div className="order-detail-mobile-cards-next order-detail-mobile-only-next">
-              {order.items.length === 0 ? (
+            <div className="pk-board order-detail-mobile-only-next">
+              {detailPickingGroups.length === 0 ? (
                 <p className="admin-muted-text">No hay items para picking.</p>
               ) : (
-                order.items.map((item, index) => {
-                  const picked = getPickedQuantity(item);
-                  const requested = getRequestedQuantity(item);
-                  const limit = getPickingItemLimit(item);
-                  const missing = Math.max(0, requested - picked);
-                  const isUpdating = isUpdatingPickingItem(item);
-                  return (
-                    <article key={`picking-item-mobile-${getPickingUpdateKey(item) || index}`} className="order-detail-mobile-card-next">
-                      <div className="order-detail-mobile-card-head-next">
-                        <h4>{item.variant.productName || '-'}</h4>
-                        <span className={`order-item-badge-next ${getPickingStatusClass(item)}`}>{getPickingStatusLabel(item)}</span>
-                      </div>
-                      <div className="order-detail-mobile-fields-next">
-                        <div className="order-detail-mobile-field-next">
-                          <span>Variante</span>
-                          <strong>{item.variant.colorName || '-'} - {item.variant.sizeName || '-'}</strong>
-                        </div>
-                        <div className="order-detail-mobile-field-next">
-                          <span>Solicitada</span>
-                          <strong>{requested}</strong>
-                        </div>
-                        <div className="order-detail-mobile-field-next">
-                          <span>Separada</span>
-                          <strong>{picked}</strong>
-                        </div>
-                        <div className="order-detail-mobile-field-next">
-                          <span>Faltante</span>
-                          <strong>{missing}</strong>
-                        </div>
-                      </div>
-                      <div className="order-detail-mobile-pick-actions-next">
-                        <button
-                          type="button"
-                          className="order-detail-pick-step-next"
-                          onClick={() => void markPickingItemFromDetail(item, 'dec')}
-                          disabled={!canUpdatePickingPermission || !canCurrentUserOperatePickingByResponsibility || isUpdating || picked <= 0}
-                        >
-                          -
-                        </button>
-                        <button
-                          type="button"
-                          className="order-detail-pick-step-next"
-                          onClick={() => void markPickingItemFromDetail(item, 'inc')}
-                          disabled={!canUpdatePickingPermission || !canCurrentUserOperatePickingByResponsibility || isUpdating || picked >= limit}
-                        >
-                          +
-                        </button>
-                        <button
-                          type="button"
-                          className="order-detail-pick-complete-next"
-                          onClick={() => void markPickingItemFromDetail(item, 'complete')}
-                          disabled={!canUpdatePickingPermission || !canCurrentUserOperatePickingByResponsibility || isUpdating || picked >= limit}
-                        >
-                          Completar
-                        </button>
-                      </div>
-                    </article>
-                  );
-                })
+                detailPickingProductSections.map((section) => (
+                  <PickingMobileProductSection
+                    key={`picking-mobile-${section.key}`}
+                    section={section}
+                    getEffectivePicked={getEffectivePicked}
+                    isGroupUpdatingDetail={isGroupUpdatingDetail}
+                    onMark={markPickingGroupFromDetail}
+                    onSetAbsolute={setGroupPickedAbsolute}
+                    canUpdate={canUpdatePickingPermission}
+                    canOperate={canCurrentUserOperatePickingByResponsibility}
+                    selectedKeys={selectedGroupKeys}
+                    onToggleSelect={toggleGroupSelection}
+                  />
+                ))
               )}
             </div>
             {!isPickingFinalizedForDetail ? (
@@ -1928,10 +2956,43 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
             {!canCompletePickingPermission ? (
               <p className="admin-muted-text">Sin permiso picking.complete para finalizar la preparacion.</p>
             ) : null}
+
+            {/* Barra inferior sticky (movil): progreso + accion primaria en zona del pulgar */}
+            {!isPickingFinalizedForDetail ? (
+              <div className="pk-sticky-bar">
+                <div className="pk-sticky-info">
+                  <strong>{pickingProgress}%</strong>
+                  <small>separado</small>
+                </div>
+                {pickingProgress >= 100 ? (
+                  <button
+                    type="button"
+                    className="admin-primary-btn"
+                    disabled={!canCompletePickingFromDetail || finishingPicking}
+                    onClick={completePickingFromDetail}
+                  >
+                    {finishingPicking ? 'Finalizando…' : 'Finalizar'}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="admin-primary-btn"
+                    disabled={pickingAll || !canUpdatePickingPermission || !canCurrentUserOperatePickingByResponsibility}
+                    onClick={pickAllAvailableFromDetail}
+                  >
+                    {pickingAll ? 'Separando…' : 'Separar todo'}
+                  </button>
+                )}
+              </div>
+            ) : null}
           </>
         ) : (
           <>
-            <p className="admin-muted-text">La orden aun no tiene picking iniciado.</p>
+            <p className="admin-muted-text">
+              {hasActiveReservations
+                ? 'La orden aun no tiene picking iniciado.'
+                : 'La orden no tiene reservas activas para iniciar preparacion.'}
+            </p>
             {!canStartPickingPermission ? (
               <p className="admin-muted-text">Sin permiso picking.start para iniciar la preparacion.</p>
             ) : null}
@@ -1941,81 +3002,78 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
           </>
         )}
       </article>
+      {String(order.status || '').toUpperCase() === 'READY' ? (
+        <article className="admin-card">
+          <div className="admin-table-actions">
+            <button
+              type="button"
+              className="admin-primary-btn order-detail-action-btn-next"
+              disabled={deliveringOrder || !canUpdateOrderStatus}
+              onClick={deliverOrder}
+            >
+              {deliveringOrder ? 'Entregando...' : 'Entregar pedido'}
+            </button>
+          </div>
+        </article>
+      ) : null}
+      </>
+      ) : null}
 
+      {activeTab === 'reservations' ? (
       <article className="admin-card">
         <h3>Reservas de Stock</h3>
-        <div className="admin-table-wrap order-detail-desktop-only-next">
-          <table className="admin-table order-detail-table-next">
-            <thead>
-              <tr>
-                <th>Producto</th>
-                <th>Variante</th>
-                <th>Tienda</th>
-                <th>Cantidad reservada</th>
-                <th>Estado</th>
-                <th>Fecha</th>
-              </tr>
-            </thead>
-            <tbody>
-              {order.reservations.length === 0 ? (
-                <tr>
-                  <td colSpan={6}>No hay reservas asociadas.</td>
-                </tr>
-              ) : (
-                order.reservations.map((reservation: AdminOrderReservation) => {
-                  const variantMeta = reservation.variantId ? reservationVariantLookup.get(reservation.variantId) : null;
-                  return (
-                    <tr key={reservation.id}>
-                      <td>{variantMeta?.productName || '-'}</td>
-                      <td>{variantMeta ? `${variantMeta.colorName} - ${variantMeta.sizeName}` : '-'}</td>
-                      <td>{reservation.inventory?.storeName || '-'}</td>
-                      <td>{reservation.quantity}</td>
-                      <td>{getReturnReservationStatusLabel(reservation.status)}</td>
-                      <td>{reservation.createdAt ? formatDateTime(reservation.createdAt) : '-'}</td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-        <div className="order-detail-mobile-cards-next order-detail-mobile-only-next">
-          {order.reservations.length === 0 ? (
-            <p className="admin-muted-text">No hay reservas asociadas.</p>
-          ) : (
-            order.reservations.map((reservation) => {
-              const variantMeta = reservation.variantId ? reservationVariantLookup.get(reservation.variantId) : null;
-              return (
-                <article key={`reservation-mobile-${reservation.id}`} className="order-detail-mobile-card-next">
-                  <div className="order-detail-mobile-card-head-next">
-                    <h4>{variantMeta?.productName || '-'}</h4>
-                    <span className="order-item-badge-next is-pending">{getReturnReservationStatusLabel(reservation.status)}</span>
-                  </div>
-                  <div className="order-detail-mobile-fields-next">
-                    <div className="order-detail-mobile-field-next">
-                      <span>Variante</span>
-                      <strong>{variantMeta ? `${variantMeta.colorName} - ${variantMeta.sizeName}` : '-'}</strong>
-                    </div>
-                    <div className="order-detail-mobile-field-next">
-                      <span>Tienda</span>
-                      <strong>{reservation.inventory?.storeName || '-'}</strong>
-                    </div>
-                    <div className="order-detail-mobile-field-next">
-                      <span>Cantidad reservada</span>
-                      <strong>{reservation.quantity}</strong>
-                    </div>
-                    <div className="order-detail-mobile-field-next">
-                      <span>Fecha</span>
-                      <strong>{reservation.createdAt ? formatDateTime(reservation.createdAt) : '-'}</strong>
-                    </div>
-                  </div>
-                </article>
-              );
-            })
-          )}
-        </div>
-      </article>
+        {activeReservations.length === 0 ? (
+          <p className="admin-muted-text">No hay reservas activas.</p>
+        ) : (
+          <>
+            <div className="admin-table-wrap order-detail-desktop-only-next">
+              <table className="admin-table order-detail-table-next">
+                <thead>
+                  <tr>
+                    <th>Producto</th>
+                    <th>Variante</th>
+                    <th>Tienda</th>
+                    <th>Cantidad reservada</th>
+                    <th>Estado</th>
+                    <th>Fecha</th>
+                  </tr>
+                </thead>
+                <tbody>{renderReservationTableRows(activeReservations)}</tbody>
+              </table>
+            </div>
+            <div className="order-detail-mobile-cards-next order-detail-mobile-only-next">
+              {renderReservationMobileCards(activeReservations)}
+            </div>
+          </>
+        )}
 
+        {releasedReservations.length > 0 ? (
+          <details className="order-detail-reservations-history-next">
+            <summary>Ver histórico liberado ({releasedReservations.length})</summary>
+            <div className="admin-table-wrap order-detail-desktop-only-next">
+              <table className="admin-table order-detail-table-next">
+                <thead>
+                  <tr>
+                    <th>Producto</th>
+                    <th>Variante</th>
+                    <th>Tienda</th>
+                    <th>Cantidad reservada</th>
+                    <th>Estado</th>
+                    <th>Fecha</th>
+                  </tr>
+                </thead>
+                <tbody>{renderReservationTableRows(releasedReservations)}</tbody>
+              </table>
+            </div>
+            <div className="order-detail-mobile-cards-next order-detail-mobile-only-next">
+              {renderReservationMobileCards(releasedReservations)}
+            </div>
+          </details>
+        ) : null}
+      </article>
+      ) : null}
+
+      {activeTab === 'history' ? (
       <article className="admin-card">
         <h3>Timeline de la Orden</h3>
         <div className="order-detail-timeline-next">
@@ -2031,20 +3089,6 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
           ))}
         </div>
       </article>
-
-      {String(order.status || '').toUpperCase() === 'READY' ? (
-        <article className="admin-card">
-          <div className="admin-table-actions">
-            <button
-              type="button"
-              className="admin-primary-btn order-detail-action-btn-next"
-              disabled={deliveringOrder || !canUpdateOrderStatus}
-              onClick={deliverOrder}
-            >
-              {deliveringOrder ? 'Entregando...' : 'Entregar pedido'}
-            </button>
-          </div>
-        </article>
       ) : null}
 
       {showAssignModal ? (

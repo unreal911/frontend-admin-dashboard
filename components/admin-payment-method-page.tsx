@@ -246,7 +246,7 @@ export function AdminPaymentMethodPage() {
         </fieldset>
 
         <div className="admin-table-wrap">
-          <table className="admin-table mobile-card-table">
+          <table className="admin-table mobile-card-table list-cards-next">
             <thead>
               <tr>
                 <th>#</th>
@@ -273,7 +273,7 @@ export function AdminPaymentMethodPage() {
                 filtered.map((item, index) => (
                   <tr key={item.id}>
                     <td data-label="#">{index + 1}</td>
-                    <td data-label="Nombre">{item.name}</td>
+                    <td data-label="Nombre" className="list-card-title-next">{item.name}</td>
                     <td data-label="Codigo">{item.code || '-'}</td>
                     <td data-label="Estado">
                       <span className={`admin-pill ${item.isActive ? 'success' : 'error'}`}>

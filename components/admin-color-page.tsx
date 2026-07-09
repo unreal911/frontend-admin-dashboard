@@ -301,7 +301,7 @@ export function AdminColorPage() {
         </fieldset>
 
         <div className="admin-table-wrap">
-          <table className="admin-table mobile-card-table">
+          <table className="admin-table mobile-card-table list-cards-next">
             <thead>
               <tr>
                 <th>#</th>
@@ -328,7 +328,7 @@ export function AdminColorPage() {
                 filtered.map((color, index) => (
                   <tr key={color.id}>
                     <td data-label="#">{index + 1}</td>
-                    <td data-label="Nombre">{color.name}</td>
+                    <td data-label="Nombre" className="list-card-title-next">{color.name}</td>
                     <td data-label="Muestra">
                       {color.hex ? (
                         <span className="admin-color-swatch-wrap">

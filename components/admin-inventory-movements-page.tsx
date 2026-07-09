@@ -209,7 +209,7 @@ export function AdminInventoryMovementsPage() {
 
       <article className="admin-card">
         <div className="admin-table-wrap">
-          <table className="admin-table mobile-card-table">
+          <table className="admin-table mobile-card-table ops-cards-next">
             <thead>
               <tr>
                 <th>#</th>
@@ -236,17 +236,17 @@ export function AdminInventoryMovementsPage() {
                   <tr key={movement.id}>
                     <td data-label="#">{movement.id}</td>
                     <td data-label="Fecha">{formatDate(movement.createdAt)}</td>
-                    <td data-label="Tipo">
+                    <td data-label="Tipo" className="ops-status-next">
                       <span className={`admin-status-badge ${getMovementTypeTone(movement.type)}`}>
                         {getMovementTypeLabel(movement.type)}
                       </span>
                     </td>
-                    <td data-label="Variante">
+                    <td data-label="Variante" className="list-card-title-next">
                       {movement.inventory.variant.product.name} - {movement.inventory.variant.color.name} / {movement.inventory.variant.size.name} - {movement.inventory.variant.sku}
                     </td>
                     <td data-label="Tienda">{movement.inventory.store.name} ({movement.inventory.store.code})</td>
                     <td data-label="Cantidad">{movement.quantity}</td>
-                    <td data-label="Nota">{movement.note || '-'}</td>
+                    <td data-label="Nota" className="ops-hide-mobile">{movement.note || '-'}</td>
                     <td data-label="Accion">
                       <div className="admin-table-actions">
                         <button type="button" className="admin-ghost-btn" onClick={() => openTraceabilityForMovement(movement)}>

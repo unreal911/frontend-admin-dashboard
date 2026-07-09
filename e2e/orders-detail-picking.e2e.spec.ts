@@ -224,7 +224,10 @@ test('muestra cards moviles en productos, picking y reservas', async ({ page }) 
   const reservationsCard = page.locator('article.admin-card').filter({ hasText: 'Reservas de Stock' });
 
   await expect(productsCard.locator('.order-detail-mobile-only-next .order-detail-mobile-card-next')).toHaveCount(1);
-  await expect(pickingCard.locator('.order-detail-mobile-only-next .order-detail-mobile-card-next')).toHaveCount(1);
+  // Picking movil usa el layout compacto: una tarjeta por producto con sus
+  // variantes en filas (.pk-row) y dos steppers (- / +) por fila.
+  await expect(pickingCard.locator('.order-detail-mobile-only-next .pk-product')).toHaveCount(1);
+  await expect(pickingCard.locator('.order-detail-mobile-only-next .pk-row')).toHaveCount(1);
   await expect(reservationsCard.locator('.order-detail-mobile-only-next .order-detail-mobile-card-next')).toHaveCount(1);
-  await expect(pickingCard.locator('.order-detail-mobile-pick-actions-next .order-detail-pick-step-next')).toHaveCount(2);
+  await expect(pickingCard.locator('.pk-row-actions .pk-step')).toHaveCount(2);
 });

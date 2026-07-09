@@ -618,7 +618,7 @@ export function AdminOrdersListPage() {
 
       <article className="admin-card orders-table-section-next">
         <div className="admin-table-wrap">
-          <table className="admin-table mobile-card-table">
+          <table className="admin-table mobile-card-table ops-cards-next">
             <thead>
               <tr>
                 <th>Codigo</th>
@@ -648,16 +648,16 @@ export function AdminOrdersListPage() {
               ) : (
                 orders.map((order) => (
                   <tr key={order.id} className="orders-row-next">
-                    <td data-label="Codigo" className="orders-code-next"><strong>{order.code}</strong></td>
+                    <td data-label="Codigo" className="orders-code-next list-card-title-next"><strong>{order.code}</strong></td>
                     <td data-label="Cliente">{order.clientName || order.clientEmail || 'Sin cliente'}</td>
-                    <td data-label="Canal">{getChannelLabel(order.salesChannel)}</td>
-                    <td data-label="Estado">
+                    <td data-label="Canal" className="ops-hide-mobile">{getChannelLabel(order.salesChannel)}</td>
+                    <td data-label="Estado" className="ops-status-next">
                       <span className="orders-status-pill-next" style={{ backgroundColor: ORDER_STATUS_COLORS[order.status] || '#95a5a6' }}>
                         {getStatusLabel(order.status)}
                       </span>
                     </td>
                     <td data-label="Tienda">{order.sourceStore?.name || '-'}</td>
-                    <td data-label="Responsable">{getResponsibleLabel(order)}</td>
+                    <td data-label="Responsable" className="ops-hide-mobile">{getResponsibleLabel(order)}</td>
                     <td data-label="Total" className="orders-money-cell-next">{formatMoney(order.total)}</td>
                     <td data-label="Creado">{formatDateTime(order.createdAt)}</td>
                     <td data-label="Accion">

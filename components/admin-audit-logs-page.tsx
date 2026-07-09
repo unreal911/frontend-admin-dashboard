@@ -357,7 +357,7 @@ export function AdminAuditLogsPage() {
         </p>
 
         <div className="admin-table-wrap">
-          <table className="admin-table mobile-card-table">
+          <table className="admin-table mobile-card-table list-cards-next">
             <thead>
               <tr>
                 <th>Fecha</th>

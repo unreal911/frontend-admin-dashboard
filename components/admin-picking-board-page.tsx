@@ -9,6 +9,7 @@ import {
   AdminOrder,
   AdminOrderItem,
   AdminOrderStatus,
+  AdminPickingContribution,
   AdminPickingUnpickRequest,
   normalizeOrderPickingResponse,
   normalizeOrdersListResponse,
@@ -81,18 +82,6 @@ function getPickedQuantity(item: AdminOrderItem): number {
   return Math.max(0, Number(item.pickedQuantity ?? item.picked ?? 0));
 }
 
-function getItemStatus(item: AdminOrderItem): 'PENDING' | 'PARTIAL' | 'COMPLETED' {
-  const normalizedStatus = String(item.status || item.pickingStatus || '').toUpperCase();
-  if (normalizedStatus === 'COMPLETED' || normalizedStatus === 'PICKED') return 'COMPLETED';
-  if (normalizedStatus === 'PARTIAL') return 'PARTIAL';
-
-  const picked = getPickedQuantity(item);
-  const requested = getRequestedQuantity(item);
-  if (picked <= 0) return 'PENDING';
-  if (picked >= requested) return 'COMPLETED';
-  return 'PARTIAL';
-}
-
 function getItemStatusLabel(status: 'PENDING' | 'PARTIAL' | 'COMPLETED'): string {
   if (status === 'PENDING') return 'Pendiente';
   if (status === 'PARTIAL') return 'Parcial';
@@ -119,6 +108,60 @@ function formatDateTime(value?: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '-';
   return new Intl.DateTimeFormat('es-PE', { dateStyle: 'short', timeStyle: 'short' }).format(date);
+}
+
+type PickingGroup = {
+  key: string;
+  items: AdminOrderItem[];
+  representative: AdminOrderItem;
+  requested: number;
+  picked: number;
+  pickLimit: number;
+  missing: number;
+  status: 'PENDING' | 'PARTIAL' | 'COMPLETED';
+  contributions: AdminPickingContribution[];
+};
+
+// Agrupa lineas del mismo producto + color + talla en una sola fila (sumando
+// cantidades) para no confundir al usuario. Se agrupa por color/talla (NO por
+// variantId): en "producto unico" todas las filas comparten variantId y el
+// color/talla es solo display; deben quedar en filas distintas por color+talla.
+// Cuando el flujo de responsabilidad esta activo se deja una fila por linea
+// (merge=false) para preservar contribuciones/unpick por item.
+function groupPickingItems(items: AdminOrderItem[], merge: boolean): PickingGroup[] {
+  const buckets = new Map<string, AdminOrderItem[]>();
+  const order: string[] = [];
+  items.forEach((item, index) => {
+    const key = merge
+      ? `label:${item.variant.productName}|${item.variant.colorName}|${item.variant.sizeName}`
+      : `item:${item.orderItemId ?? item.id ?? index}:${item.pickingItemId ?? 0}:${index}`;
+    if (!buckets.has(key)) {
+      buckets.set(key, []);
+      order.push(key);
+    }
+    buckets.get(key)!.push(item);
+  });
+
+  return order.map((key) => {
+    const groupItems = buckets.get(key)!;
+    const requested = groupItems.reduce((sum, item) => sum + getRequestedQuantity(item), 0);
+    const picked = groupItems.reduce((sum, item) => sum + getPickedQuantity(item), 0);
+    const pickLimit = groupItems.reduce((sum, item) => sum + getItemPickLimit(item), 0);
+    const missing = groupItems.reduce((sum, item) => {
+      const itemMissing = Number(item.missingQuantity ?? Math.max(0, getRequestedQuantity(item) - getPickedQuantity(item)));
+      return sum + Math.max(0, itemMissing);
+    }, 0);
+    const contributions = groupItems.flatMap((item) => (Array.isArray(item.contributions) ? item.contributions : []));
+    let status: 'PENDING' | 'PARTIAL' | 'COMPLETED' = 'PENDING';
+    if (picked <= 0) {
+      status = 'PENDING';
+    } else if (picked >= requested && requested > 0) {
+      status = 'COMPLETED';
+    } else {
+      status = 'PARTIAL';
+    }
+    return { key, items: groupItems, representative: groupItems[0], requested, picked, pickLimit, missing, status, contributions };
+  });
 }
 
 function getItemKey(item: AdminOrderItem): string {
@@ -186,6 +229,11 @@ export function AdminPickingBoardPage() {
     }
     return selectedOrder?.pickingResponsibility?.enabled === true;
   }, [pickingResponsibilityFlowEnabledSetting, selectedOrder?.pickingResponsibility?.enabled]);
+
+  const pickingGroups = useMemo(
+    () => groupPickingItems(selectedOrder?.items ?? [], !isPickingResponsibilityFlowEnabled),
+    [selectedOrder?.items, isPickingResponsibilityFlowEnabled],
+  );
 
   const primaryResponsible = selectedOrder?.pickingResponsibility?.primaryResponsible || null;
   const sharedResponsibles = selectedOrder?.pickingResponsibility?.sharedResponsibles || [];
@@ -935,11 +983,6 @@ export function AdminPickingBoardPage() {
     void updateItemPickedQuantity(item, Math.min(requested, picked + 1));
   }
 
-  function markItemComplete(item: AdminOrderItem) {
-    const requested = getItemPickLimit(item);
-    void updateItemPickedQuantity(item, requested);
-  }
-
   function markItemUnpicked(item: AdminOrderItem) {
     if (isPickingResponsibilityFlowEnabled && !canCurrentUserUnpickDirectly(item)) {
       openUnpickRequestForm(item);
@@ -948,6 +991,33 @@ export function AdminPickingBoardPage() {
     }
     const picked = getPickedQuantity(item);
     void updateItemPickedQuantity(item, Math.max(0, picked - 1));
+  }
+
+  function isGroupUpdating(group: PickingGroup): boolean {
+    return group.items.some((item) => isUpdatingItem(item));
+  }
+
+  function incrementGroup(group: PickingGroup) {
+    const target = group.items.find((item) => getPickedQuantity(item) < getItemPickLimit(item));
+    if (target) {
+      markItemPicked(target);
+    }
+  }
+
+  function decrementGroup(group: PickingGroup) {
+    const target = [...group.items].reverse().find((item) => getPickedQuantity(item) > 0);
+    if (target) {
+      markItemUnpicked(target);
+    }
+  }
+
+  async function completeGroup(group: PickingGroup) {
+    for (const item of group.items) {
+      const limit = getItemPickLimit(item);
+      if (getPickedQuantity(item) < limit) {
+        await updateItemPickedQuantity(item, limit);
+      }
+    }
   }
 
   function renderPickingDetail() {
@@ -1109,70 +1179,70 @@ export function AdminPickingBoardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {selectedOrder.items.length === 0 ? (
+                  {pickingGroups.length === 0 ? (
                     <tr>
                       <td colSpan={7} data-label="Estado">No hay items para picking.</td>
                     </tr>
                   ) : (
-                    selectedOrder.items.map((item) => {
-                      const requested = getRequestedQuantity(item);
-                      const picked = getPickedQuantity(item);
-                      const missing = Math.max(0, Number(item.missingQuantity ?? Math.max(0, requested - picked)));
-                      const status = getItemStatus(item);
-                      const rowKey = `${item.orderItemId ?? item.id}-${item.pickingItemId ?? 0}-${item.variantId}`;
+                    pickingGroups.map((group) => {
+                      const representative = group.representative;
+                      const updating = isGroupUpdating(group);
                       return (
-                        <tr key={rowKey}>
-                          <td data-label="Producto">{item.variant.productName}</td>
+                        <tr key={group.key}>
+                          <td data-label="Producto">{representative.variant.productName}</td>
                           <td data-label="Variante">
-                            {item.variant.colorName} / {item.variant.sizeName} - {item.variant.sku}
-                            {getItemContributions(item).length > 0 ? (
+                            {representative.variant.colorName} / {representative.variant.sizeName} - {representative.variant.sku}
+                            {group.items.length > 1 ? (
+                              <small className="admin-muted-text"> ({group.items.length} lineas)</small>
+                            ) : null}
+                            {group.contributions.length > 0 ? (
                               <div className="picking-contrib-list-next">
-                                {getItemContributions(item).map((contribution) => (
-                                  <span key={`contrib-${rowKey}-${contribution.id}`} className="picking-contrib-chip-next">
+                                {group.contributions.map((contribution) => (
+                                  <span key={`contrib-${group.key}-${contribution.id}`} className="picking-contrib-chip-next">
                                     {(contribution.user?.firstName || contribution.user?.email || `U#${contribution.user?.id || '-'}`)}: {contribution.quantity}
                                   </span>
                                 ))}
                               </div>
                             ) : null}
                           </td>
-                          <td data-label="Solicitada">{requested}</td>
-                          <td data-label="Separada">{picked}</td>
-                          <td data-label="Faltante">{missing}</td>
-                          <td data-label="Estado">{getItemStatusLabel(status)}</td>
+                          <td data-label="Solicitada">{group.requested}</td>
+                          <td data-label="Separada">{group.picked}</td>
+                          <td data-label="Faltante">{group.missing}</td>
+                          <td data-label="Estado">{getItemStatusLabel(group.status)}</td>
                           <td data-label="Accion">
                             <div className="picking-row-actions-next">
                               <button
                                 type="button"
                                 className="admin-ghost-btn"
-                                disabled={!canUpdatePickingPermission || isUpdatingItem(item) || picked <= 0}
-                                onClick={() => markItemUnpicked(item)}
+                                disabled={!canUpdatePickingPermission || updating || group.picked <= 0}
+                                onClick={() => decrementGroup(group)}
                               >
                                 -
                               </button>
                               <button
                                 type="button"
                                 className="admin-ghost-btn"
-                                disabled={!canUpdatePickingPermission || isUpdatingItem(item) || picked >= getItemPickLimit(item)}
-                                onClick={() => markItemPicked(item)}
+                                disabled={!canUpdatePickingPermission || updating || group.picked >= group.pickLimit}
+                                onClick={() => incrementGroup(group)}
                               >
                                 +
                               </button>
                               <button
                                 type="button"
                                 className="admin-ghost-btn"
-                                disabled={!canUpdatePickingPermission || isUpdatingItem(item) || picked >= getItemPickLimit(item)}
-                                onClick={() => markItemComplete(item)}
+                                disabled={!canUpdatePickingPermission || updating || group.picked >= group.pickLimit}
+                                onClick={() => void completeGroup(group)}
                               >
                                 Completar
                               </button>
-                              {canShowUnpickRequestButton(item) ? (
+                              {canShowUnpickRequestButton(representative) ? (
                                 <button
                                   type="button"
                                   className="admin-ghost-btn"
-                                  disabled={isRequestingUnpickForItem(item)}
-                                  onClick={() => toggleUnpickRequestForm(item)}
+                                  disabled={isRequestingUnpickForItem(representative)}
+                                  onClick={() => toggleUnpickRequestForm(representative)}
                                 >
-                                  {isUnpickRequestFormOpen(item) ? 'Cancelar solicitud' : 'Solicitar accion'}
+                                  {isUnpickRequestFormOpen(representative) ? 'Cancelar solicitud' : 'Solicitar accion'}
                                 </button>
                               ) : null}
                             </div>

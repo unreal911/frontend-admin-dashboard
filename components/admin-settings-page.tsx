@@ -17,7 +17,11 @@ interface OrderWorkflowSettings {
   companyPhone: string;
   companyEmail: string;
   companyLogoUrl: string;
+  marketplaceHeroHeading: string;
 }
+
+const MARKETPLACE_HERO_HEADING_MAX_LENGTH = 60;
+const DEFAULT_MARKETPLACE_HERO_HEADING = 'Encuentra polos por color y talla';
 
 interface PaymentMethod {
   id: number;
@@ -39,6 +43,7 @@ const DEFAULT_SETTINGS: OrderWorkflowSettings = {
   companyPhone: '',
   companyEmail: '',
   companyLogoUrl: '',
+  marketplaceHeroHeading: DEFAULT_MARKETPLACE_HERO_HEADING,
 };
 
 function normalizeText(value: unknown): string {
@@ -68,6 +73,7 @@ function normalizeSettings(payload: unknown): OrderWorkflowSettings {
     companyPhone: normalizeText(data.companyPhone),
     companyEmail: normalizeText(data.companyEmail),
     companyLogoUrl: normalizeText(data.companyLogoUrl),
+    marketplaceHeroHeading: normalizeText(data.marketplaceHeroHeading).slice(0, MARKETPLACE_HERO_HEADING_MAX_LENGTH) || DEFAULT_MARKETPLACE_HERO_HEADING,
   };
 }
 
@@ -155,6 +161,7 @@ export function AdminSettingsPage() {
       || settings.companyPhone !== initialSettings.companyPhone
       || settings.companyEmail !== initialSettings.companyEmail
       || settings.companyLogoUrl !== initialSettings.companyLogoUrl
+      || settings.marketplaceHeroHeading !== initialSettings.marketplaceHeroHeading
       || companyLogoFile !== null
       || !areNumberArraysEqual(settings.marketplacePaymentMethodIds, initialSettings.marketplacePaymentMethodIds);
   }, [settings, initialSettings, companyLogoFile]);
@@ -471,6 +478,31 @@ export function AdminSettingsPage() {
       <article className="settings-card">
         <div className="settings-card-head">
           <div>
+            <h2>Tienda publica (marketplace)</h2>
+            <p>Personaliza el titulo principal del catalogo mayorista. El nombre y logo de la marca se toman de &quot;Datos de empresa&quot;.</p>
+          </div>
+          <span className="settings-pill">Marca</span>
+        </div>
+
+        <label className="admin-form-field">
+          <span>Titulo principal (hero)</span>
+          <input
+            type="text"
+            value={settings.marketplaceHeroHeading}
+            maxLength={MARKETPLACE_HERO_HEADING_MAX_LENGTH}
+            placeholder={DEFAULT_MARKETPLACE_HERO_HEADING}
+            disabled={loading || saving}
+            onChange={(event) => updateSetting('marketplaceHeroHeading', event.target.value)}
+          />
+          <small className="admin-field-hint">
+            {settings.marketplaceHeroHeading.length}/{MARKETPLACE_HERO_HEADING_MAX_LENGTH} caracteres. Manten el texto corto para que no rompa el diseno de la tienda.
+          </small>
+        </label>
+      </article>
+
+      <article className="settings-card">
+        <div className="settings-card-head">
+          <div>
             <h2>Gestion de Responsabilidades de Devolucion</h2>
             <p>Cuando esta activa, al cancelar un pedido con unidades separadas se asigna como responsable a quien cancela, con opcion de delegar o confirmar la devolucion.</p>
           </div>
@@ -563,16 +595,16 @@ export function AdminSettingsPage() {
       <article className="settings-card">
         <div className="settings-card-head">
           <div>
-            <h2>Reserva Automatica en Marketplace</h2>
-            <p>Si esta activa, los pedidos del marketplace reservan stock automaticamente al crearse.</p>
+            <h2>Reserva en Marketplace</h2>
+            <p>Las compras del marketplace se registran como proformas. Las reservas se generan manualmente desde el detalle del pedido.</p>
           </div>
           <label className="toggle-wrap">
-            <span>{settings.marketplaceAutoReserveStock ? 'Activa' : 'Desactivada'}</span>
+            <span>Manual</span>
             <input
               type="checkbox"
-              checked={settings.marketplaceAutoReserveStock}
-              disabled={loading || saving}
-              onChange={(event) => updateSetting('marketplaceAutoReserveStock', event.target.checked)}
+              checked={false}
+              disabled
+              onChange={() => updateSetting('marketplaceAutoReserveStock', false)}
             />
           </label>
         </div>

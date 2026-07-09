@@ -239,7 +239,7 @@ export function AdminInventoryTraceabilityPage() {
 
       <article className="admin-card">
         <div className="admin-table-wrap">
-          <table className="admin-table mobile-card-table">
+          <table className="admin-table mobile-card-table ops-cards-next">
             <thead>
               <tr>
                 <th>#</th>
@@ -268,12 +268,12 @@ export function AdminInventoryTraceabilityPage() {
                   <tr key={reservation.id}>
                     <td data-label="#">{reservation.id}</td>
                     <td data-label="Fecha">{formatDate(reservation.createdAt)}</td>
-                    <td data-label="Estado reserva">
+                    <td data-label="Estado reserva" className="ops-status-next">
                       <span className={`admin-status-badge ${getReservationStatusTone(reservation.status)}`}>
                         {getReservationStatusLabel(reservation.status)}
                       </span>
                     </td>
-                    <td data-label="Variante">
+                    <td data-label="Variante" className="list-card-title-next">
                       {reservation.inventory.variant.product.name}
                       {' - '}
                       {reservation.inventory.variant.color.name}
@@ -290,8 +290,8 @@ export function AdminInventoryTraceabilityPage() {
                     </td>
                     <td data-label="Cantidad">{reservation.quantity}</td>
                     <td data-label="Pedido">{reservation.order?.code || '-'}</td>
-                    <td data-label="Estado pedido">{reservation.order?.status || '-'}</td>
-                    <td data-label="Reservado por">
+                    <td data-label="Estado pedido" className="ops-hide-mobile">{reservation.order?.status || '-'}</td>
+                    <td data-label="Reservado por" className="ops-hide-mobile">
                       {reservation.reservedBy
                         ? `${reservation.reservedBy.firstName} ${reservation.reservedBy.lastName || ''}`.trim()
                         : '-'}

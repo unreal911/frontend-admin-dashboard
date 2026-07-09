@@ -77,13 +77,42 @@ export interface AdminOrderItem {
   pendingQuantity?: number;
   pendingPickingQuantity?: number;
   missingQuantity?: number;
-  status?: 'PENDING' | 'PARTIAL' | 'COMPLETED';
+  shortageQuantity?: number;
+  removed?: boolean;
+  removedAt?: string | null;
+  removedReason?: string | null;
+  removedNote?: string | null;
+  removedByName?: string | null;
+  status?: 'PENDING' | 'PARTIAL' | 'COMPLETED' | 'MISSING';
   pickingStatus?: 'PENDING' | 'PARTIAL' | 'COMPLETED' | 'PICKED';
   contributions?: AdminPickingContribution[];
   pendingUnpickRequests?: AdminPickingUnpickRequest[];
+  reservationSuggestions?: AdminOrderItemReservationSuggestion[];
+  // Reparto por tienda de lo reservado para ESTA linea (ledger del backend).
+  reservedByStore?: AdminOrderItemReservedByStore[];
   responsibleUser?: AdminSimpleUser | null;
   updatedAt?: string;
   variant: AdminOrderVariantRef;
+}
+
+export interface AdminOrderItemReservedByStore {
+  storeId: number;
+  storeName: string;
+  quantity: number;
+}
+
+export interface AdminOrderItemReservationSuggestion {
+  inventoryId: number;
+  storeId: number;
+  storeName: string;
+  storeCode?: string;
+  storeType?: string;
+  stock: number;
+  reservedStock: number;
+  availableStock: number;
+  recommendedQuantity: number;
+  isCurrentFulfillmentStore: boolean;
+  isSourceStore: boolean;
 }
 
 export interface AdminOrderReservation {
@@ -124,6 +153,7 @@ export interface AdminOrder {
   createdAt: string;
   updatedAt: string;
   items: AdminOrderItem[];
+  removedItems?: AdminOrderItem[];
   reservations: AdminOrderReservation[];
   pickingSummary?: {
     totalRequested: number;
@@ -294,8 +324,11 @@ function normalizeOrderItem(raw: unknown): AdminOrderItem | null {
   const fulfillmentStoreId = toInt(raw.fulfillmentStoreId, fulfillmentStore?.id || 0);
   const id = rawId > 0 ? rawId : (orderItemId > 0 ? orderItemId : pickingItemId);
   const quantity = Math.max(0, toNum(raw.quantity, toNum(raw.requestedQuantity, 0)));
-  const unitPrice = Math.max(0, toNum(raw.unitPrice, 0));
-  const subtotal = Math.max(0, toNum(raw.subtotal, quantity * unitPrice));
+  const variantPrice = Math.max(0, toNum(variantRaw?.price, 0));
+  const rawUnitPrice = Math.max(0, toNum(raw.unitPrice, 0));
+  const unitPrice = rawUnitPrice > 0 ? rawUnitPrice : variantPrice;
+  const rawSubtotal = Math.max(0, toNum(raw.subtotal, 0));
+  const subtotal = rawSubtotal > 0 ? rawSubtotal : Math.max(0, quantity * unitPrice);
   const requestedQuantity = Math.max(0, toNum(raw.requestedQuantity, quantity));
   const reservedRaw = Math.max(0, toNum(raw.reserved, 0));
   const reservedQuantity = Math.max(0, toNum(raw.reservedQuantity, reservedRaw));
@@ -303,6 +336,7 @@ function normalizeOrderItem(raw: unknown): AdminOrderItem | null {
   const pickedRaw = Math.max(0, toNum(raw.picked, toNum(raw.pickedQuantity, 0)));
   const pickedQuantity = Math.max(0, toNum(raw.pickedQuantity, pickedRaw));
   const missingQuantity = Math.max(0, toNum(raw.missingQuantity, Math.max(0, requestedQuantity - pickedQuantity)));
+  const shortageQuantity = Math.max(0, toNum(raw.shortageQuantity, 0));
   const status = toText(raw.status, toText(raw.pickingStatus)).toUpperCase();
   const contributions = Array.isArray(raw.contributions)
     ? raw.contributions
@@ -313,6 +347,16 @@ function normalizeOrderItem(raw: unknown): AdminOrderItem | null {
     ? raw.pendingUnpickRequests
       .map((entry) => normalizePickingUnpickRequest(entry))
       .filter((entry): entry is AdminPickingUnpickRequest => Boolean(entry))
+    : [];
+  const reservationSuggestions = Array.isArray(raw.reservationSuggestions)
+    ? raw.reservationSuggestions
+      .map((entry) => normalizeOrderItemReservationSuggestion(entry))
+      .filter((entry): entry is AdminOrderItemReservationSuggestion => Boolean(entry))
+    : [];
+  const reservedByStore = Array.isArray(raw.reservedByStore)
+    ? raw.reservedByStore
+      .map((entry) => normalizeOrderItemReservedByStore(entry))
+      .filter((entry): entry is AdminOrderItemReservedByStore => Boolean(entry))
     : [];
 
   if (id < 1 || variantId < 1) {
@@ -337,15 +381,68 @@ function normalizeOrderItem(raw: unknown): AdminOrderItem | null {
     pendingStockQuantity: toNum(raw.pendingStockQuantity, 0),
     pickedQuantity,
     missingQuantity,
+    shortageQuantity,
+    removed: Boolean(raw.removed ?? raw.removedAt),
+    removedAt: toText(raw.removedAt) || null,
+    removedReason: toText(raw.removedReason) || null,
+    removedNote: toText(raw.removedNote) || null,
+    removedByName: toText(raw.removedByName) || null,
     pendingQuantity: toNum(raw.pendingQuantity, 0),
     pendingPickingQuantity: toNum(raw.pendingPickingQuantity, 0),
-    status: (status === 'COMPLETED' || status === 'PARTIAL' || status === 'PENDING') ? status : undefined,
+    status: (status === 'COMPLETED' || status === 'PARTIAL' || status === 'PENDING' || status === 'MISSING') ? status : undefined,
     pickingStatus: toText(raw.pickingStatus) as AdminOrderItem['pickingStatus'],
     contributions,
     pendingUnpickRequests,
+    reservationSuggestions,
+    reservedByStore,
     responsibleUser: normalizeSimpleUser(raw.responsibleUser),
     updatedAt: toText(raw.updatedAt) || undefined,
     variant: normalizeOrderVariantRef(variantRaw, variantId, unitPrice),
+  };
+}
+
+function normalizeOrderItemReservedByStore(raw: unknown): AdminOrderItemReservedByStore | null {
+  if (!isObject(raw)) {
+    return null;
+  }
+  const storeId = toNum(raw.storeId, 0);
+  const quantity = Math.max(0, toNum(raw.quantity, 0));
+  if (storeId < 1 || quantity <= 0) {
+    return null;
+  }
+  return {
+    storeId,
+    storeName: toText(raw.storeName) || `Tienda ${storeId}`,
+    quantity,
+  };
+}
+
+function normalizeOrderItemReservationSuggestion(raw: unknown): AdminOrderItemReservationSuggestion | null {
+  if (!isObject(raw)) {
+    return null;
+  }
+
+  const inventoryId = toInt(raw.inventoryId, 0);
+  const storeId = toInt(raw.storeId, 0);
+  if (inventoryId < 1 || storeId < 1) {
+    return null;
+  }
+
+  const availableStock = Math.max(0, toNum(raw.availableStock, 0));
+  const recommendedQuantity = Math.max(0, toNum(raw.recommendedQuantity, Math.min(1, availableStock)));
+
+  return {
+    inventoryId,
+    storeId,
+    storeName: toText(raw.storeName, `Tienda ${storeId}`),
+    storeCode: toText(raw.storeCode) || undefined,
+    storeType: toText(raw.storeType) || undefined,
+    stock: Math.max(0, toNum(raw.stock, 0)),
+    reservedStock: Math.max(0, toNum(raw.reservedStock, 0)),
+    availableStock,
+    recommendedQuantity,
+    isCurrentFulfillmentStore: raw.isCurrentFulfillmentStore === true,
+    isSourceStore: raw.isSourceStore === true,
   };
 }
 
@@ -457,6 +554,11 @@ function normalizeOrderRecord(raw: unknown): AdminOrder | null {
     .map((item) => normalizeOrderItem(item))
     .filter((item): item is AdminOrderItem => Boolean(item));
 
+  const removedItemsRaw = Array.isArray(raw.removedItems) ? raw.removedItems : [];
+  const removedItems = removedItemsRaw
+    .map((item) => normalizeOrderItem(item))
+    .filter((item): item is AdminOrderItem => Boolean(item));
+
   const reservationsRaw = Array.isArray(raw.reservations) ? raw.reservations : [];
   const reservations = reservationsRaw
     .map((row) => normalizeOrderReservation(row))
@@ -473,16 +575,26 @@ function normalizeOrderRecord(raw: unknown): AdminOrder | null {
   const fulfillmentStore = normalizeSimpleStore(raw.fulfillmentStore);
   const primaryResponsibleRaw = isObject(raw.primaryResponsible) ? raw.primaryResponsible : null;
   const primaryResponsibleBase = normalizeSimpleUser(primaryResponsibleRaw);
+  const computedSubtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
+  const rawSubtotal = Math.max(0, toNum(raw.subtotal, 0));
+  const subtotal = rawSubtotal > 0 ? rawSubtotal : computedSubtotal;
+  const igvAmount = Math.max(0, toNum(raw.igvAmount, toNum(raw.tax, 0)));
+  const rawTotal = Math.max(0, toNum(raw.total, 0));
+  const total = rawTotal > 0 ? rawTotal : subtotal + igvAmount;
+  const rawSalesChannel = toText(raw.salesChannel, 'INTERNAL').toUpperCase();
+  const salesChannel = rawSalesChannel === 'ECOMMERCE' || code.toUpperCase().startsWith('MK-')
+    ? 'ECOMMERCE'
+    : (rawSalesChannel === 'POS' ? 'POS' : 'INTERNAL');
 
   return {
     id,
     code,
     status,
-    salesChannel: toText(raw.salesChannel, 'INTERNAL') as AdminOrderSalesChannel,
-    total: Math.max(0, toNum(raw.total, 0)),
-    subtotal: Math.max(0, toNum(raw.subtotal, 0)),
-    igvAmount: Math.max(0, toNum(raw.igvAmount, 0)),
-    applyIgv: Boolean(raw.applyIgv),
+    salesChannel: salesChannel as AdminOrderSalesChannel,
+    total,
+    subtotal,
+    igvAmount,
+    applyIgv: raw.applyIgv === true || igvAmount > 0,
     clientName: toText(raw.clientName),
     clientEmail: toText(raw.clientEmail),
     clientPhone: toText(raw.clientPhone),
@@ -501,6 +613,7 @@ function normalizeOrderRecord(raw: unknown): AdminOrder | null {
     createdAt: toText(raw.createdAt),
     updatedAt: toText(raw.updatedAt),
     items,
+    removedItems,
     reservations,
     pickingSummary: normalizePickingSummary(pickingSummaryRaw),
     pickingSession: normalizePickingSession(pickingSessionRaw),
@@ -559,16 +672,69 @@ export function normalizeOrderPickingResponse(payload: unknown, fallbackOrder?: 
     return normalized;
   }
 
+  // La respuesta de picking reconstruye los items sin reservationSuggestions ni
+  // shortageQuantity (solo existen en el detalle). Al mergear, preservamos esos
+  // campos del detalle (fallbackOrder) emparejando por id de order item.
+  const mergedItems = normalized.items.length > 0
+    ? normalized.items.map((pickingItem) => {
+      const detailItem = fallbackOrder.items.find((d) => (
+        d.id === (pickingItem.orderItemId || pickingItem.id)
+      ));
+      if (!detailItem) {
+        return pickingItem;
+      }
+      const pickingSuggestions = pickingItem.reservationSuggestions || [];
+      const pickingReservedByStore = Array.isArray(pickingItem.reservedByStore) ? pickingItem.reservedByStore : [];
+      return {
+        ...pickingItem,
+        shortageQuantity: pickingItem.shortageQuantity ?? detailItem.shortageQuantity,
+        reservationSuggestions: pickingSuggestions.length > 0
+          ? pickingSuggestions
+          : detailItem.reservationSuggestions,
+        // La atribucion de reserva (cuanto y en que tienda) es AUTORIDAD del
+        // detalle: `getOrderById` la trae real por linea (reserved + reservedByStore
+        // + fulfillmentStore). La respuesta de picking la reconstruye vacia
+        // (reserved undefined, reservedByStore null) y pisaria la verdad → el panel
+        // mostraria "0 reservado / Sin stock" en lineas que SI estan reservadas.
+        reserved: (pickingItem.reserved && pickingItem.reserved > 0) ? pickingItem.reserved : detailItem.reserved,
+        reservedQuantity: (pickingItem.reservedQuantity && pickingItem.reservedQuantity > 0)
+          ? pickingItem.reservedQuantity
+          : detailItem.reservedQuantity,
+        reservedByStore: pickingReservedByStore.length > 0 ? pickingReservedByStore : detailItem.reservedByStore,
+        fulfillmentStoreId: pickingItem.fulfillmentStoreId || detailItem.fulfillmentStoreId,
+        fulfillmentStore: pickingItem.fulfillmentStore || detailItem.fulfillmentStore,
+        // Estado de eliminacion vive en el detalle; el picking no lo trae.
+        removed: pickingItem.removed || detailItem.removed,
+        removedAt: pickingItem.removedAt ?? detailItem.removedAt,
+        removedReason: pickingItem.removedReason ?? detailItem.removedReason,
+        removedNote: pickingItem.removedNote ?? detailItem.removedNote,
+        removedByName: pickingItem.removedByName ?? detailItem.removedByName,
+      };
+    })
+    : fallbackOrder.items;
+
   return {
     ...fallbackOrder,
     ...normalized,
+    // El dinero (total/subtotal/IGV) es autoridad del DETALLE: `getOrderById`
+    // devuelve el total almacenado (con IGV) que `recomputeOrderTotals` mantiene
+    // al agregar/eliminar. La respuesta de picking NO trae totales monetarios
+    // (los recalcularia desde items sin IGV), asi que no debe pisarlos.
+    total: fallbackOrder.total > 0 ? fallbackOrder.total : normalized.total,
+    subtotal: fallbackOrder.subtotal > 0 ? fallbackOrder.subtotal : normalized.subtotal,
+    igvAmount: fallbackOrder.igvAmount > 0 ? fallbackOrder.igvAmount : normalized.igvAmount,
+    applyIgv: fallbackOrder.applyIgv || normalized.applyIgv,
     clientName: normalized.clientName || fallbackOrder.clientName,
     clientEmail: normalized.clientEmail || fallbackOrder.clientEmail,
     clientPhone: normalized.clientPhone || fallbackOrder.clientPhone,
     note: normalized.note || fallbackOrder.note,
     sourceStore: normalized.sourceStore || fallbackOrder.sourceStore,
     fulfillmentStore: normalized.fulfillmentStore || fallbackOrder.fulfillmentStore,
-    items: normalized.items.length > 0 ? normalized.items : fallbackOrder.items,
+    items: mergedItems,
+    // Los eliminados solo vienen en el detalle (la respuesta de picking no los trae).
+    removedItems: (normalized.removedItems && normalized.removedItems.length > 0)
+      ? normalized.removedItems
+      : fallbackOrder.removedItems,
     reservations: normalized.reservations.length > 0 ? normalized.reservations : fallbackOrder.reservations,
     pickingSummary: normalized.pickingSummary || fallbackOrder.pickingSummary || null,
     pickingSession: normalized.pickingSession || fallbackOrder.pickingSession || null,

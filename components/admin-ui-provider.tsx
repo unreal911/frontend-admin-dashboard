@@ -12,10 +12,16 @@ import {
 
 type AlertType = 'success' | 'error' | 'warning' | 'info';
 
+interface AdminAlertAction {
+  label: string;
+  onClick: () => void;
+}
+
 interface AdminAlert {
   id: string;
   type: AlertType;
   message: string;
+  action?: AdminAlertAction;
 }
 
 interface ConfirmOptions {
@@ -26,7 +32,7 @@ interface ConfirmOptions {
 }
 
 interface AdminUiContextValue {
-  showAlert: (message: string, type?: AlertType, durationMs?: number) => void;
+  showAlert: (message: string, type?: AlertType, durationMs?: number, action?: AdminAlertAction) => void;
   closeAlert: () => void;
   confirm: (options: ConfirmOptions) => Promise<boolean>;
 }
@@ -62,14 +68,14 @@ export function AdminUiProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const showAlert = useCallback(
-    (message: string, type: AlertType = 'info', durationMs = 3000) => {
+    (message: string, type: AlertType = 'info', durationMs = 3000, action?: AdminAlertAction) => {
       if (alertTimerRef.current) {
         clearTimeout(alertTimerRef.current);
         alertTimerRef.current = null;
       }
 
       const id = `alert-${++alertCounterRef.current}`;
-      setAlert({ id, type, message });
+      setAlert({ id, type, message, action });
 
       if (durationMs > 0) {
         alertTimerRef.current = setTimeout(() => {
@@ -143,6 +149,19 @@ export function AdminUiProvider({ children }: { children: React.ReactNode }) {
               <strong>{getAlertTitle(alert.type)}</strong>
               <p>{alert.message}</p>
             </div>
+            {alert.action ? (
+              <button
+                type="button"
+                className="admin-alert-action"
+                onClick={() => {
+                  const handler = alert.action?.onClick;
+                  closeAlert();
+                  handler?.();
+                }}
+              >
+                {alert.action.label}
+              </button>
+            ) : null}
             <button type="button" className="admin-alert-close" onClick={closeAlert}>
               Cerrar
             </button>

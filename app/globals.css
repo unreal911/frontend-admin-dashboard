@@ -3438,18 +3438,6 @@ a {
   align-items: start;
 }
 
-@media (max-width: 640px) {
-  .dashboard-kpi-grid-next,
-  .dashboard-stock-grid-next {
-    grid-template-columns: 1fr;
-  }
-
-  .dashboard-trend-row-next {
-    grid-template-columns: 1fr;
-    gap: 0.35rem;
-  }
-}
-
 .admin-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -4550,6 +4538,20 @@ a {
   cursor: pointer;
 }
 
+/* Boton de accion del toast (p.ej. "Deshacer") */
+.admin-alert-action {
+  border: 1px solid var(--admin-primary);
+  border-radius: 8px;
+  background: var(--admin-primary-strong);
+  color: var(--admin-primary-text);
+  font-size: 0.76rem;
+  font-weight: 700;
+  height: 32px;
+  padding: 0.32rem 0.7rem;
+  cursor: pointer;
+}
+.admin-alert-action:hover { filter: brightness(1.05); }
+
 .admin-confirm-overlay,
 .admin-modal-overlay {
   position: fixed;
@@ -4929,6 +4931,543 @@ a {
   grid-template-columns: minmax(0, 1fr);
 }
 
+/* Anti-desborde horizontal del form de producto (el contenido del editor no debe estirar el layout) */
+.admin-modal-form,
+.admin-product-modal-form {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.admin-modal-form > *,
+.admin-product-modal-form > *,
+.admin-modal-form label,
+.admin-field-block {
+  min-width: 0;
+}
+
+.admin-modal-form label,
+.admin-field-block {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Cualquier contenedor anidado debe poder encogerse (min-width:auto por defecto desborda).
+   :where() = especificidad 0, no pisa el min-width:580px de .admin-table (que scrollea dentro de .admin-table-wrap) */
+.admin-product-modal-form :where(div, section, label, article) {
+  min-width: 0;
+}
+
+/* Las cajas anidadas son display:grid sin columnas => crean una pista 'auto' que se
+   dimensiona al contenido (tabla 580px) y desborda. Forzar 1 columna constreñida. */
+.admin-product-modal-form :where(.admin-product-mode-box, .admin-product-select-box, .admin-marketplace-color-images-next) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* En @media (max-width:768px) la regla global .admin-table-wrap pone overflow:visible
+   (pensada para tablas-tarjeta del dashboard). En el modal de producto las tablas NO se
+   transforman en tarjetas, asi que deben seguir scrolleando dentro del wrap en movil.
+   Mayor especificidad (2 clases) => gana sobre la regla movil. */
+.admin-product-modal-form .admin-table-wrap {
+  overflow: auto;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+}
+
+/* ===== Wizard por pasos (crear/editar producto) ===== */
+.admin-product-wizard-steps {
+  display: flex;
+  gap: 0.4rem;
+  align-items: stretch;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  padding-bottom: 0.2rem;
+  margin-bottom: 0.2rem;
+}
+
+.admin-product-wizard-step {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--admin-surface) 82%, var(--admin-surface-soft));
+  color: var(--admin-muted);
+  padding: 0.42rem 0.7rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.admin-product-wizard-step:hover {
+  border-color: color-mix(in oklab, var(--admin-primary) 45%, var(--admin-border));
+  color: var(--admin-text);
+}
+
+.admin-product-wizard-step-num {
+  display: grid;
+  place-items: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  flex: none;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--admin-surface-soft) 70%, transparent);
+  border: 1px solid var(--admin-border);
+  font-size: 0.78rem;
+  line-height: 1;
+}
+
+.admin-product-wizard-step.is-current {
+  border-color: var(--admin-primary);
+  color: var(--admin-text);
+  background: color-mix(in oklab, var(--admin-primary) 16%, var(--admin-surface));
+}
+
+.admin-product-wizard-step.is-current .admin-product-wizard-step-num {
+  background: var(--admin-primary);
+  border-color: var(--admin-primary);
+  color: var(--admin-primary-text);
+}
+
+.admin-product-wizard-step.is-done .admin-product-wizard-step-num {
+  background: color-mix(in oklab, var(--admin-primary) 32%, transparent);
+  border-color: color-mix(in oklab, var(--admin-primary) 55%, var(--admin-border));
+  color: var(--admin-text);
+}
+
+.admin-wizard-panel {
+  display: grid;
+  gap: 0.85rem;
+  min-width: 0;
+  /* A pantalla completa el panel es flex:1 (alto); sin esto el grid estira las filas
+     y campos como el precio unico se inflan. Empaquetar arriba a su tamano natural. */
+  align-content: start;
+}
+
+.admin-wizard-panel[hidden] {
+  display: none;
+}
+
+.admin-product-wizard-nav {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.admin-product-wizard-nav-spacer {
+  flex: 1 1 auto;
+}
+
+.admin-product-wizard-nav-count {
+  color: var(--admin-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ===== Chips de seleccion (colores/tallas) estilo ERP ===== */
+.admin-chip-select {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.admin-chip-select-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.admin-chip-mini {
+  border: 1px solid var(--admin-border);
+  background: color-mix(in oklab, var(--admin-surface) 82%, var(--admin-surface-soft));
+  color: var(--admin-text);
+  border-radius: 999px;
+  padding: 0.24rem 0.62rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.admin-chip-mini:hover {
+  border-color: color-mix(in oklab, var(--admin-primary) 45%, var(--admin-border));
+}
+
+.admin-chip-count {
+  margin-left: auto;
+  color: var(--admin-muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.admin-chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+/* .admin-product-modal-form label fuerza display:grid; subimos especificidad para el chip */
+.admin-product-modal-form label.admin-chip,
+.admin-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  grid-template-columns: none;
+  border: 1px solid var(--admin-border);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--admin-surface) 82%, var(--admin-surface-soft));
+  color: var(--admin-muted);
+  padding: 0.36rem 0.72rem;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.12s ease, background 0.12s ease, color 0.12s ease;
+}
+
+.admin-chip input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.admin-chip:hover {
+  border-color: color-mix(in oklab, var(--admin-primary) 45%, var(--admin-border));
+  color: var(--admin-text);
+}
+
+.admin-chip.is-on {
+  border-color: var(--admin-primary);
+  background: color-mix(in oklab, var(--admin-primary) 18%, var(--admin-surface));
+  color: var(--admin-text);
+}
+
+.admin-chip.is-on::before {
+  content: "✓";
+  font-size: 0.8rem;
+  font-weight: 900;
+  color: var(--admin-primary);
+}
+
+.admin-chip-swatch {
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--admin-text) 30%, transparent);
+  flex: none;
+}
+
+/* Resumen plegable de combinaciones (en vez de la tabla siempre visible) */
+.admin-combos-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--admin-surface) 84%, var(--admin-surface-soft));
+  padding: 0.5rem 0.72rem;
+}
+
+.admin-combos-summary-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.admin-combos-summary-text strong {
+  font-size: 0.92rem;
+}
+
+.admin-combos-summary-text span {
+  color: var(--admin-muted);
+  font-size: 0.78rem;
+}
+
+/* ===== Tarjetas compactas de imagen por color/talla (sin tabla, sin scroll horizontal) ===== */
+.admin-color-image-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 0.5rem;
+}
+
+.admin-color-image-card {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--admin-surface) 82%, var(--admin-surface-soft));
+  padding: 0.5rem;
+  min-width: 0;
+}
+
+.admin-color-image-thumb {
+  width: 52px;
+  height: 52px;
+  flex: none;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--admin-border);
+  display: grid;
+  place-items: center;
+  background: color-mix(in oklab, var(--admin-surface) 68%, transparent);
+}
+
+.admin-color-image-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.admin-color-image-thumb-empty {
+  font-size: 0.62rem;
+  line-height: 1.1;
+  color: var(--admin-muted);
+  text-align: center;
+  font-weight: 700;
+}
+
+.admin-color-image-name {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 800;
+  font-size: 0.9rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.admin-color-image-name span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-color-image-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+/* Precio de producto unico (SIMPLE): campo simple, sin tabla */
+.admin-simple-price {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.admin-product-modal-form .admin-simple-price-field {
+  max-width: 14rem;
+}
+
+/* ===== Editor de precios agrupado por color (acordeon estilo Shopify) ===== */
+.admin-variant-groups {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.admin-variant-groups-toolbar {
+  margin-bottom: 0.1rem;
+}
+
+.admin-variant-group {
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: color-mix(in oklab, var(--admin-surface) 84%, var(--admin-surface-soft));
+}
+
+.admin-variant-group-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 0.62rem;
+}
+
+.admin-variant-group-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--admin-text);
+  font-weight: 800;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.admin-variant-group-caret {
+  display: inline-block;
+  color: var(--admin-muted);
+  transition: transform 0.15s ease;
+}
+
+.admin-variant-group-caret.is-open {
+  transform: rotate(90deg);
+}
+
+.admin-variant-group-count {
+  color: var(--admin-muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  border: 1px solid var(--admin-border);
+  border-radius: 999px;
+  padding: 0.08rem 0.5rem;
+}
+
+.admin-variant-group-bulk {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: auto;
+}
+
+.admin-variant-group-bulk span {
+  color: var(--admin-muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.admin-product-modal-form .admin-variant-group-bulk input {
+  width: 5.2rem;
+  padding: 0.35rem 0.5rem;
+}
+
+/* Tabla pequena del grupo: 3 columnas, no necesita min-width grande ni scroll horizontal */
+.admin-product-modal-form .admin-variant-group .admin-table-wrap {
+  border: 0;
+  border-top: 1px solid var(--admin-border);
+  border-radius: 0;
+}
+
+/* Anula el min-width:740px de .admin-table.admin-table-sm (que va despues en el archivo) */
+.admin-product-modal-form .admin-table.admin-variant-group-table {
+  min-width: 0;
+}
+
+/* Gana sobre .admin-table.admin-table-sm input[type='number'] { width:100% } (misma especificidad, va despues) */
+.admin-product-modal-form .admin-table.admin-variant-group-table input[type='number'] {
+  width: 6rem;
+  min-width: 0;
+}
+
+.admin-variant-group-table th:last-child,
+.admin-variant-group-table td:last-child {
+  width: 3.2rem;
+  text-align: center;
+}
+
+/* En movil los labels de pasos se ocultan (solo numero); el paso actual si muestra label */
+@media (max-width: 640px) {
+  .admin-product-wizard-step {
+    flex: 0 0 auto;
+    padding: 0.4rem;
+  }
+
+  .admin-product-wizard-step-label {
+    display: none;
+  }
+
+  .admin-product-wizard-step.is-current {
+    flex: 1 1 auto;
+  }
+
+  .admin-product-wizard-step.is-current .admin-product-wizard-step-label {
+    display: inline;
+  }
+
+  .admin-product-wizard-nav-count {
+    order: -1;
+    width: 100%;
+    text-align: center;
+  }
+}
+
+/* Editar (modal) a pantalla completa en movil; en desktop sigue como modal flotante */
+@media (max-width: 640px) {
+  .admin-modal-overlay:has(.admin-product-modal-dialog) {
+    padding: 0;
+  }
+
+  .admin-product-modal-dialog {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100vh;
+    max-height: 100dvh;
+    border-radius: 0;
+    border: 0;
+    /* Layout full-screen: header fijo arriba, form ocupa el resto. */
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* El form pasa a flex-column: barra de pasos y footer fijos, panel visible scrollea.
+     Asi el header no se estira y la barra de pasos NO se aplasta con viewport bajo. */
+  .admin-product-modal-dialog > form.admin-product-modal-form {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .admin-product-modal-form > .admin-product-wizard-steps {
+    flex: 0 0 auto;
+    margin-bottom: 0.85rem;
+  }
+
+  .admin-product-modal-form > .admin-wizard-panel:not([hidden]) {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding-bottom: 0.5rem;
+  }
+
+  .admin-product-modal-form > .admin-modal-actions {
+    flex: 0 0 auto;
+    margin-top: 0.5rem;
+  }
+}
+
+.description-editor-shell,
+.description-editor-area {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.description-editor-area {
+  overflow-wrap: anywhere;
+}
+
+.description-editor-area img,
+.description-editor-area video {
+  max-width: 100%;
+  height: auto;
+}
+
+.description-editor-area table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.description-editor-area pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .admin-product-select-box {
   border: 1px solid var(--admin-border);
   border-radius: 12px;
@@ -5006,6 +5545,7 @@ a {
   min-width: 220px;
 }
 
+/* Igual que .admin-primary-btn para consistencia con el tema (y theme-aware light/dark) */
 .admin-file-picker-next {
   position: relative;
   display: inline-flex;
@@ -5013,17 +5553,31 @@ a {
   justify-content: center;
   width: fit-content;
   max-width: 100%;
-  border: 1px solid color-mix(in oklab, var(--admin-primary) 80%, var(--admin-border));
-  border-radius: 10px;
-  background: linear-gradient(135deg, #60a5fa, var(--admin-primary-strong));
-  color: #fff;
-  font-size: 0.78rem;
-  font-weight: 900;
+  min-height: 34px;
+  border: 1px solid var(--admin-primary-strong);
+  border-radius: 8px;
+  background: var(--admin-primary-strong);
+  color: var(--admin-primary-text);
+  font-size: 0.81rem;
+  font-weight: 700;
   line-height: 1;
-  padding: 0.58rem 0.72rem;
+  padding: 0.45rem 0.8rem;
   cursor: pointer;
   overflow: hidden;
-  box-shadow: 0 10px 20px color-mix(in oklab, var(--admin-primary) 18%, transparent);
+  box-shadow: 0 6px 16px color-mix(in oklab, var(--admin-primary-strong) 30%, transparent);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.admin-file-picker-next:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px color-mix(in oklab, var(--admin-primary-strong) 36%, transparent);
+}
+
+/* .admin-modal-form label span fuerza color muted; el texto del boton debe ser primary-text */
+.admin-product-modal-form .admin-file-picker-next span {
+  color: var(--admin-primary-text);
+  font-size: inherit;
+  font-weight: inherit;
 }
 
 .admin-file-picker-next input[type='file'] {
@@ -5056,19 +5610,19 @@ a {
 }
 
 .admin-product-modal-form input[type='file']::file-selector-button {
-  border: 0;
+  border: 1px solid var(--admin-primary-strong);
   border-radius: 8px;
-  background: color-mix(in oklab, var(--admin-primary) 82%, var(--admin-primary-strong));
-  color: white;
+  background: var(--admin-primary-strong);
+  color: var(--admin-primary-text);
   font: inherit;
-  font-weight: 800;
+  font-weight: 700;
   margin-right: 0.6rem;
-  padding: 0.4rem 0.62rem;
+  padding: 0.42rem 0.7rem;
   cursor: pointer;
 }
 
 .admin-product-modal-form input[type='file']::file-selector-button:hover {
-  background: var(--admin-primary-strong);
+  background: color-mix(in oklab, var(--admin-primary-strong) 88%, black);
 }
 
 .admin-product-image-grid {
@@ -5161,6 +5715,16 @@ a {
 
   .description-toolbar {
     gap: 0.28rem;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+  }
+
+  .description-toolbar > * {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
   }
 
   .description-editor-area {
@@ -5514,6 +6078,94 @@ a {
   color: #9a5804;
   font-size: 0.72rem;
   font-weight: 700;
+}
+
+/* Semaforo de disponibilidad (desktop + movil): estado de un vistazo. */
+.inventory-avail-next {
+  font-weight: 800;
+}
+
+.inventory-avail-next.is-out {
+  color: #f87171;
+}
+
+.inventory-avail-next.is-low {
+  color: #f59e0b;
+}
+
+.inventory-avail-next.is-ok {
+  color: #22c55e;
+}
+
+/* Escaneo con match unico: pulso de resaltado en la fila enfocada. */
+.inventory-row-scan-focus-next > td {
+  background: color-mix(in oklab, var(--mk-ok, #22c55e) 18%, transparent) !important;
+  animation: inventory-scan-pulse-next 1s ease-out 2;
+}
+
+@keyframes inventory-scan-pulse-next {
+  0% { background-color: color-mix(in oklab, var(--mk-ok, #22c55e) 42%, transparent); }
+  100% { background-color: color-mix(in oklab, var(--mk-ok, #22c55e) 12%, transparent); }
+}
+
+/* Ajuste por conteo real: muestra el delta calculado (stock actual -> ajuste). */
+.inventory-adjust-delta-next {
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--admin-text) 6%, transparent);
+  font-size: 0.85rem;
+  color: color-mix(in oklab, var(--admin-text) 75%, transparent);
+}
+
+.inventory-adjust-delta-next strong.is-pos {
+  color: #22c55e;
+}
+
+.inventory-adjust-delta-next strong.is-neg {
+  color: #f87171;
+}
+
+/* Ops rapida movil: barra sticky de busqueda/escaneo y acciones inline por fila.
+   Ocultas en desktop (la tabla densa + drawer siguen siendo lo mejor ahi). */
+.inventory-mobile-toolbar-next,
+.inventory-quick-move-next {
+  display: none;
+}
+
+.inventory-scan-overlay {
+  z-index: 3400;
+}
+
+.inventory-scan-modal {
+  position: fixed;
+  z-index: 3401;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(92vw, 420px);
+  display: grid;
+  gap: 0.6rem;
+  justify-items: center;
+  border: 1px solid var(--admin-border);
+  border-radius: 14px;
+  background: var(--admin-surface);
+  padding: 0.9rem;
+  box-shadow: 0 24px 48px rgba(16, 36, 63, 0.32);
+}
+
+.inventory-scan-video {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 10px;
+  background: #000;
+}
+
+.inventory-scan-hint {
+  margin: 0;
+  color: var(--admin-muted);
+  font-size: 0.8rem;
+  text-align: center;
 }
 
 .inventory-movements-filter-grid,
@@ -5918,29 +6570,70 @@ a {
     width: 100%;
   }
 
+  /* Tiles compactos 2-up: menos scroll, info agrupada y legible */
   .dashboard-kpi-grid-next,
   .dashboard-channel-grid-next,
   .dashboard-stock-grid-next,
   .dashboard-ops-grid-next,
   .dashboard-shortcuts-next .admin-link-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  /* Densidad: tiles mas chicos para que quepan mas por pantalla */
+  .dashboard-kpi-card-next,
+  .dashboard-channel-card-next,
+  .dashboard-stock-card-next,
+  .dashboard-ops-grid-next button {
+    padding: 0.6rem;
+  }
+
+  .dashboard-kpi-card-next strong {
+    font-size: 1.2rem;
+  }
+
+  .dashboard-channel-card-next strong,
+  .dashboard-stock-card-next strong,
+  .dashboard-ops-grid-next strong {
+    font-size: 1.05rem;
+  }
+
+  .dashboard-kpi-card-next p,
+  .dashboard-channel-card-next p,
+  .dashboard-kpi-card-next span,
+  .dashboard-channel-card-next span,
+  .dashboard-stock-card-next span,
+  .dashboard-ops-grid-next span {
+    font-size: 0.72rem;
   }
 
   .dashboard-panel-header-next {
     align-items: flex-start;
   }
 
-  .dashboard-alert-item-next,
-  .dashboard-trend-row-next {
-    grid-template-columns: 1fr;
+  /* Alertas: conservar el layout icono + texto (no romper a 1 col) */
+  .dashboard-alert-item-next {
+    grid-template-columns: 2rem 1fr;
   }
 
   .dashboard-alert-item-next strong {
-    width: 2.25rem;
+    width: 2rem;
+    height: 2rem;
   }
 
   .dashboard-trend-row-next {
-    gap: 0.35rem;
+    grid-template-columns: 4.5rem minmax(0, 1fr) auto;
+    gap: 0.45rem;
+    align-items: center;
+  }
+
+  .dashboard-trend-meta-next span {
+    display: none;
+  }
+
+  .dashboard-trend-row-next > strong {
+    font-size: 0.82rem;
+    white-space: nowrap;
   }
 
   .dashboard-table-pair-next .admin-table-wrap {
@@ -5980,6 +6673,77 @@ a {
     overflow: visible;
   }
 
+  /* Barra sticky de busqueda/escaneo: siempre al alcance, sin scrollear arriba. */
+  .inventory-mobile-toolbar-next {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    margin: -0.25rem -0.25rem 0.15rem;
+    padding: 0.5rem 0.25rem;
+    background: color-mix(in oklab, var(--admin-bg, var(--admin-surface)) 94%, transparent);
+    backdrop-filter: blur(6px);
+  }
+
+  .inventory-mobile-search-next {
+    flex: 1 1 100%;
+    min-width: 0;
+    border: 1px solid var(--admin-border);
+    border-radius: 10px;
+    background: var(--admin-surface);
+    color: var(--admin-text);
+    min-height: 42px;
+    padding: 0.5rem 2.2rem 0.5rem 0.7rem;
+    font: inherit;
+  }
+
+  .inventory-mobile-clear-next {
+    position: absolute;
+    right: 0.6rem;
+    top: 0.62rem;
+    width: 30px;
+    height: 30px;
+    border: 0;
+    border-radius: 50%;
+    background: color-mix(in oklab, var(--admin-primary) 12%, var(--admin-surface));
+    color: var(--admin-text);
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .inventory-mobile-tool-btn-next {
+    flex: 1 1 0;
+    min-height: 40px;
+    border: 1px solid var(--admin-border);
+    border-radius: 10px;
+    background: var(--admin-surface);
+    color: var(--admin-text);
+    font: inherit;
+    font-weight: 800;
+    font-size: 0.82rem;
+    cursor: pointer;
+  }
+
+  .inventory-mobile-tool-btn-next.primary {
+    border-color: color-mix(in oklab, #22c55e 60%, var(--admin-border));
+    background: color-mix(in oklab, #22c55e 14%, var(--admin-surface));
+    color: color-mix(in oklab, #22c55e 42%, var(--admin-text));
+  }
+
+  /* Busqueda/escaneo/nuevo/filtros viven en la barra sticky: se evita duplicar
+     chrome. La card de filtros solo aparece al abrir "Filtros" (is-open) y
+     entonces muestra unicamente los filtros avanzados. */
+  .inventory-quick-card,
+  .inventory-filter-top,
+  .inventory-summary-card,
+  .inventory-filters-card:not(.is-open) {
+    display: none !important;
+  }
+
   .inventory-header-card {
     grid-template-columns: 1fr;
     gap: 0.85rem;
@@ -6015,12 +6779,6 @@ a {
     padding: 0.8rem;
   }
 
-  .inventory-filter-top {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 0.65rem;
-  }
-
   .inventory-search-join-next {
     display: grid;
     grid-template-columns: 1fr;
@@ -6029,15 +6787,6 @@ a {
 
   .inventory-search-join-next .admin-primary-btn {
     width: 100%;
-  }
-
-  .inventory-summary-card {
-    border-style: solid;
-    padding: 0.72rem;
-  }
-
-  .inventory-quick-card {
-    padding: 0.95rem;
   }
 
   .inventory-quick-actions {
@@ -6113,7 +6862,8 @@ a {
   .inventory-table-wrap-next table.mobile-card-table tbody tr {
     display: grid;
     gap: 0.48rem;
-    padding: 0.78rem;
+    padding: 0.78rem 0.78rem 0.9rem;
+    margin-bottom: 1.15rem;
   }
 
   .inventory-table-wrap-next table.mobile-card-table tbody td {
@@ -6189,16 +6939,159 @@ a {
     border-top: 1px solid var(--admin-border) !important;
   }
 
-  .inventory-table-wrap-next .inventory-row-actions-next {
-    justify-content: flex-start;
+  /* La celda Accion es flex-column: el `flex:0 0 42%` heredado del ::before
+     generico reserva 42% de la ALTURA y desborda los botones fuera del card.
+     Se fuerza tamano por contenido. */
+  .inventory-table-wrap-next table.mobile-card-table tbody td[data-label='Accion']::before {
+    flex: 0 0 auto;
   }
 
-  .inventory-table-wrap-next .inventory-action-pill-next.mobile-extra {
+  /* En movil las pills I/S/A/M/T se reemplazan por acciones rapidas inline.
+     Selector con la ruta completa para ganar en especificidad al
+     `td[data-label*='Accion'] > div { display:flex !important }` generico. */
+  .inventory-table-wrap-next table.mobile-card-table tbody td[data-label*='Accion'] > .inventory-row-actions-next {
+    display: none !important;
+  }
+
+  .inventory-table-wrap-next table.mobile-card-table tbody td[data-label*='Accion'] > .inventory-quick-move-next {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    align-items: stretch;
+    gap: 0.55rem;
+    width: 100%;
+  }
+
+  .inventory-quick-move-top-next {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .inventory-qty-stepper-next {
     display: inline-flex;
+    align-items: stretch;
+    border: 1px solid var(--admin-border);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--admin-surface);
   }
 
-  .inventory-table-wrap-next .inventory-actions-menu-next {
-    display: none;
+  .inventory-qty-stepper-next button {
+    width: 46px;
+    min-height: 42px;
+    border: 0;
+    background: color-mix(in oklab, var(--admin-primary) 8%, var(--admin-surface));
+    color: var(--admin-text);
+    font-size: 1.35rem;
+    font-weight: 900;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .inventory-qty-stepper-next button:disabled {
+    opacity: 0.4;
+  }
+
+  .inventory-qty-stepper-next input {
+    width: 52px;
+    border: 0;
+    border-inline: 1px solid var(--admin-border);
+    background: transparent;
+    color: var(--admin-text);
+    text-align: center;
+    font: inherit;
+    font-size: 1rem;
+    font-weight: 800;
+    -moz-appearance: textfield;
+  }
+
+  .inventory-qty-stepper-next input::-webkit-outer-spin-button,
+  .inventory-qty-stepper-next input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  .inventory-qty-presets-next {
+    display: flex;
+    gap: 0.4rem;
+  }
+
+  .inventory-qty-preset-next {
+    flex: 1 1 0;
+    min-height: 36px;
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+    background: var(--admin-surface);
+    color: var(--admin-muted);
+    font: inherit;
+    font-weight: 800;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+
+  .inventory-qty-preset-next.is-active {
+    border-color: var(--admin-primary);
+    background: color-mix(in oklab, var(--admin-primary) 16%, var(--admin-surface));
+    color: var(--admin-text);
+  }
+
+  .inventory-quick-move-btns-next {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+
+  .inventory-move-btn-next {
+    min-height: 46px;
+    border-radius: 10px;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 800;
+    cursor: pointer;
+    padding-inline: 0.4rem;
+  }
+
+  .inventory-move-btn-next:disabled {
+    opacity: 0.6;
+  }
+
+  .inventory-move-btn-next.income {
+    border: 1px solid color-mix(in oklab, #22c55e 72%, var(--admin-border));
+    background: color-mix(in oklab, #22c55e 16%, var(--admin-surface));
+    color: color-mix(in oklab, #22c55e 40%, var(--admin-text));
+  }
+
+  .inventory-move-btn-next.outcome {
+    border: 1px solid color-mix(in oklab, #f97316 72%, var(--admin-border));
+    background: color-mix(in oklab, #f97316 16%, var(--admin-surface));
+    color: color-mix(in oklab, #f97316 44%, var(--admin-text));
+  }
+
+  .inventory-last-action-next {
+    margin: 0.15rem 0 0;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: color-mix(in oklab, var(--admin-text) 55%, transparent);
+  }
+
+  .inventory-table-wrap-next .inventory-quick-move-next .inventory-actions-menu-next {
+    display: inline-block;
+  }
+
+  .inventory-more-next {
+    flex: 0 0 auto;
+  }
+
+  .inventory-more-next .inventory-actions-trigger-next {
+    min-height: 42px;
+    padding-inline: 0.85rem;
+  }
+
+  .inventory-more-next .inventory-actions-list-next {
+    right: 0;
+    left: auto;
   }
 
   table.mobile-card-table tbody td[data-label*='Accion'],
@@ -6226,6 +7119,189 @@ a {
   table.mobile-card-table tbody td[data-label*='Action'] .admin-ghost-btn,
   table.mobile-card-table tbody th[data-label*='Action'] .admin-ghost-btn {
     max-width: 100%;
+  }
+
+  /* Tarjetas compactas en movil: ver varias de un vistazo para atender/despachar rapido (opt-in) */
+  .list-cards-next.mobile-card-table tbody tr {
+    padding: 0.5rem 0.62rem;
+    margin-bottom: 0.5rem;
+    border-radius: 10px;
+    gap: 0;
+  }
+
+  .list-cards-next.mobile-card-table tbody td,
+  .list-cards-next.mobile-card-table tbody th {
+    padding: 0.13rem 0 !important;
+    gap: 0.6rem;
+    font-size: 0.82rem;
+    align-items: center;
+    line-height: 1.25;
+  }
+
+  .list-cards-next.mobile-card-table tbody td::before,
+  .list-cards-next.mobile-card-table tbody th::before {
+    flex-basis: 36%;
+    font-size: 0.71rem;
+    font-weight: 700;
+    color: var(--admin-muted);
+  }
+
+  .list-cards-next.mobile-card-table tbody td[data-label='#'],
+  .list-cards-next.mobile-card-table tbody th[data-label='#'] {
+    display: none !important;
+  }
+
+  /* Campo principal como titulo escaneable de la tarjeta */
+  .list-cards-next.mobile-card-table tbody td.list-card-title-next {
+    display: flex !important;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0 0 0.3rem !important;
+    margin-bottom: 0.3rem;
+    border-bottom: 1px solid var(--admin-border) !important;
+    font-size: 0.92rem;
+    font-weight: 800;
+    color: var(--admin-text);
+    line-height: 1.2;
+  }
+
+  .list-cards-next.mobile-card-table tbody td.list-card-title-next::before {
+    display: none !important;
+  }
+
+  /* Acciones compactas en una fila */
+  .list-cards-next.mobile-card-table tbody td[data-label*='Accion'],
+  .list-cards-next.mobile-card-table tbody td[data-label*='Action'] {
+    margin-top: 0.26rem;
+    padding-top: 0.4rem !important;
+    border-top: 1px solid var(--admin-border) !important;
+  }
+
+  .list-cards-next.mobile-card-table tbody td[data-label*='Accion'] .admin-ghost-btn,
+  .list-cards-next.mobile-card-table tbody td[data-label*='Accion'] .admin-primary-btn,
+  .list-cards-next.mobile-card-table tbody td[data-label*='Action'] .admin-ghost-btn,
+  .list-cards-next.mobile-card-table tbody td[data-label*='Action'] .admin-primary-btn {
+    min-height: 32px;
+    padding-block: 0.28rem;
+    padding-inline: 0.7rem;
+    font-size: 0.8rem;
+  }
+
+  /* ===== Listas operativas: item compacto orientado a la accion (menos scroll, acciones al alcance) ===== */
+  .ops-cards-next.mobile-card-table tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 0.6rem;
+    row-gap: 0.18rem;
+    padding: 0.55rem 0.7rem;
+    margin-bottom: 0.5rem;
+    border-radius: 10px;
+  }
+
+  .ops-cards-next.mobile-card-table tbody td,
+  .ops-cards-next.mobile-card-table tbody th {
+    grid-column: 1 / -1;
+    display: flex !important;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.7rem;
+    padding: 0.07rem 0 !important;
+    font-size: 0.8rem;
+    line-height: 1.25;
+  }
+
+  .ops-cards-next.mobile-card-table tbody td > *,
+  .ops-cards-next.mobile-card-table tbody th > * {
+    min-width: 0;
+  }
+
+  .ops-cards-next.mobile-card-table tbody td::before,
+  .ops-cards-next.mobile-card-table tbody th::before {
+    flex: 0 0 auto;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--admin-muted);
+  }
+
+  .ops-cards-next.mobile-card-table tbody td[data-label='#'],
+  .ops-cards-next.mobile-card-table tbody td.ops-hide-mobile {
+    display: none !important;
+  }
+
+  /* Titulo: fila 1, columna 1 (truncado a 2 lineas) */
+  .ops-cards-next.mobile-card-table tbody td.list-card-title-next {
+    grid-column: 1;
+    grid-row: 1;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    padding: 0 0 0.32rem !important;
+    margin: 0;
+    border: 0 !important;
+    font-size: 0.9rem;
+    font-weight: 800;
+    color: var(--admin-text);
+    line-height: 1.22;
+  }
+
+  .ops-cards-next.mobile-card-table tbody td.list-card-title-next::before {
+    display: none !important;
+  }
+
+  /* Estado / tipo: fila 1, columna 2, alineado a la derecha */
+  .ops-cards-next.mobile-card-table tbody td.ops-status-next {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    justify-content: flex-end;
+    padding: 0 0 0.32rem !important;
+    white-space: nowrap;
+  }
+
+  .ops-cards-next.mobile-card-table tbody td.ops-status-next::before {
+    display: none !important;
+  }
+
+  /* Divisor sutil bajo la cabecera del item */
+  .ops-cards-next.mobile-card-table tbody td.list-card-title-next,
+  .ops-cards-next.mobile-card-table tbody td.ops-status-next {
+    border-bottom: 1px solid var(--admin-border) !important;
+    margin-bottom: 0.12rem;
+  }
+
+  /* Acciones: pie compacto a lo ancho, botones al alcance del pulgar */
+  .ops-cards-next.mobile-card-table tbody td[data-label*='Accion'],
+  .ops-cards-next.mobile-card-table tbody td[data-label*='Action'] {
+    grid-column: 1 / -1;
+    margin-top: 0.28rem;
+    padding-top: 0.42rem !important;
+    border-top: 1px solid var(--admin-border) !important;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ops-cards-next.mobile-card-table tbody td[data-label*='Accion']::before,
+  .ops-cards-next.mobile-card-table tbody td[data-label*='Action']::before {
+    display: none !important;
+  }
+
+  .ops-cards-next.mobile-card-table tbody td[data-label*='Accion'] .admin-table-actions,
+  .ops-cards-next.mobile-card-table tbody td[data-label*='Accion'] > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    width: 100%;
+  }
+
+  .ops-cards-next.mobile-card-table tbody td[data-label*='Accion'] .admin-ghost-btn,
+  .ops-cards-next.mobile-card-table tbody td[data-label*='Accion'] .admin-primary-btn {
+    flex: 1 1 auto;
+    min-height: 34px;
+    padding: 0.3rem 0.6rem;
+    font-size: 0.78rem;
   }
 
   .admin-alert-root {
@@ -6813,6 +7889,20 @@ a {
   max-width: 1200px;
   margin: 0 auto;
   background: var(--admin-page-bg);
+  /* Es grid (.admin-dashboard-grid): sin columnas explicitas la columna implicita
+     es `auto` y crece al max-content del hijo mas ancho (tabla/SKU nowrap) →
+     desborda el ancho en movil y desfasa toda la pagina. minmax(0,1fr) fija la
+     columna al contenedor; los hijos anchos scrollean dentro de su wrapper. */
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.order-detail-page-next > * {
+  min-width: 0;
+}
+
+/* La preparacion ecommerce ocupa todo el ancho disponible */
+.order-detail-page-next--wide {
+  max-width: none;
 }
 
 .order-detail-page-next .admin-card {
@@ -6879,6 +7969,25 @@ a {
 
 .order-detail-print-picker-next {
   min-width: 170px;
+}
+
+/* Menu de acciones de cabecera: barra inline en desktop (display:contents deja
+   que sus hijos participen del flex de .order-detail-header-actions-next), y se
+   convierte en dropdown compacto en movil (ver media query 900px). */
+.order-detail-actions-menu-next {
+  display: contents;
+}
+
+.order-detail-actions-trigger-next {
+  display: none;
+}
+
+.order-detail-actions-pop-next {
+  display: contents;
+}
+
+.order-detail-actions-backdrop-next {
+  display: none;
 }
 
 .order-detail-grid-next {
@@ -7032,6 +8141,12 @@ a {
   color: var(--admin-muted);
 }
 
+.order-item-badge-next.is-complete {
+  border-color: color-mix(in oklab, var(--admin-success) 45%, var(--admin-border));
+  background: color-mix(in oklab, var(--admin-success) 16%, var(--admin-surface));
+  color: color-mix(in oklab, var(--admin-success) 80%, var(--admin-text));
+}
+
 .order-detail-table-next {
   background: color-mix(in oklab, var(--admin-surface) 90%, var(--admin-surface-soft));
 }
@@ -7117,6 +8232,245 @@ a {
   text-align: right;
 }
 
+.order-detail-status-row-next {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.order-detail-meta-next {
+  margin-bottom: 1rem;
+}
+
+.order-detail-meta-summary-next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.order-detail-meta-chip-next {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.order-detail-meta-chip-next > span {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--admin-muted);
+}
+
+.order-detail-meta-chip-next > strong {
+  font-size: 0.95rem;
+  color: var(--admin-text);
+}
+
+.order-detail-meta-toggle-next {
+  margin-left: auto;
+}
+
+.order-detail-meta-next > .order-detail-grid-next {
+  margin-top: 1rem;
+}
+
+/* ===================================================================== */
+/* Drawer lateral "Ver detalle" del pedido                               */
+/* ===================================================================== */
+.order-detail-drawer-root {
+  position: fixed;
+  inset: 0;
+  z-index: 2500;
+  pointer-events: none;
+}
+.order-detail-drawer-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  background: var(--admin-overlay);
+  opacity: 0;
+  transition: opacity 0.22s ease;
+  cursor: pointer;
+  pointer-events: none;
+}
+.order-detail-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  height: 100dvh;
+  width: min(94vw, 460px);
+  background: var(--admin-surface);
+  border-left: 1px solid var(--admin-border);
+  box-shadow: -12px 0 32px rgba(2, 8, 23, 0.28);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(105%);
+  transition: transform 0.24s ease;
+  pointer-events: auto;
+}
+.order-detail-drawer-root.is-open {
+  pointer-events: auto;
+}
+.order-detail-drawer-root.is-open .order-detail-drawer-backdrop {
+  opacity: 1;
+  pointer-events: auto;
+}
+.order-detail-drawer-root.is-open .order-detail-drawer {
+  transform: translateX(0);
+}
+.order-detail-drawer-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 1.1rem;
+  background: var(--admin-surface);
+  border-bottom: 1px solid var(--admin-border);
+}
+.order-detail-drawer-head h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  color: var(--admin-text);
+}
+.order-detail-drawer-close {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--admin-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--admin-text);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.order-detail-drawer-close:hover {
+  background: rgba(148, 163, 184, 0.16);
+}
+.order-detail-drawer-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1rem 1.1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+/* En el drawer NO usamos tarjetas: secciones planas de texto, apiladas y mas
+   legibles en movil. */
+.order-detail-drawer-body .order-detail-grid-next {
+  display: block;
+  margin-bottom: 0;
+}
+.order-detail-drawer-body .admin-card {
+  display: block;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0 0 1.4rem;
+}
+.order-detail-drawer-body .admin-card:last-child {
+  margin-bottom: 0;
+}
+/* Encabezado de seccion: etiqueta corta en mayusculas, no titulo de tarjeta. */
+.order-detail-drawer-body .admin-card > h3 {
+  margin: 0 0 0.35rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--admin-border);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--admin-muted);
+}
+/* Filas mas compactas y sin divisores por fila (el bloque ya se separa). */
+.order-detail-drawer-body .order-detail-info-row-next {
+  border-bottom: 0;
+  padding: 0.3rem 0;
+  align-items: baseline;
+  font-size: 0.92rem;
+}
+.order-detail-drawer-body .order-detail-info-row-next label {
+  font-weight: 500;
+  color: var(--admin-muted);
+}
+.order-detail-drawer-body .order-detail-info-row-next span {
+  font-weight: 600;
+  color: var(--admin-text);
+}
+/* Total: resaltado sin la linea superior gruesa de la version en tarjeta. */
+.order-detail-drawer-body .order-detail-info-total-next {
+  margin-top: 0.15rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--admin-border);
+}
+.order-detail-drawer-body .order-detail-info-total-next label {
+  color: var(--admin-text);
+  font-weight: 700;
+}
+.order-detail-drawer-body .order-detail-info-total-next span {
+  font-weight: 800;
+  font-size: 1.02rem;
+}
+/* El boton de "Asignar responsable" no debe pegarse al borde inferior. */
+.order-detail-drawer-body .admin-table-actions {
+  margin-top: 0.7rem;
+}
+
+.order-detail-tabs-next {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 1rem;
+}
+
+.order-detail-tab-next {
+  appearance: none;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 0.6rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  margin-bottom: -1px;
+}
+
+.order-detail-tab-next:hover {
+  color: #334155;
+}
+
+.order-detail-tab-next.is-active {
+  color: #2563eb;
+  border-bottom-color: #2563eb;
+}
+
+.order-detail-reservations-history-next {
+  margin-top: 0.75rem;
+}
+
+.order-detail-reservations-history-next > summary {
+  cursor: pointer;
+  color: #64748b;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.35rem 0;
+  user-select: none;
+}
+
+.order-detail-reservations-history-next > summary:hover {
+  color: #334155;
+}
+
 .order-detail-timeline-next {
   display: grid;
   gap: 0.8rem;
@@ -7157,11 +8511,36 @@ a {
   font-size: 0.76rem;
 }
 
+.order-detail-status-body-next {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.order-detail-status-info-next {
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+}
+
 .order-status-update-next {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.55rem;
-  align-items: flex-end;
+  display: grid;
+  gap: 0.6rem;
+  align-content: start;
+  padding: 0.85rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--admin-surface-soft) 78%, var(--admin-surface));
+}
+
+.order-status-update-title-next {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--admin-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .order-detail-action-btn-next {
@@ -7172,12 +8551,30 @@ a {
   font-weight: 700;
 }
 
-.order-status-update-next .inventory-field {
-  min-width: min(340px, 100%);
+/* Banner de edicion "en caliente" del pedido durante el picking. */
+.order-detail-hot-edit-banner-next {
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid #f59e0b;
+  border-radius: 6px;
+  background: #fffbeb;
 }
 
-.order-status-note-field-next {
-  flex: 1 1 320px;
+.order-detail-hot-edit-banner-next > span {
+  flex: 1 1 240px;
+}
+
+.order-status-update-next .inventory-field {
+  min-width: 0;
+  width: 100%;
+}
+
+.order-status-update-next .order-detail-action-btn-next {
+  justify-self: end;
+  min-width: 10rem;
 }
 
 .order-detail-page-next > .admin-card > .admin-table-actions .order-detail-action-btn-next {
@@ -7244,6 +8641,448 @@ a {
 .order-detail-pick-complete-next:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.order-detail-reservation-suggestions-next {
+  display: grid;
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+  padding: 0.9rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--admin-primary) 5%, var(--admin-surface));
+}
+
+.order-detail-fulfillment-next {
+  border-left: 3px solid var(--admin-primary);
+  display: grid;
+  gap: 1rem;
+}
+
+/* Cabecera del panel */
+.fulfillment-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.fulfillment-head-title {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.fulfillment-head-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.fulfillment-head h3 {
+  margin: 0;
+}
+
+.fulfillment-order-code {
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.fulfillment-status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.18rem 0.6rem;
+  border-radius: 999px;
+  color: #ffffff;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.fulfillment-head-btn {
+  white-space: nowrap;
+}
+
+/* Barra de progreso de reservas */
+.fulfillment-progress-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--admin-surface-soft) 78%, var(--admin-surface));
+  overflow: hidden;
+}
+
+.fulfillment-progress-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--admin-success);
+  transition: width 0.25s ease;
+}
+
+/* Tarjetas de resumen */
+.fulfillment-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.7rem;
+}
+
+.fulfillment-stat {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  background: var(--admin-surface);
+}
+
+.fulfillment-stat-label {
+  color: var(--admin-muted);
+  font-size: 0.76rem;
+}
+
+.fulfillment-stat-value {
+  font-size: 1.4rem;
+  line-height: 1.1;
+}
+
+.fulfillment-stat-value em {
+  font-style: normal;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.fulfillment-stat.is-reserved .fulfillment-stat-value {
+  color: var(--admin-success);
+}
+
+.fulfillment-stat.is-pending .fulfillment-stat-value {
+  color: var(--admin-warning);
+}
+
+.fulfillment-stat.is-stores .fulfillment-stat-value {
+  color: var(--admin-primary);
+}
+
+/* Indicador de stock (semaforo) */
+.fulfillment-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.fulfillment-dot.is-enough { background: var(--admin-success); }
+.fulfillment-dot.is-tight { background: var(--admin-warning); }
+.fulfillment-dot.is-none { background: var(--admin-danger, #e74c3c); }
+
+/* Bloque de productos */
+.fulfillment-products {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.9rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--admin-surface) 92%, var(--admin-surface-soft));
+}
+
+.fulfillment-products-title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+/* Tabla (desktop) */
+.fulfillment-table-wrap {
+  overflow-x: auto;
+}
+
+.fulfillment-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+}
+
+.fulfillment-table thead th {
+  text-align: left;
+  padding: 0.55rem 0.65rem;
+  border-bottom: 1px solid var(--admin-border);
+  color: var(--admin-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.fulfillment-table tbody td {
+  padding: 0.65rem;
+  border-bottom: 1px solid var(--admin-border);
+  vertical-align: middle;
+}
+
+.fulfillment-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.fulfillment-table th.is-num,
+.fulfillment-table td.is-num {
+  text-align: center;
+}
+
+.fulfillment-table th.is-center,
+.fulfillment-table td.is-center {
+  text-align: center;
+}
+
+.fulfillment-product {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.fulfillment-product-name {
+  font-weight: 700;
+}
+
+.fulfillment-thumb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--admin-surface-soft) 70%, var(--admin-surface));
+  border: 1px solid var(--admin-border);
+  font-weight: 800;
+  color: var(--admin-muted);
+  flex-shrink: 0;
+}
+
+/* Select de tienda (origen) */
+.fulfillment-store-cell {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 170px;
+}
+
+.fulfillment-store-select {
+  width: 100%;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  padding: 0.4rem 0.55rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.fulfillment-store-select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.fulfillment-store-empty {
+  color: var(--admin-muted);
+  font-size: 0.82rem;
+  font-style: italic;
+}
+
+.fulfillment-store-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  width: fit-content;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--admin-surface-soft) 70%, var(--admin-surface));
+  color: var(--admin-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.fulfillment-store-tag.is-recommended {
+  background: color-mix(in oklab, var(--admin-success) 16%, var(--admin-surface));
+  color: color-mix(in oklab, var(--admin-success) 80%, var(--admin-text));
+}
+
+/* Disponible */
+.fulfillment-available {
+  font-weight: 800;
+}
+
+.fulfillment-available.is-enough { color: var(--admin-success); }
+.fulfillment-available.is-tight { color: var(--admin-warning); }
+.fulfillment-available.is-none { color: var(--admin-danger, #e74c3c); }
+
+/* Stepper cantidad */
+.fulfillment-stepper {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.fulfillment-stepper button {
+  border: none;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  width: 30px;
+  height: 32px;
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.fulfillment-stepper button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.fulfillment-stepper-value {
+  min-width: 34px;
+  text-align: center;
+  font-weight: 700;
+  border-left: 1px solid var(--admin-border);
+  border-right: 1px solid var(--admin-border);
+  padding: 0.3rem 0;
+}
+
+/* Asignado */
+.fulfillment-assigned {
+  font-weight: 700;
+}
+
+.fulfillment-assigned.is-complete { color: var(--admin-success); }
+.fulfillment-assigned.is-partial { color: var(--admin-warning); }
+.fulfillment-assigned.is-pending { color: var(--admin-danger, #e74c3c); }
+
+/* Badge de estado */
+.fulfillment-state-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.22rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.fulfillment-state-badge.is-complete {
+  background: color-mix(in oklab, var(--admin-success) 16%, var(--admin-surface));
+  color: color-mix(in oklab, var(--admin-success) 80%, var(--admin-text));
+}
+
+.fulfillment-state-badge.is-partial {
+  background: color-mix(in oklab, var(--admin-warning) 18%, var(--admin-surface));
+  color: color-mix(in oklab, var(--admin-warning) 85%, var(--admin-text));
+}
+
+.fulfillment-state-badge.is-pending {
+  background: color-mix(in oklab, var(--admin-danger, #e74c3c) 14%, var(--admin-surface));
+  color: var(--admin-danger, #e74c3c);
+}
+
+/* Tarjetas (mobile) */
+.fulfillment-cards {
+  display: none;
+  gap: 0.7rem;
+}
+
+.fulfillment-card {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0.85rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  background: var(--admin-surface);
+}
+
+.fulfillment-card-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.fulfillment-card-title {
+  display: grid;
+  gap: 0.1rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.fulfillment-card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.6rem;
+}
+
+.fulfillment-card-field {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.fulfillment-acc-label {
+  color: var(--admin-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+/* Pie: leyenda + acciones */
+.fulfillment-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.fulfillment-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+}
+
+.fulfillment-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--admin-muted);
+  font-size: 0.76rem;
+}
+
+.fulfillment-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.fulfillment-reserve-all-btn {
+  font-weight: 800;
+}
+
+@media (max-width: 860px) {
+  .fulfillment-table-wrap {
+    display: none;
+  }
+  .fulfillment-cards {
+    display: grid;
+  }
+  .fulfillment-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .fulfillment-actions {
+    justify-content: stretch;
+  }
+  .fulfillment-actions > button {
+    flex: 1;
+  }
 }
 
 .picking-finished-note-next {
@@ -7614,10 +9453,71 @@ a {
 
   .order-status-update-next .order-detail-action-btn-next {
     width: 100%;
+    min-width: 0;
+    justify-self: stretch;
   }
 
   .order-detail-pick-actions-next {
     width: 100%;
+  }
+
+  /* Cabecera: colapsar Formato/Imprimir/Volver/Tablero en un dropdown "Acciones". */
+  .order-detail-actions-menu-next {
+    display: block;
+    position: relative;
+    margin-left: auto;
+  }
+
+  .order-detail-actions-trigger-next {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    min-height: 36px;
+  }
+
+  .order-detail-actions-pop-next {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 0.4rem);
+    z-index: 50;
+    min-width: 230px;
+    flex-direction: column;
+    gap: 0.55rem;
+    padding: 0.7rem;
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-border);
+    border-radius: 12px;
+    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.28);
+  }
+
+  .order-detail-actions-menu-next.is-open .order-detail-actions-pop-next {
+    display: flex;
+  }
+
+  .order-detail-actions-pop-next .order-detail-print-picker-next {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .order-detail-actions-pop-next .admin-ghost-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .order-detail-actions-backdrop-next {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    background: transparent;
+    border: 0;
+    cursor: default;
+  }
+
+  /* Chips de meta un poco mas compactos en movil. */
+  .order-detail-meta-summary-next {
+    gap: 0.6rem 1rem;
   }
 
 }
@@ -9120,82 +11020,43 @@ a {
   margin: 0;
 }
 
-@media (max-width: 1240px) {
+/* Tablet + movil: catalogo full-width con scroll de pagina, carrito deslizable y barra resumen sticky.
+   Desktop (>=1024px) conserva el layout de 2 paneles intacto. */
+@media (max-width: 1023px) {
   .admin-pos-layout-next {
-    grid-template-columns: minmax(0, 1fr);
+    display: block;
     height: auto;
     min-height: 0;
-  }
-
-  .admin-pos-cart-next {
-    border-left: 0;
-    border-top: 1px solid var(--admin-border);
-    box-shadow: none;
-  }
-}
-
-@media (max-width: 900px) {
-  .admin-pos-toolbar-next {
-    grid-template-columns: 1fr;
-  }
-
-  .admin-pos-store-selector-next {
-    display: grid;
-    gap: 0.35rem;
-  }
-
-  .admin-pos-scan-btn-next {
-    width: 100%;
-    height: 40px;
-    letter-spacing: -1px;
-  }
-
-  .admin-pos-payment-grid-next {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 760px) {
-  .admin-pos-variant-drawer-next,
-  .admin-pos-payment-drawer-next {
-    left: 0;
-    width: 100vw;
-    border-left: 0;
-  }
-
-  .admin-pos-drawer-head-next,
-  .admin-pos-drawer-body-next,
-  .admin-pos-drawer-footer-next {
-    padding-left: 0.9rem;
-    padding-right: 0.9rem;
-  }
-
-  .admin-pos-layout-next {
+    overflow: visible;
     border: 0;
     border-radius: 0;
     box-shadow: none;
-    overflow: visible;
     background: transparent;
   }
 
+  .admin-pos-catalog-next,
   .admin-pos-products-grid-next {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.75rem;
-    padding-bottom: 6.5rem;
+    overflow: visible;
   }
 
-  .admin-pos-product-card-next {
-    grid-template-columns: 1fr;
-    gap: 0.45rem;
-    padding: 0.5rem;
+  .admin-pos-products-grid-next {
+    padding-bottom: 6rem;
   }
 
-  .admin-pos-product-image-next {
-    width: 100%;
-    height: 104px;
-    margin-left: 0;
+  /* Toolbar: busqueda + scan en fila 1, selector de tienda full en fila 2 */
+  .admin-pos-toolbar-next {
+    grid-template-columns: minmax(0, 1fr) 44px;
   }
 
+  .admin-pos-store-selector-next {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  /* Barra resumen sticky: siempre al alcance del pulgar (items + total + Cobrar) */
   .admin-pos-mobile-trigger-next {
     position: fixed;
     left: 0.75rem;
@@ -9205,11 +11066,13 @@ a {
     display: flex;
   }
 
+  /* Carrito como panel deslizable (reusa el estado .mobile-open) */
   .admin-pos-cart-next {
     position: fixed;
-    left: 0.75rem;
+    left: auto;
     right: 0.75rem;
     bottom: calc(0.75rem + env(safe-area-inset-bottom));
+    width: min(420px, calc(100vw - 1.5rem));
     z-index: 1900;
     max-height: min(82vh, 42rem);
     border: 1px solid var(--admin-border);
@@ -9235,6 +11098,53 @@ a {
 
   .admin-pos-cart-summary-next {
     padding-bottom: calc(0.95rem + env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 900px) {
+  .admin-pos-payment-grid-next {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .admin-pos-variant-drawer-next,
+  .admin-pos-payment-drawer-next {
+    left: 0;
+    width: 100vw;
+    border-left: 0;
+  }
+
+  .admin-pos-drawer-head-next,
+  .admin-pos-drawer-body-next,
+  .admin-pos-drawer-footer-next {
+    padding-left: 0.9rem;
+    padding-right: 0.9rem;
+  }
+
+  .admin-pos-products-grid-next {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+    padding-bottom: 6.5rem;
+  }
+
+  .admin-pos-product-card-next {
+    grid-template-columns: 1fr;
+    gap: 0.45rem;
+    padding: 0.5rem;
+  }
+
+  .admin-pos-product-image-next {
+    width: 100%;
+    height: 104px;
+    margin-left: 0;
+  }
+
+  /* Movil: carrito casi a pantalla completa (en tablet queda como panel derecho) */
+  .admin-pos-cart-next {
+    left: 0.75rem;
+    right: 0.75rem;
+    width: auto;
   }
 
   .admin-pos-checkout-btn-next kbd {
@@ -9469,4 +11379,1235 @@ a {
   cursor: not-allowed;
   color: color-mix(in oklab, var(--admin-muted) 72%, transparent);
   opacity: 0.75;
+}
+
+/* =========================================================================
+   Panel de preparacion de pedido ecommerce (SaaS) — prefijo .ff-
+   ========================================================================= */
+.ff-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.ff-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+  border-radius: 16px;
+  min-width: 0;
+}
+
+.ff-muted {
+  color: var(--admin-muted);
+  font-size: 0.82rem;
+}
+
+.ff-tiny {
+  font-size: 0.74rem;
+}
+
+/* Header --------------------------------------------------------------- */
+.ff-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.ff-header-title {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.ff-header-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.ff-header-row h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.ff-code {
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+/* Badges de estado ----------------------------------------------------- */
+.ff-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.22rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.ff-badge-gray { background: color-mix(in oklab, var(--admin-muted) 16%, var(--admin-surface)); color: var(--admin-muted); }
+.ff-badge-blue { background: color-mix(in oklab, #3b82f6 16%, var(--admin-surface)); color: #2563eb; }
+.ff-badge-amber { background: color-mix(in oklab, #f59e0b 18%, var(--admin-surface)); color: #b45309; }
+.ff-badge-green { background: color-mix(in oklab, var(--admin-success) 18%, var(--admin-surface)); color: color-mix(in oklab, var(--admin-success) 78%, var(--admin-text)); }
+
+/* Botones -------------------------------------------------------------- */
+.ff-ghost-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  padding: 0.5rem 0.9rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.ff-ghost-btn:hover { background: color-mix(in oklab, var(--admin-surface-soft) 60%, var(--admin-surface)); }
+.ff-ghost-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.ff-ghost-btn.ff-sm { padding: 0.4rem 0.7rem; font-size: 0.78rem; }
+.ff-ghost-btn.ff-xs { padding: 0.25rem 0.55rem; font-size: 0.74rem; border-radius: 8px; }
+
+.ff-primary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border: none;
+  border-radius: 10px;
+  background: var(--admin-primary);
+  color: #ffffff;
+  padding: 0.65rem 1.3rem;
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.ff-primary-btn:hover { filter: brightness(1.05); }
+.ff-primary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.ff-danger-btn { background: var(--admin-danger, #e74c3c); }
+
+.ff-link-btn {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--admin-primary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ff-icon-btn {
+  border: 1px solid transparent;
+  background: none;
+  border-radius: 8px;
+  width: 30px;
+  height: 30px;
+  font-size: 1.1rem;
+  color: var(--admin-muted);
+  cursor: pointer;
+}
+
+.ff-icon-btn:hover { background: color-mix(in oklab, var(--admin-surface-soft) 60%, var(--admin-surface)); }
+
+/* Stats superiores ----------------------------------------------------- */
+.ff-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.85rem;
+}
+
+.ff-stat {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  background: var(--admin-surface);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.ff-stat-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.ff-stat-icon.is-indigo { background: color-mix(in oklab, #6366f1 16%, var(--admin-surface)); color: #4f46e5; }
+.ff-stat-icon.is-green { background: color-mix(in oklab, var(--admin-success) 16%, var(--admin-surface)); color: color-mix(in oklab, var(--admin-success) 75%, var(--admin-text)); }
+.ff-stat-icon.is-blue { background: color-mix(in oklab, #3b82f6 16%, var(--admin-surface)); color: #2563eb; }
+.ff-stat-icon.is-amber { background: color-mix(in oklab, #f59e0b 18%, var(--admin-surface)); color: #b45309; }
+.ff-stat-icon.is-red { background: color-mix(in oklab, var(--admin-danger, #e74c3c) 16%, var(--admin-surface)); color: var(--admin-danger, #e74c3c); }
+
+.ff-stat-body { display: grid; gap: 0.1rem; flex: 1; }
+.ff-stat-label { color: var(--admin-muted); font-size: 0.78rem; }
+.ff-stat-value { font-size: 1.35rem; line-height: 1; }
+.ff-stat-value em { font-style: normal; font-size: 0.76rem; font-weight: 600; color: var(--admin-muted); }
+
+/* Tabla ---------------------------------------------------------------- */
+.ff-table-block {
+  border: 1px solid var(--admin-border);
+  border-radius: 14px;
+  padding: 1rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.85rem;
+  background: color-mix(in oklab, var(--admin-surface) 96%, var(--admin-surface-soft));
+}
+
+.ff-table-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.ff-table-head h3 { margin: 0; font-size: 1.05rem; }
+.ff-table-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.ff-empty { padding: 1.5rem; text-align: center; }
+
+.ff-table-wrap { overflow-x: auto; }
+
+.ff-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+}
+
+.ff-table thead th {
+  text-align: left;
+  padding: 0.55rem 0.7rem;
+  border-bottom: 1px solid var(--admin-border);
+  color: var(--admin-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.ff-table tbody td {
+  padding: 0.8rem 0.7rem;
+  border-bottom: 1px solid color-mix(in oklab, var(--admin-border) 70%, transparent);
+  vertical-align: top;
+}
+
+.ff-table tbody tr:last-child td { border-bottom: none; }
+.ff-table .ff-num { text-align: center; white-space: nowrap; }
+.ff-table .ff-center { text-align: center; }
+.ff-col-prod { min-width: 210px; }
+
+.ff-product { display: flex; align-items: center; gap: 0.65rem; }
+.ff-product-info { display: grid; gap: 0.1rem; }
+.ff-product-name { font-weight: 700; }
+.ff-sku { color: var(--admin-muted); font-size: 0.74rem; }
+
+.ff-thumb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--admin-surface-soft) 70%, var(--admin-surface));
+  border: 1px solid var(--admin-border);
+  font-weight: 800;
+  color: var(--admin-muted);
+  flex-shrink: 0;
+}
+
+/* Select tienda -------------------------------------------------------- */
+.ff-store-col { min-width: 200px; }
+.ff-store-cell { display: grid; gap: 0.25rem; margin-bottom: 0.5rem; }
+.ff-store-cell:last-child { margin-bottom: 0; }
+.ff-store-row { display: flex; align-items: center; gap: 0.3rem; }
+
+.ff-select {
+  width: 100%;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  padding: 0.5rem 0.6rem;
+  font-size: 0.83rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ff-select:disabled { opacity: 0.55; cursor: not-allowed; }
+.ff-select.is-empty { color: var(--admin-muted); font-style: italic; font-weight: 500; }
+
+.ff-store-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  width: fit-content;
+  padding: 0.08rem 0.45rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--admin-surface-soft) 70%, var(--admin-surface));
+  color: var(--admin-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.ff-store-tag.is-rec {
+  background: color-mix(in oklab, var(--admin-success) 16%, var(--admin-surface));
+  color: color-mix(in oklab, var(--admin-success) 78%, var(--admin-text));
+}
+
+.ff-store-avail { color: var(--admin-success); font-size: 0.74rem; font-weight: 600; }
+.ff-store-warn { color: var(--admin-danger, #e74c3c); font-size: 0.74rem; font-weight: 600; }
+
+.ff-split-remove {
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: var(--admin-surface);
+  color: var(--admin-danger, #e74c3c);
+  width: 28px;
+  height: 32px;
+  font-size: 1rem;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* Disponible ----------------------------------------------------------- */
+.ff-avail { font-weight: 800; font-size: 1rem; }
+.ff-avail.is-green { color: var(--admin-success); }
+.ff-avail.is-amber { color: #b45309; }
+.ff-avail.is-red { color: var(--admin-danger, #e74c3c); }
+.ff-avail.is-muted { color: var(--admin-muted); font-weight: 600; }
+
+/* Celda de linea ya reservada (reversible) */
+.ff-reserved-cell {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: start;
+}
+
+.ff-reserved-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--admin-success) 14%, var(--admin-surface));
+  color: color-mix(in oklab, var(--admin-success) 80%, var(--admin-text));
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.ff-release-inline {
+  border: 1px solid color-mix(in oklab, var(--admin-warning) 45%, var(--admin-border));
+  border-radius: 8px;
+  background: var(--admin-surface);
+  color: #b45309;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ff-release-inline:hover { background: color-mix(in oklab, var(--admin-warning) 12%, var(--admin-surface)); }
+.ff-release-inline:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.ff-qty-none { color: var(--admin-muted); font-size: 0.8rem; font-weight: 600; }
+
+/* Stepper -------------------------------------------------------------- */
+.ff-qty-col { min-width: 130px; }
+.ff-qty { display: grid; gap: 0.25rem; justify-items: center; margin-bottom: 0.5rem; }
+.ff-qty:last-child { margin-bottom: 0; }
+
+.ff-stepper {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--admin-surface);
+}
+
+.ff-stepper button {
+  border: none;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  width: 32px;
+  height: 34px;
+  font-size: 1.05rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.ff-stepper button:disabled { opacity: 0.4; cursor: not-allowed; }
+.ff-stepper.is-disabled { opacity: 0.7; }
+
+.ff-stepper span {
+  min-width: 38px;
+  text-align: center;
+  font-weight: 700;
+  border-left: 1px solid var(--admin-border);
+  border-right: 1px solid var(--admin-border);
+  padding: 0.35rem 0;
+}
+
+/* Input numerico directo dentro del stepper (tipear cantidad). */
+.ff-stepper-input {
+  width: 44px;
+  min-width: 44px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--admin-text);
+  background: var(--admin-surface);
+  border: none;
+  border-left: 1px solid var(--admin-border);
+  border-right: 1px solid var(--admin-border);
+  padding: 0.35rem 0;
+  -moz-appearance: textfield;
+}
+.ff-stepper-input:focus {
+  outline: 2px solid var(--admin-primary);
+  outline-offset: -2px;
+}
+.ff-stepper-input:disabled { opacity: 0.7; }
+.ff-stepper.is-syncing .ff-stepper-input { color: var(--admin-muted); }
+
+.ff-qty-max { color: var(--admin-muted); font-size: 0.72rem; }
+
+/* Estado "guardando" del stepper (espera respuesta de la API) ---------- */
+.ff-stepper.is-syncing { opacity: 0.8; }
+.ff-stepper.is-syncing span { color: var(--admin-muted); }
+.ff-qty-sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--admin-muted);
+  font-size: 0.72rem;
+}
+.ff-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--admin-border);
+  border-top-color: var(--admin-primary, #2563eb);
+  border-radius: 50%;
+  animation: ff-spin 0.6s linear infinite;
+}
+.ff-spinner-sm { width: 11px; height: 11px; border-width: 2px; }
+@keyframes ff-spin { to { transform: rotate(360deg); } }
+.order-detail-pick-spin-next { margin-left: 0.4rem; vertical-align: middle; }
+
+.ff-stepper-lg { display: flex; }
+.ff-stepper-lg span { flex: 1; }
+.ff-stepper-lg button { width: 44px; height: 40px; }
+
+/* Asignado ------------------------------------------------------------- */
+.ff-assigned { font-weight: 700; }
+.ff-assigned.is-reservado { color: var(--admin-success); }
+.ff-assigned.is-configurado { color: #2563eb; }
+.ff-assigned.is-parcial { color: #b45309; }
+.ff-assigned.is-pendiente { color: var(--admin-muted); }
+.ff-assigned.is-sin_stock { color: var(--admin-danger, #e74c3c); }
+.ff-sync-hint { font-weight: 500; font-size: 0.72rem; color: var(--admin-muted); }
+
+/* Badge de estado de linea --------------------------------------------- */
+.ff-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.28rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.ff-state-gray { background: color-mix(in oklab, var(--admin-muted) 14%, var(--admin-surface)); color: var(--admin-muted); }
+.ff-state-blue { background: color-mix(in oklab, #3b82f6 14%, var(--admin-surface)); color: #2563eb; }
+.ff-state-amber { background: color-mix(in oklab, #f59e0b 18%, var(--admin-surface)); color: #b45309; }
+.ff-state-green { background: color-mix(in oklab, var(--admin-success) 16%, var(--admin-surface)); color: color-mix(in oklab, var(--admin-success) 78%, var(--admin-text)); }
+.ff-state-red { background: color-mix(in oklab, var(--admin-danger, #e74c3c) 14%, var(--admin-surface)); color: var(--admin-danger, #e74c3c); }
+
+/* Menu de acciones por fila -------------------------------------------- */
+.ff-actions-col { position: relative; }
+.ff-row-menu-wrap { position: relative; display: inline-block; }
+
+.ff-row-menu {
+  position: absolute;
+  right: 0;
+  top: 34px;
+  z-index: 20;
+  display: grid;
+  min-width: 190px;
+  padding: 0.35rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: var(--admin-surface);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
+.ff-row-menu button {
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 0.5rem 0.6rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  color: var(--admin-text);
+  cursor: pointer;
+}
+
+.ff-row-menu button:hover { background: color-mix(in oklab, var(--admin-surface-soft) 60%, var(--admin-surface)); }
+.ff-row-menu button:disabled { opacity: 0.45; cursor: not-allowed; }
+.ff-row-menu .ff-danger { color: var(--admin-danger, #e74c3c); }
+
+/* Agregar otra tienda -------------------------------------------------- */
+.ff-add-store {
+  display: grid;
+  gap: 0.2rem;
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 0.9rem;
+  border: 1px dashed var(--admin-border);
+  border-radius: 12px;
+  background: none;
+  color: var(--admin-primary);
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ff-add-store span { color: var(--admin-muted); font-size: 0.76rem; font-weight: 500; }
+.ff-add-store:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.ff-add-store-inline {
+  border: none;
+  background: none;
+  padding: 0.15rem 0;
+  color: var(--admin-primary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+}
+
+.ff-add-store-inline:hover { text-decoration: underline; }
+
+/* Leyenda -------------------------------------------------------------- */
+.ff-legend { display: flex; flex-wrap: wrap; gap: 1.1rem; padding-top: 0.5rem; }
+.ff-legend span { display: inline-flex; align-items: center; gap: 0.4rem; color: var(--admin-muted); font-size: 0.78rem; }
+.ff-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.ff-dot.is-green { background: var(--admin-success); }
+.ff-dot.is-amber { background: #f59e0b; }
+.ff-dot.is-gray { background: var(--admin-muted); }
+.ff-dot.is-red { background: var(--admin-danger, #e74c3c); }
+
+/* Footer --------------------------------------------------------------- */
+.ff-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--admin-border);
+}
+
+.ff-footer-summary { display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
+.ff-footer-block { display: grid; gap: 0.1rem; }
+.ff-footer-metric { display: grid; gap: 0.1rem; }
+.ff-footer-metric strong.is-green { color: var(--admin-success); }
+.ff-footer-metric strong.is-red { color: var(--admin-danger, #e74c3c); }
+
+.ff-footer-actions { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; }
+.ff-reserve-wrap { display: grid; gap: 0.2rem; justify-items: end; }
+.ff-reserve-hint { font-size: 0.74rem; }
+
+/* Sidebar -------------------------------------------------------------- */
+.ff-sidebar { display: grid; gap: 1rem; position: sticky; top: 1rem; }
+.ff-side-card { border-radius: 14px; }
+.ff-side-card h3 { margin: 0 0 0.7rem; font-size: 0.98rem; }
+
+.ff-quick-actions { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.2rem; }
+.ff-quick-actions button {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 0.55rem 0.5rem;
+  border-radius: 8px;
+  font-size: 0.84rem;
+  color: var(--admin-text);
+  cursor: pointer;
+}
+.ff-quick-actions button:hover { background: color-mix(in oklab, var(--admin-surface-soft) 60%, var(--admin-surface)); }
+
+.ff-removed-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.7rem; }
+.ff-removed-list li { display: grid; gap: 0.2rem; padding-bottom: 0.6rem; border-bottom: 1px solid var(--admin-border); }
+.ff-removed-list li:last-child { border-bottom: none; padding-bottom: 0; }
+.ff-removed-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.ff-removed-note { font-size: 0.78rem; color: var(--admin-text); }
+
+.ff-activity { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.85rem; }
+.ff-activity li { display: grid; grid-template-columns: 44px 1fr; gap: 0.4rem; align-items: start; }
+.ff-activity-time { color: var(--admin-muted); font-size: 0.74rem; font-weight: 600; }
+.ff-activity-text { font-size: 0.82rem; line-height: 1.35; }
+
+.ff-tips { background: color-mix(in oklab, #f59e0b 8%, var(--admin-surface)); border-color: color-mix(in oklab, #f59e0b 30%, var(--admin-border)); }
+.ff-tips ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.5rem; }
+.ff-tips li { font-size: 0.8rem; line-height: 1.35; color: var(--admin-text); }
+
+/* Modal ---------------------------------------------------------------- */
+.ff-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.ff-modal { width: min(460px, 100%); display: grid; gap: 0.85rem; border-radius: 16px; }
+.ff-modal h3 { margin: 0; }
+.ff-field { display: grid; gap: 0.35rem; }
+.ff-field > span { font-size: 0.8rem; font-weight: 600; color: var(--admin-muted); }
+
+.ff-textarea {
+  width: 100%;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  padding: 0.6rem;
+  font-size: 0.85rem;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.ff-modal-actions { display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 0.3rem; }
+
+/* Selector de producto (modal agregar) */
+.ff-add-results {
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: var(--admin-surface-soft);
+}
+.ff-add-results > ul { list-style: none; margin: 0; padding: 0.25rem; display: grid; gap: 0.25rem; }
+.ff-add-results > p { margin: 0; padding: 0.75rem; }
+.ff-add-option {
+  width: 100%;
+  display: grid;
+  gap: 0.15rem;
+  text-align: left;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  padding: 0.5rem 0.6rem;
+  cursor: pointer;
+}
+.ff-add-option:hover { border-color: var(--admin-border); }
+.ff-add-option.is-selected { border-color: var(--admin-primary); background: color-mix(in oklab, var(--admin-primary) 12%, var(--admin-surface)); }
+.ff-add-option-name { font-weight: 600; font-size: 0.88rem; }
+
+/* Chips de variante (color/talla) al agregar producto ------------------ */
+.ff-variant-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.ff-variant-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 999px;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  padding: 0.3rem 0.6rem 0.3rem 0.35rem;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.ff-variant-chip:hover { border-color: var(--admin-primary); }
+.ff-variant-chip.is-selected {
+  border-color: var(--admin-primary);
+  background: color-mix(in oklab, var(--admin-primary) 14%, var(--admin-surface));
+}
+.ff-swatch {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in oklab, var(--admin-text) 25%, transparent);
+  flex: 0 0 auto;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+.ff-variant-chip-color { font-weight: 600; }
+.ff-variant-chip-size {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.05rem 0.35rem;
+  border-radius: 6px;
+  background: var(--admin-surface-soft);
+  color: var(--admin-muted, var(--admin-text));
+}
+
+/* Responsive ----------------------------------------------------------- */
+@media (max-width: 1180px) {
+  /* minmax(0,1fr) (no `1fr`=minmax(auto,1fr)) para que la columna NO crezca al
+     max-content de un hijo ancho y desborde en movil. */
+  .ff-panel { grid-template-columns: minmax(0, 1fr); }
+  .ff-sidebar { position: static; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+}
+
+/* Movil: la tabla se convierte en tarjetas apiladas (data-label) */
+@media (max-width: 760px) {
+  .ff-table thead { display: none; }
+  .ff-table,
+  .ff-table tbody,
+  .ff-table tr,
+  .ff-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .ff-table tr {
+    border: 1px solid var(--admin-border);
+    border-radius: 12px;
+    background: var(--admin-surface);
+    padding: 0.6rem 0.85rem;
+    margin-bottom: 0.85rem;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  }
+
+  .ff-table tbody td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.55rem 0;
+    border-bottom: 1px dashed color-mix(in oklab, var(--admin-border) 70%, transparent);
+    text-align: right;
+  }
+
+  .ff-table tbody tr td:last-child { border-bottom: none; }
+
+  .ff-table tbody td::before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    text-align: left;
+    color: var(--admin-muted);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  /* La fila de producto encabeza la tarjeta, sin etiqueta */
+  .ff-table td.ff-col-prod {
+    border-bottom: 1px solid var(--admin-border);
+    padding-bottom: 0.7rem;
+    margin-bottom: 0.3rem;
+  }
+
+  .ff-table td.ff-col-prod::before { display: none; }
+
+  .ff-table .ff-num,
+  .ff-table .ff-center { text-align: right; }
+
+  /* Controles anchos ocupan el lado derecho completo */
+  .ff-store-col,
+  .ff-qty-col { align-items: flex-start; }
+  .ff-store-cell,
+  .ff-qty { width: auto; min-width: 0; }
+  .ff-store-col .ff-store-cell { align-items: flex-end; }
+  .ff-select { min-width: 180px; }
+
+  .ff-table td.ff-actions-col { justify-content: flex-end; }
+  .ff-row-menu { right: 0; }
+
+  .ff-footer { flex-direction: column; align-items: stretch; }
+  .ff-footer-actions { flex-direction: column; align-items: stretch; }
+  .ff-footer-actions > button,
+  .ff-reserve-wrap { width: 100%; }
+  .ff-reserve-wrap { justify-items: stretch; }
+  .ff-primary-btn { width: 100%; }
+  .ff-reserve-hint { text-align: center; }
+}
+
+/* ===================================================================== */
+/* Picking operativo: layout compacto en movil (una fila por variante)   */
+/* La visibilidad la controla .order-detail-mobile-only-next; por eso el  */
+/* display flex de .pk-board se activa solo dentro del @media movil, para */
+/* no filtrar el bloque al escritorio.                                    */
+/* ===================================================================== */
+.pk-product {
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  background: var(--admin-surface);
+  overflow: hidden;
+}
+
+.pk-product-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.7rem;
+  background: var(--admin-surface-soft);
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.pk-thumb {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--admin-primary-text);
+  background: var(--admin-primary-strong);
+}
+
+.pk-product-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--admin-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pk-status {
+  flex: none;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--admin-border);
+  color: var(--admin-muted);
+  background: var(--admin-surface);
+}
+.pk-status.is-pending { color: var(--admin-muted); }
+.pk-status.is-partial {
+  color: #b45309;
+  border-color: color-mix(in oklab, #f59e0b 45%, var(--admin-border));
+  background: color-mix(in oklab, #f59e0b 12%, var(--admin-surface));
+}
+.pk-status.is-completed {
+  color: var(--mk-ok);
+  border-color: color-mix(in oklab, var(--mk-ok) 45%, var(--admin-border));
+  background: color-mix(in oklab, var(--mk-ok) 12%, var(--admin-surface));
+}
+
+.pk-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.pk-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.5rem 0.7rem;
+  border-top: 1px solid color-mix(in oklab, var(--admin-border) 55%, transparent);
+}
+.pk-row:first-child { border-top: none; }
+.pk-row.is-completed { background: color-mix(in oklab, var(--mk-ok) 6%, transparent); }
+
+.pk-var {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.pk-var-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--admin-text);
+}
+
+.pk-metrics {
+  flex: none;
+  display: flex;
+  gap: 0.45rem;
+}
+
+.pk-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.05;
+  min-width: 2.1rem;
+}
+.pk-metric b {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--admin-text);
+}
+.pk-metric small {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--admin-muted);
+}
+.pk-metric.is-picked b { color: var(--mk-ok); }
+.pk-metric.is-missing b { color: var(--admin-danger); }
+
+.pk-row-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.pk-step {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 7px;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+.pk-step:hover:not(:disabled) { background: var(--admin-surface-muted); }
+
+.pk-complete {
+  height: 30px;
+  padding: 0 0.7rem;
+  border-radius: 7px;
+  border: 1px solid var(--admin-primary-strong);
+  background: var(--admin-primary-strong);
+  color: var(--admin-primary-text);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pk-complete:hover:not(:disabled) { filter: brightness(1.05); }
+.pk-complete-short { display: none; }
+
+.pk-req {
+  height: 30px;
+  padding: 0 0.55rem;
+  border-radius: 7px;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  color: var(--admin-muted);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.pk-step:disabled,
+.pk-complete:disabled,
+.pk-req:disabled { opacity: 0.5; cursor: not-allowed; }
+
+@media (max-width: 768px) {
+  .pk-board { display: flex; flex-direction: column; gap: 0.75rem; }
+  .pk-complete { width: 34px; padding: 0; font-size: 0.9rem; }
+  .pk-complete-full { display: none; }
+  .pk-complete-short { display: inline; }
+  .pk-metric { min-width: 1.8rem; }
+  .pk-metric b { font-size: 0.88rem; }
+}
+
+/* ===================================================================== */
+/* Reserva: vista compacta movil (una tarjeta por variante)              */
+/* ===================================================================== */
+.ff-mobile-cards { display: none; }
+
+.ff-mcard {
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  background: var(--admin-surface);
+  padding: 0.6rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+.ff-mcard-head { display: flex; align-items: flex-start; gap: 0.5rem; }
+/* Badge de estado compacto para no robar ancho al nombre en la tarjeta movil. */
+.ff-mcard-head .ff-badge {
+  flex: none;
+  font-size: 0.6rem;
+  padding: 0.12rem 0.42rem;
+  white-space: nowrap;
+}
+.ff-mcard-title { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.ff-mcard-title .ff-product-name {
+  font-weight: 600;
+  font-size: 0.92rem;
+  overflow: hidden;
+  /* En movil el nombre usa hasta 2 lineas en vez de cortarse con "..."
+     (habia poco ancho por el thumb + badge). */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.ff-mcard-variant { font-size: 0.8rem; color: var(--admin-muted); }
+/* Thumb decorativo mas compacto en la tarjeta movil: libera ancho para el nombre. */
+.ff-mcard-head .ff-thumb { width: 34px; height: 34px; border-radius: 8px; }
+
+/* Una sola tira (no 3 mini-cards): un fondo, 3 columnas planas con divisor.
+   Evita el "card dentro de card" que apretaba el contenido en movil. */
+.ff-mcard-metrics {
+  display: flex;
+  gap: 0;
+  background: var(--admin-surface-soft);
+  border-radius: 8px;
+  padding: 0.28rem 0;
+}
+.ff-mcard-metrics .ff-metric {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.08rem 0;
+  background: transparent;
+  line-height: 1.1;
+}
+.ff-mcard-metrics .ff-metric + .ff-metric {
+  border-left: 1px solid color-mix(in oklab, var(--admin-border) 60%, transparent);
+}
+.ff-mcard-metrics .ff-metric b { font-size: 0.98rem; color: var(--admin-text); }
+.ff-mcard-metrics .ff-metric small {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--admin-muted);
+}
+.ff-mcard-metrics .ff-metric.is-green b { color: var(--mk-ok); }
+.ff-mcard-metrics .ff-metric.is-red b { color: var(--admin-danger); }
+.ff-mcard-metrics .ff-metric.is-amber b { color: #b45309; }
+.ff-mcard-metrics .ff-metric.is-assigned-green b { color: var(--mk-ok); }
+.ff-mcard-metrics .ff-metric.is-assigned-amber b { color: #b45309; }
+
+.ff-mcard-store { display: flex; align-items: center; gap: 0.5rem; }
+.ff-mcard-store-info {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.ff-mcard-store-info .ff-select { min-width: 0; width: 100%; }
+.ff-mcard-store-empty { display: flex; flex-direction: column; gap: 0.3rem; }
+
+@media (max-width: 768px) {
+  .ff-desktop-only { display: none !important; }
+  .ff-mobile-cards { display: flex; flex-direction: column; gap: 0.6rem; }
+}
+
+/* ===================================================================== */
+/* Barra inferior sticky (movil): reserva y picking                      */
+/* ===================================================================== */
+.ff-sticky-bar,
+.pk-sticky-bar { display: none; }
+.ff-sticky-info,
+.pk-sticky-info { display: flex; flex-direction: column; line-height: 1.05; flex: none; }
+.ff-sticky-info strong,
+.pk-sticky-info strong { font-size: 1.05rem; color: var(--admin-text); }
+.ff-sticky-info small,
+.pk-sticky-info small {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--admin-muted);
+}
+
+@media (max-width: 768px) {
+  .ff-sticky-bar,
+  .pk-sticky-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 45;
+    padding: 0.6rem 0.9rem calc(0.6rem + env(safe-area-inset-bottom, 0px));
+    background: var(--admin-surface);
+    border-top: 1px solid var(--admin-border);
+    box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.14);
+  }
+  .ff-sticky-bar .ff-primary-btn,
+  .pk-sticky-bar .admin-primary-btn { flex: 1; min-height: 44px; }
+  /* Espacio para que la barra fija no tape el final del contenido. */
+  .ff-panel { padding-bottom: 84px; }
+  .order-detail-page-next { padding-bottom: 84px; }
+}
+
+/* ===================================================================== */
+/* Escaneo de picking (pistola/teclado + camara)                         */
+/* ===================================================================== */
+.pk-scan {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0.4rem 0 0.6rem;
+  padding: 0.6rem;
+  border: 1px solid var(--admin-primary);
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--admin-primary) 8%, var(--admin-surface));
+}
+.pk-scan-row { display: flex; gap: 0.4rem; }
+.pk-scan-input {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  padding: 0 0.6rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  font-size: 0.95rem;
+}
+.pk-scan-input:focus { outline: 2px solid var(--admin-primary); outline-offset: -2px; }
+.pk-scan-camera { display: flex; flex-direction: column; gap: 0.3rem; align-items: center; }
+.pk-scan-video {
+  width: 100%;
+  max-width: 420px;
+  border-radius: 10px;
+  background: #000;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+.pk-scan-hint { font-size: 0.72rem; color: var(--admin-muted); }
+.order-detail-action-btn-next.is-active {
+  border-color: var(--admin-primary);
+  color: var(--admin-primary);
+}
+
+/* ===================================================================== */
+/* Modo pantalla completa de operacion (picking)                         */
+/* ===================================================================== */
+.pk-fs-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+body.pk-fullscreen-active { overflow: hidden; }
+.pk-fs-target.is-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  margin: 0;
+  border-radius: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  background: var(--admin-page-bg);
+  padding: 1rem 1rem calc(1rem + 96px);
+}
+
+/* Seleccion multiple + accion en lote (picking) */
+.pk-select-col { width: 34px; text-align: center; }
+.pk-row-select { flex: none; width: 18px; height: 18px; margin-right: 0.1rem; }
+.pk-batch-bar { align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+
+/* Input numerico directo de cantidad separada (picking, desktop + movil) */
+.pk-picked-input {
+  width: 46px;
+  min-width: 46px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--admin-text);
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: 7px;
+  padding: 0.3rem 0;
+}
+.pk-picked-input:focus { outline: 2px solid var(--admin-primary); outline-offset: -2px; }
+.pk-picked-input:disabled { opacity: 0.6; }
+
+/* Stepper de preparacion (2 pasos: Reservar -> Separar) — mobile-first ---- */
+.prep-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.85rem;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+.prep-step {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--admin-muted);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.prep-step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--admin-border);
+  color: var(--admin-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  flex: 0 0 auto;
+}
+.prep-step.is-active { color: var(--admin-text); }
+.prep-step.is-active .prep-step-num { background: var(--admin-primary); color: #fff; }
+.prep-step.is-done .prep-step-num { background: var(--mk-ok, #16a34a); color: #fff; }
+.prep-step.is-done { color: var(--admin-text); }
+.prep-step-sep {
+  flex: 1 1 auto;
+  height: 2px;
+  min-width: 18px;
+  background: var(--admin-border);
+  border-radius: 2px;
+}
+
+/* Menos scroll en movil: ocultar sidebar (info secundaria). Sus acciones ya
+   estan en la fila/sticky-bar. */
+@media (max-width: 768px) {
+  .prep-stepper { padding: 0.5rem 0.6rem; gap: 0.4rem; }
+  .prep-step-label { font-size: 0.85rem; }
+  .ff-sidebar { display: none; }
+}
+
+/* Menos "card dentro de card dentro de card" en movil: los envoltorios
+   intermedios ceden su padding/borde para que las tarjetas de producto ganen
+   ancho (antes quedaban aplastadas a ~229px de 390 por padding acumulado). */
+@media (max-width: 768px) {
+  .order-detail-page-next { padding-left: 0.5rem; padding-right: 0.5rem; }
+  .order-detail-page-next .admin-card { padding: 0.75rem; }
+  /* El bloque de tabla deja de ser una card: sin borde/fondo/padding lateral. */
+  .ff-table-block { padding: 0; border: 0; background: transparent; }
+  .ff-mcard { padding: 0.6rem; }
 }

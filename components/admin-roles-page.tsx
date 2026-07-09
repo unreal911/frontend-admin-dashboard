@@ -578,7 +578,7 @@ export function AdminRolesPage() {
         </fieldset>
 
         <div className="admin-table-wrap">
-          <table className="admin-table mobile-card-table">
+          <table className="admin-table mobile-card-table list-cards-next">
             <thead>
               <tr>
                 <th>#</th>
@@ -603,7 +603,7 @@ export function AdminRolesPage() {
                 filteredRoles.map((role, index) => (
                   <tr key={role.id}>
                     <td data-label="#">{index + 1}</td>
-                    <td data-label="Rol">{role.name}</td>
+                    <td data-label="Rol" className="list-card-title-next">{role.name}</td>
                     <td data-label="Descripcion">{role.description || '-'}</td>
                     <td data-label="Estado">
                       <span className={`admin-status-badge ${role.isActive !== false ? 'success' : 'warning'}`}>

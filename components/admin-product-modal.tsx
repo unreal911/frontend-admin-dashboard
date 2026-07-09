@@ -1,8 +1,18 @@
 'use client';
 
-import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ChangeEvent,
+  FormEvent,
+  KeyboardEvent as ReactKeyboardEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 
 export type ProductVariantMode = 'MATRIX' | 'SIMPLE' | 'SIZE_ONLY';
+
+const PRODUCT_WIZARD_STEPS = ['Datos', 'Variantes', 'Imagenes', 'Precios'] as const;
 
 export interface AdminCategoryOption {
   id: number;
@@ -223,6 +233,9 @@ export function AdminProductModal({
   const [fieldErrors, setFieldErrors] = useState<ProductModalFieldErrors>({});
   const [isGeneratingVariants, setIsGeneratingVariants] = useState(false);
   const [deletingImageIndex, setDeletingImageIndex] = useState<number | null>(null);
+  const [step, setStep] = useState(0);
+  const [showCombosDetail, setShowCombosDetail] = useState(false);
+  const [collapsedColorGroups, setCollapsedColorGroups] = useState<number[]>([]);
   const formRef = useRef<HTMLFormElement | null>(null);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
   const categorySelectRef = useRef<HTMLSelectElement | null>(null);
@@ -246,6 +259,7 @@ export function AdminProductModal({
     setFieldErrors({});
     setDeletingImageIndex(null);
     setIsGeneratingVariants(false);
+    setStep(0);
 
     if (!product) {
       setName('');
@@ -493,6 +507,20 @@ export function AdminProductModal({
       checked: selectedSizeIds.includes(size.id),
     }));
   }, [sizes, selectedSizeIds]);
+
+  // Agrupa variantes por color (para el editor de precios estilo acordeon en modo MATRIX)
+  const variantColorGroups = useMemo(() => {
+    const map = new Map<number, Array<{ variant: ProductVariantForm; index: number }>>();
+    variants.forEach((variant, index) => {
+      const list = map.get(variant.colorId);
+      if (list) {
+        list.push({ variant, index });
+      } else {
+        map.set(variant.colorId, [{ variant, index }]);
+      }
+    });
+    return [...map.entries()].map(([colorId, items]) => ({ colorId, items }));
+  }, [variants]);
 
   if (!isFormVisible) {
     return null;
@@ -1137,6 +1165,17 @@ export function AdminProductModal({
     if (Object.keys(nextFieldErrors).length > 0) {
       setFieldErrors(nextFieldErrors);
       setFormError('Revisa los campos marcados antes de guardar.');
+      // Saltar al primer paso del wizard que tenga error
+      let errorStep = 3;
+      if (nextFieldErrors.name || nextFieldErrors.category) {
+        errorStep = 0;
+      } else if (nextFieldErrors.variants || nextFieldErrors.marketplaceVariants) {
+        errorStep = 1;
+      } else if (nextFieldErrors.variantPrices) {
+        errorStep = 3;
+        setCollapsedColorGroups([]); // expandir grupos para ver el precio invalido
+      }
+      setStep(errorStep);
       focusInvalidControl(nextFieldErrors, firstInvalidPriceIndex);
       return;
     }
@@ -1241,6 +1280,287 @@ export function AdminProductModal({
     return target ? getVariantPreview(target) : '';
   }
 
+  function goStep(next: number) {
+    const clamped = Math.max(0, Math.min(PRODUCT_WIZARD_STEPS.length - 1, next));
+    setStep(clamped);
+    setFormError('');
+    window.setTimeout(() => {
+      const scroller = formRef.current?.closest('.admin-product-modal-dialog, .admin-product-form-card, .admin-product-page-shell');
+      scroller?.scrollTo?.({ top: 0, behavior: 'smooth' });
+    }, 0);
+  }
+
+  function renderOptionChips(kind: 'color' | 'size') {
+    const rows = kind === 'color' ? availableColorRows : availableSizeRows;
+    const toggle = kind === 'color' ? toggleColor : toggleSize;
+    const selectedCount = rows.filter((row) => row.checked).length;
+    const setAll = (checked: boolean) => {
+      rows.forEach((row) => {
+        if (row.checked !== checked) {
+          toggle(row.id, checked);
+        }
+      });
+    };
+    return (
+      <div className="admin-chip-select">
+        <div className="admin-chip-select-toolbar">
+          <button type="button" className="admin-chip-mini" onClick={() => setAll(true)}>Todos</button>
+          <button type="button" className="admin-chip-mini" onClick={() => setAll(false)}>Ninguno</button>
+          <span className="admin-chip-count">{selectedCount}/{rows.length}</span>
+        </div>
+        <div className="admin-chip-grid">
+          {rows.map((row) => {
+            const hex = kind === 'color' ? (row as { hex?: string | null }).hex : null;
+            return (
+              <label key={row.id} className={`admin-chip${row.checked ? ' is-on' : ''}`}>
+                <input
+                  type="checkbox"
+                  checked={row.checked}
+                  onChange={(event) => toggle(row.id, event.target.checked)}
+                />
+                {hex ? <span className="admin-chip-swatch" style={{ background: hex }} /> : null}
+                <span>{row.name}</span>
+              </label>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  function renderImagePickerCards(
+    items: Array<{
+      key: string | number;
+      label: string;
+      hex?: string | null;
+      preview: string;
+      onFile: (event: ChangeEvent<HTMLInputElement>) => void;
+      onRemove: () => void;
+    }>,
+  ) {
+    return (
+      <div className="admin-color-image-cards">
+        {items.map((item) => (
+          <div key={item.key} className="admin-color-image-card">
+            <div className="admin-color-image-thumb">
+              {item.preview ? (
+                <img src={item.preview} alt={`Preview ${item.label}`} />
+              ) : (
+                <span className="admin-color-image-thumb-empty">Sin<br />imagen</span>
+              )}
+            </div>
+            <div className="admin-color-image-name">
+              {item.hex ? <span className="admin-chip-swatch" style={{ background: item.hex }} /> : null}
+              <span>{item.label}</span>
+            </div>
+            <div className="admin-color-image-actions">
+              <label className="admin-file-picker-next">
+                <span>{item.preview ? 'Cambiar' : 'Seleccionar'}</span>
+                <input type="file" accept="image/*" onChange={item.onFile} />
+              </label>
+              {item.preview ? (
+                <button type="button" className="admin-ghost-btn" onClick={item.onRemove}>
+                  Quitar
+                </button>
+              ) : null}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  function toggleColorGroup(colorId: number) {
+    setCollapsedColorGroups((current) => (
+      current.includes(colorId)
+        ? current.filter((id) => id !== colorId)
+        : [...current, colorId]
+    ));
+  }
+
+  function setColorGroupPrice(colorId: number, value: string) {
+    const parsed = Number(value);
+    const price = Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+    setVariants((current) => current.map((variant) => (
+      variant.colorId === colorId ? { ...variant, price } : variant
+    )));
+    clearFieldError('variantPrices');
+  }
+
+  function renderPriceCells(variant: ProductVariantForm, index: number) {
+    return (
+      <>
+        <td>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={toNumber(variant.price)}
+            data-variant-price-index={index}
+            className={fieldErrors.variantPrices && toNumber(variant.price) <= 0 ? 'admin-field-invalid' : undefined}
+            aria-invalid={Boolean(fieldErrors.variantPrices && toNumber(variant.price) <= 0)}
+            onChange={(event) => {
+              onVariantPriceChange(index, event.target.value);
+              clearFieldError('variantPrices');
+            }}
+          />
+        </td>
+        <td>
+          <input
+            type="checkbox"
+            checked={variant.isActive !== false}
+            onChange={(event) => onVariantActiveChange(index, event.target.checked)}
+          />
+        </td>
+      </>
+    );
+  }
+
+  function renderPriceEditor() {
+    if (!variants.length) {
+      return null;
+    }
+
+    // MATRIX: acordeon agrupado por color (estilo Shopify) + precio masivo por color
+    if (variantMode === 'MATRIX') {
+      return (
+        <div className="admin-variant-groups">
+          <div className="admin-chip-select-toolbar admin-variant-groups-toolbar">
+            <button type="button" className="admin-chip-mini" onClick={() => setCollapsedColorGroups([])}>Expandir todo</button>
+            <button
+              type="button"
+              className="admin-chip-mini"
+              onClick={() => setCollapsedColorGroups(variantColorGroups.map((group) => group.colorId))}
+            >
+              Colapsar todo
+            </button>
+            <span className="admin-chip-count">{variants.length} variantes</span>
+          </div>
+
+          {variantColorGroups.map((group) => {
+            const collapsed = collapsedColorGroups.includes(group.colorId);
+            const hex = colors.find((color) => color.id === group.colorId)?.hex || null;
+            return (
+              <section key={group.colorId} className="admin-variant-group">
+                <header className="admin-variant-group-head">
+                  <button
+                    type="button"
+                    className="admin-variant-group-toggle"
+                    aria-expanded={!collapsed}
+                    onClick={() => toggleColorGroup(group.colorId)}
+                  >
+                    <span className={`admin-variant-group-caret${collapsed ? '' : ' is-open'}`} aria-hidden="true">▸</span>
+                    {hex ? <span className="admin-chip-swatch" style={{ background: hex }} /> : null}
+                    <span className="admin-variant-group-name">{getColorName(group.colorId)}</span>
+                    <span className="admin-variant-group-count">{group.items.length} tallas</span>
+                  </button>
+                  <div className="admin-variant-group-bulk">
+                    <span>Precio a todas</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="S/"
+                      onChange={(event) => setColorGroupPrice(group.colorId, event.target.value)}
+                    />
+                  </div>
+                </header>
+                {!collapsed ? (
+                  <div className="admin-table-wrap">
+                    <table className="admin-table admin-table-sm admin-variant-group-table">
+                      <thead>
+                        <tr>
+                          <th>Talla</th>
+                          <th>Precio</th>
+                          <th>Activo</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {group.items.map(({ variant, index }) => (
+                          <tr key={index}>
+                            <td>{getSizeName(variant.sizeId)}</td>
+                            {renderPriceCells(variant, index)}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : null}
+              </section>
+            );
+          })}
+        </div>
+      );
+    }
+
+    // SIMPLE: producto unico => un solo precio, sin tabla
+    if (isSimpleMode) {
+      const variant = variants[0];
+      return (
+        <div className="admin-simple-price">
+          <label className="admin-field-block admin-simple-price-field">
+            <span>Precio</span>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={toNumber(variant.price)}
+              data-variant-price-index={0}
+              className={fieldErrors.variantPrices && toNumber(variant.price) <= 0 ? 'admin-field-invalid' : undefined}
+              aria-invalid={Boolean(fieldErrors.variantPrices && toNumber(variant.price) <= 0)}
+              onChange={(event) => {
+                onVariantPriceChange(0, event.target.value);
+                clearFieldError('variantPrices');
+              }}
+            />
+          </label>
+          <label className="admin-checkbox">
+            <input
+              type="checkbox"
+              checked={variant.isActive !== false}
+              onChange={(event) => onVariantActiveChange(0, event.target.checked)}
+            />
+            Variante activa
+          </label>
+        </div>
+      );
+    }
+
+    // SIZE_ONLY: tabla compacta Talla/Precio/Activo (sin scroll horizontal)
+    return (
+      <div className="admin-table-wrap">
+        <table className="admin-table admin-table-sm admin-variant-group-table">
+          <thead>
+            <tr>
+              <th>Talla</th>
+              <th>Precio</th>
+              <th>Activo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {variants.map((variant, index) => (
+              <tr key={`${variant.sizeId}-${index}`}>
+                <td>{getSizeName(variant.sizeId)}</td>
+                {renderPriceCells(variant, index)}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  function onFormKeyDown(event: ReactKeyboardEvent<HTMLFormElement>) {
+    if (event.key !== 'Enter') {
+      return;
+    }
+    const tag = (event.target as HTMLElement).tagName;
+    // Enter no debe enviar el form salvo en el ultimo paso (permitir salto de linea en textarea/editor)
+    if (tag !== 'TEXTAREA' && step < PRODUCT_WIZARD_STEPS.length - 1) {
+      event.preventDefault();
+    }
+  }
+
   return (
     <div
       className={isPage ? 'admin-product-page-shell' : 'admin-modal-overlay'}
@@ -1279,7 +1599,24 @@ export function AdminProductModal({
         {formError ? <p className="admin-modal-error">{formError}</p> : null}
         {formMessage ? <p className="admin-modal-success">{formMessage}</p> : null}
 
-        <form ref={formRef} className="admin-modal-form admin-product-modal-form" onSubmit={handleSubmit}>
+        <form ref={formRef} className="admin-modal-form admin-product-modal-form" onSubmit={handleSubmit} onKeyDown={onFormKeyDown}>
+          <div className="admin-product-wizard-steps" role="tablist" aria-label="Pasos del formulario">
+            {PRODUCT_WIZARD_STEPS.map((label, index) => (
+              <button
+                key={label}
+                type="button"
+                role="tab"
+                aria-selected={step === index}
+                className={`admin-product-wizard-step${step === index ? ' is-current' : ''}${step > index ? ' is-done' : ''}`}
+                onClick={() => goStep(index)}
+              >
+                <span className="admin-product-wizard-step-num">{index + 1}</span>
+                <span className="admin-product-wizard-step-label">{label}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="admin-wizard-panel" hidden={step !== 0}>
           <div className="admin-product-basic-grid">
             <label>
               <span>Nombre</span>
@@ -1429,6 +1766,9 @@ export function AdminProductModal({
             </div>
           </div>
 
+          </div>
+
+          <div className="admin-wizard-panel" hidden={step !== 1}>
           <section className="admin-product-mode-box">
             <h4>Tipo de producto</h4>
             <label className="admin-checkbox">
@@ -1480,34 +1820,12 @@ export function AdminProductModal({
                   <div className="admin-product-selection-grid">
                     <div className="admin-product-select-box">
                       <h5>Colores marketplace</h5>
-                      <div className="admin-product-check-grid">
-                        {availableColorRows.map((color) => (
-                          <label key={color.id} className="admin-checkbox">
-                            <input
-                              type="checkbox"
-                              checked={color.checked}
-                              onChange={(event) => toggleColor(color.id, event.target.checked)}
-                            />
-                            {color.name}
-                          </label>
-                        ))}
-                      </div>
+                      {renderOptionChips('color')}
                     </div>
 
                     <div className="admin-product-select-box">
                       <h5>Tallas marketplace</h5>
-                      <div className="admin-product-check-grid">
-                        {availableSizeRows.map((size) => (
-                          <label key={size.id} className="admin-checkbox">
-                            <input
-                              type="checkbox"
-                              checked={size.checked}
-                              onChange={(event) => toggleSize(size.id, event.target.checked)}
-                            />
-                            {size.name}
-                          </label>
-                        ))}
-                      </div>
+                      {renderOptionChips('size')}
                     </div>
                   </div>
 
@@ -1521,7 +1839,6 @@ export function AdminProductModal({
                     >
                       {isGeneratingVariants ? 'Generando...' : 'Generar variantes marketplace'}
                     </button>
-                    <span>Combinaciones: {marketplaceVariants.length}</span>
                   </div>
                   {fieldErrors.marketplaceVariants ? (
                     <p className="admin-field-error-text admin-product-block-error">
@@ -1529,81 +1846,24 @@ export function AdminProductModal({
                     </p>
                   ) : null}
 
-                  {selectedColorIds.length ? (
-                    <section className="admin-marketplace-color-images-next">
-                      <div className="admin-marketplace-color-images-head-next">
-                        <div>
-                          <h5>Imagenes por color marketplace</h5>
-                          <p>Estas imagenes se usaran en la vista del marketplace al elegir cada color.</p>
-                        </div>
-                        <span>{selectedColorIds.length} color(es)</span>
+                  {marketplaceVariants.length ? (
+                    <div className="admin-combos-summary">
+                      <div className="admin-combos-summary-text">
+                        <strong>{marketplaceVariants.length} combinaciones</strong>
+                        <span>{selectedColorIds.length} colores × {selectedSizeIds.length} tallas</span>
                       </div>
-
-                      <div className="admin-table-wrap">
-                        <table className="admin-table admin-table-sm admin-marketplace-color-image-table-next">
-                          <thead>
-                            <tr>
-                              <th>#</th>
-                              <th>Color</th>
-                              <th>Imagen</th>
-                              <th>Preview</th>
-                              <th>Acciones</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {selectedColorIds.map((colorId, index) => {
-                              const preview = getMarketplaceColorImagePreview(colorId);
-                              return (
-                                <tr key={colorId}>
-                                  <td>{index + 1}</td>
-                                  <td>{getColorName(colorId)}</td>
-                                  <td>
-                                    <label className="admin-file-picker-next">
-                                      <span>Seleccionar imagen</span>
-                                      <input
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={(event) => onMarketplaceColorImageFileChange(colorId, event)}
-                                      />
-                                    </label>
-                                    <small className="admin-file-picker-name-next">
-                                      {getMarketplaceColorImageLabel(colorId)}
-                                    </small>
-                                  </td>
-                                  <td>
-                                    {preview ? (
-                                      <img
-                                        src={preview}
-                                        alt={`Preview marketplace color ${getColorName(colorId)}`}
-                                        className="admin-product-variant-preview"
-                                      />
-                                    ) : (
-                                      '-'
-                                    )}
-                                  </td>
-                                  <td>
-                                    {preview ? (
-                                      <button
-                                        type="button"
-                                        className="admin-ghost-btn"
-                                        onClick={() => removeMarketplaceColorImage(colorId)}
-                                      >
-                                        Quitar
-                                      </button>
-                                    ) : (
-                                      '-'
-                                    )}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </section>
+                      <button
+                        type="button"
+                        className="admin-chip-mini"
+                        aria-expanded={showCombosDetail}
+                        onClick={() => setShowCombosDetail((value) => !value)}
+                      >
+                        {showCombosDetail ? 'Ocultar detalle' : 'Ver detalle'}
+                      </button>
+                    </div>
                   ) : null}
 
-                  {marketplaceVariants.length ? (
+                  {showCombosDetail && marketplaceVariants.length ? (
                     <div className="admin-table-wrap">
                       <table className="admin-table admin-table-sm">
                         <thead>
@@ -1635,39 +1895,38 @@ export function AdminProductModal({
               {!isSizeOnlyMode ? (
                 <section className="admin-product-select-box">
                   <h5>Colores</h5>
-                  <div className="admin-product-check-grid">
-                    {availableColorRows.map((color) => (
-                      <label key={color.id} className="admin-checkbox">
-                        <input
-                          type="checkbox"
-                          checked={color.checked}
-                          onChange={(event) => toggleColor(color.id, event.target.checked)}
-                        />
-                        {color.name}
-                      </label>
-                    ))}
-                  </div>
+                  {renderOptionChips('color')}
                 </section>
               ) : null}
 
               <section className="admin-product-select-box">
                 <h5>Tallas</h5>
-                <div className="admin-product-check-grid">
-                  {availableSizeRows.map((size) => (
-                    <label key={size.id} className="admin-checkbox">
-                      <input
-                        type="checkbox"
-                        checked={size.checked}
-                        onChange={(event) => toggleSize(size.id, event.target.checked)}
-                      />
-                      {size.name}
-                    </label>
-                  ))}
-                </div>
+                {renderOptionChips('size')}
               </section>
             </div>
           )}
 
+          {!isSimpleMode ? (
+            <div className="admin-product-inline-actions">
+              <button
+                ref={generateVariantsButtonRef}
+                type="button"
+                className="admin-primary-btn"
+                onClick={generateVariants}
+                disabled={isGeneratingVariants || isSubmitting}
+              >
+                {isGeneratingVariants ? 'Generando...' : isSizeOnlyMode ? 'Generar por talla' : 'Generar variantes'}
+              </button>
+            </div>
+          ) : null}
+          {fieldErrors.variants ? (
+            <p className="admin-field-error-text admin-product-block-error">
+              {fieldErrors.variants}
+            </p>
+          ) : null}
+          </div>
+
+          <div className="admin-wizard-panel" hidden={step !== 2}>
           <section className="admin-product-select-box">
             <h5>Imagenes del producto</h5>
             <input type="file" accept="image/*" multiple onChange={onProductImagesChange} />
@@ -1693,23 +1952,25 @@ export function AdminProductModal({
             ) : null}
           </section>
 
-          {!isSimpleMode ? (
-            <div className="admin-product-inline-actions">
-              <button
-                ref={generateVariantsButtonRef}
-                type="button"
-                className="admin-primary-btn"
-                onClick={generateVariants}
-                disabled={isGeneratingVariants || isSubmitting}
-              >
-                {isGeneratingVariants ? 'Generando...' : isSizeOnlyMode ? 'Generar por talla' : 'Generar variantes'}
-              </button>
-            </div>
-          ) : null}
-          {fieldErrors.variants ? (
-            <p className="admin-field-error-text admin-product-block-error">
-              {fieldErrors.variants}
-            </p>
+          {isSimpleMode && marketplaceVariantsEnabled && selectedColorIds.length ? (
+            <section className="admin-marketplace-color-images-next">
+              <div className="admin-marketplace-color-images-head-next">
+                <div>
+                  <h5>Imagenes por color marketplace</h5>
+                  <p>Estas imagenes se usaran en la vista del marketplace al elegir cada color.</p>
+                </div>
+                <span>{selectedColorIds.length} color(es)</span>
+              </div>
+
+              {renderImagePickerCards(selectedColorIds.map((colorId) => ({
+                key: colorId,
+                label: getColorName(colorId),
+                hex: colors.find((color) => color.id === colorId)?.hex || null,
+                preview: getMarketplaceColorImagePreview(colorId),
+                onFile: (event) => onMarketplaceColorImageFileChange(colorId, event),
+                onRemove: () => removeMarketplaceColorImage(colorId),
+              })))}
+            </section>
           ) : null}
 
           {!isSimpleMode && (isSizeOnlyMode ? selectedSizeIds.length : selectedColorIds.length) ? (
@@ -1730,112 +1991,24 @@ export function AdminProductModal({
                 </span>
               </div>
 
-              <div className="admin-table-wrap">
-                <table className="admin-table admin-table-sm admin-marketplace-color-image-table-next">
-                  <thead>
-                    <tr>
-                      <th>#</th>
-                      <th>{isSizeOnlyMode ? 'Talla' : 'Color'}</th>
-                      <th>Imagen</th>
-                      <th>Preview</th>
-                      <th>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(isSizeOnlyMode ? selectedSizeIds : selectedColorIds).map((groupId, index) => {
-                      const groupType = isSizeOnlyMode ? 'size' : 'color';
-                      const preview = getVariantGroupPreview(groupType, groupId);
-                      const label = isSizeOnlyMode ? getSizeName(groupId) : getColorName(groupId);
-                      return (
-                        <tr key={`${groupType}-${groupId}`}>
-                          <td>{index + 1}</td>
-                          <td>{label}</td>
-                          <td>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={(event) => onVariantGroupImageFileChange(groupType, groupId, event)}
-                            />
-                          </td>
-                          <td>
-                            {preview ? (
-                              <img
-                                src={preview}
-                                alt={`Preview ${label}`}
-                                className="admin-product-variant-preview"
-                              />
-                            ) : (
-                              '-'
-                            )}
-                          </td>
-                          <td>
-                            {preview ? (
-                              <button
-                                type="button"
-                                className="admin-ghost-btn"
-                                onClick={() => removeVariantGroupImage(groupType, groupId)}
-                              >
-                                Quitar
-                              </button>
-                            ) : (
-                              '-'
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              {renderImagePickerCards((isSizeOnlyMode ? selectedSizeIds : selectedColorIds).map((groupId) => {
+                const groupType: 'color' | 'size' = isSizeOnlyMode ? 'size' : 'color';
+                return {
+                  key: `${groupType}-${groupId}`,
+                  label: isSizeOnlyMode ? getSizeName(groupId) : getColorName(groupId),
+                  hex: isSizeOnlyMode ? null : (colors.find((color) => color.id === groupId)?.hex || null),
+                  preview: getVariantGroupPreview(groupType, groupId),
+                  onFile: (event) => onVariantGroupImageFileChange(groupType, groupId, event),
+                  onRemove: () => removeVariantGroupImage(groupType, groupId),
+                };
+              }))}
             </section>
           ) : null}
 
-          {variants.length ? (
-            <div className="admin-table-wrap">
-              <table className="admin-table admin-table-sm">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Color</th>
-                    <th>Talla</th>
-                    <th>Precio</th>
-                    <th>Activo</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {variants.map((variant, index) => (
-                    <tr key={`${variant.colorId}-${variant.sizeId}-${index}`}>
-                      <td>{index + 1}</td>
-                      <td>{isSimpleMode || isSizeOnlyMode ? '-' : getColorName(variant.colorId)}</td>
-                      <td>{isSimpleMode ? '-' : getSizeName(variant.sizeId)}</td>
-                      <td>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={toNumber(variant.price)}
-                          data-variant-price-index={index}
-                          className={fieldErrors.variantPrices && toNumber(variant.price) <= 0 ? 'admin-field-invalid' : undefined}
-                          aria-invalid={Boolean(fieldErrors.variantPrices && toNumber(variant.price) <= 0)}
-                          onChange={(event) => {
-                            onVariantPriceChange(index, event.target.value);
-                            clearFieldError('variantPrices');
-                          }}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="checkbox"
-                          checked={variant.isActive !== false}
-                          onChange={(event) => onVariantActiveChange(index, event.target.checked)}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : null}
+          </div>
+
+          <div className="admin-wizard-panel" hidden={step !== 3}>
+          {renderPriceEditor()}
           {fieldErrors.variantPrices ? (
             <p className="admin-field-error-text admin-product-block-error">
               {fieldErrors.variantPrices}
@@ -1853,20 +2026,46 @@ export function AdminProductModal({
             </label>
           ) : null}
 
-          <div className="admin-modal-actions">
+          </div>
+
+          <div className="admin-modal-actions admin-product-wizard-nav">
             <button type="button" className="admin-ghost-btn" onClick={onClose} disabled={isSubmitting}>
               {cancelLabel}
             </button>
-            <button type="submit" className="admin-primary-btn admin-submit-btn-next" disabled={isSubmitting}>
-              {isSubmitting ? (
-                <>
-                  <LoadingSpinnerIcon />
-                  {isEditing ? 'Actualizando...' : 'Creando...'}
-                </>
-              ) : (
-                isEditing ? 'Actualizar' : 'Crear producto'
-              )}
-            </button>
+            <span className="admin-product-wizard-nav-spacer" aria-hidden="true" />
+            <span className="admin-product-wizard-nav-count">Paso {step + 1} de {PRODUCT_WIZARD_STEPS.length}</span>
+            {step > 0 ? (
+              <button
+                type="button"
+                className="admin-ghost-btn"
+                onClick={() => goStep(step - 1)}
+                disabled={isSubmitting}
+              >
+                ← Atras
+              </button>
+            ) : null}
+            {step < PRODUCT_WIZARD_STEPS.length - 1 ? (
+              <button
+                key="wizard-next"
+                type="button"
+                className="admin-primary-btn admin-submit-btn-next"
+                onClick={() => goStep(step + 1)}
+                disabled={isSubmitting}
+              >
+                Siguiente →
+              </button>
+            ) : (
+              <button key="wizard-submit" type="submit" className="admin-primary-btn admin-submit-btn-next" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <LoadingSpinnerIcon />
+                    {isEditing ? 'Actualizando...' : 'Creando...'}
+                  </>
+                ) : (
+                  isEditing ? 'Actualizar' : 'Crear producto'
+                )}
+              </button>
+            )}
           </div>
         </form>
       </div>

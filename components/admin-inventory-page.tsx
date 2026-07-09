@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
+import { BarcodeScanButton } from '@/components/barcode-scan-button';
 import { useAdminUi } from '@/components/admin-ui-provider';
 import {
   Inventory,
@@ -51,6 +52,15 @@ function toInventoryStockScope(value: string | null): InventoryStockScope {
   return 'ALL';
 }
 
+// Saltos de cantidad frecuentes en mayorista (media docena, docena, 2 docenas).
+const QUICK_QTY_PRESETS = [6, 12, 24];
+
+function getAvailabilityClass(available: number): string {
+  if (available <= 0) return 'is-out';
+  if (available <= 10) return 'is-low';
+  return 'is-ok';
+}
+
 function toPositiveInt(value: string): number | null {
   const numeric = Number(value);
   if (!Number.isInteger(numeric) || numeric < 1) {
@@ -82,6 +92,125 @@ function getInventoryVariantDisplay(item: Inventory): string {
   return parts.length ? parts.join(' / ') : 'Unico';
 }
 
+interface InventoryQuickMoveProps {
+  item: Inventory;
+  qty: number;
+  busy: boolean;
+  reconciling: boolean;
+  hasMismatch: boolean;
+  lastAction?: string;
+  onQtyChange: (value: number) => void;
+  onMove: (type: 'IN' | 'OUT') => void;
+  onAdjust: () => void;
+  onNav: (path: string) => void;
+  onReconcile: () => void;
+}
+
+/**
+ * Acciones rapidas de una fila en movil: stepper de cantidad + Ingreso/Salida
+ * directos (sin drawer) para registrar movimientos de un toque. El resto
+ * (ajuste, movimientos, trazabilidad, reconciliar) queda en el menu "Mas".
+ */
+function InventoryQuickMove({
+  item,
+  qty,
+  busy,
+  reconciling,
+  hasMismatch,
+  lastAction,
+  onQtyChange,
+  onMove,
+  onAdjust,
+  onNav,
+  onReconcile,
+}: InventoryQuickMoveProps) {
+  return (
+    <div className="inventory-quick-move-next">
+      <div className="inventory-quick-move-top-next">
+        <div className="inventory-qty-stepper-next">
+          <button
+            type="button"
+            aria-label="Menos"
+            disabled={busy || qty <= 1}
+            onClick={() => onQtyChange(qty - 1)}
+          >
+            −
+          </button>
+          <input
+            type="number"
+            min={1}
+            inputMode="numeric"
+            value={qty}
+            aria-label="Cantidad"
+            onChange={(event) => onQtyChange(Math.max(1, Number(event.target.value) || 1))}
+          />
+          <button
+            type="button"
+            aria-label="Mas"
+            disabled={busy}
+            onClick={() => onQtyChange(qty + 1)}
+          >
+            +
+          </button>
+        </div>
+        <details className="inventory-actions-menu-next inventory-more-next">
+          <summary className="inventory-actions-trigger-next" aria-label="Mas acciones">
+            Mas
+          </summary>
+          <div className="inventory-actions-list-next">
+            <button type="button" onClick={onAdjust}>Ajuste manual</button>
+            <button type="button" onClick={() => onNav(`/admin/inventory/movements?inventoryId=${item.id}`)}>
+              Ver movimientos
+            </button>
+            <button type="button" onClick={() => onNav(`/admin/inventory/traceability?inventoryId=${item.id}`)}>
+              Ver trazabilidad
+            </button>
+            {hasMismatch ? (
+              <button type="button" disabled={reconciling} onClick={onReconcile}>
+                Reconciliar reservado
+              </button>
+            ) : null}
+          </div>
+        </details>
+      </div>
+      <div className="inventory-qty-presets-next">
+        {QUICK_QTY_PRESETS.map((preset) => (
+          <button
+            type="button"
+            key={preset}
+            className={`inventory-qty-preset-next${qty === preset ? ' is-active' : ''}`}
+            disabled={busy}
+            onClick={() => onQtyChange(preset)}
+          >
+            {preset}
+          </button>
+        ))}
+      </div>
+      <div className="inventory-quick-move-btns-next">
+        <button
+          type="button"
+          className="inventory-move-btn-next income"
+          disabled={busy}
+          onClick={() => onMove('IN')}
+        >
+          {busy ? '…' : `Ingreso +${qty}`}
+        </button>
+        <button
+          type="button"
+          className="inventory-move-btn-next outcome"
+          disabled={busy}
+          onClick={() => onMove('OUT')}
+        >
+          {busy ? '…' : `Salida −${qty}`}
+        </button>
+      </div>
+      {lastAction ? (
+        <p className="inventory-last-action-next">Última: {lastAction}</p>
+      ) : null}
+    </div>
+  );
+}
+
 export function AdminInventoryPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -108,6 +237,11 @@ export function AdminInventoryPage() {
   const [stockScope, setStockScope] = useState<InventoryStockScope>('ALL');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
+  const [quickQty, setQuickQty] = useState<Record<number, number>>({});
+  const [quickBusyId, setQuickBusyId] = useState<number | null>(null);
+  const [lastQuickAction, setLastQuickAction] = useState<Record<number, string>>({});
+  const [focusedInventoryId, setFocusedInventoryId] = useState<number | null>(null);
+
   const [movementDrawerOpen, setMovementDrawerOpen] = useState(false);
   const [selectedInventory, setSelectedInventory] = useState<Inventory | null>(null);
   const [movementStoreId, setMovementStoreId] = useState<number | null>(null);
@@ -115,6 +249,7 @@ export function AdminInventoryPage() {
   const [movementVariantSearch, setMovementVariantSearch] = useState('');
   const [movementQuantity, setMovementQuantity] = useState(0);
   const [movementType, setMovementType] = useState<InventoryMovementType>('IN');
+  const [adjustmentCount, setAdjustmentCount] = useState(0);
   const [movementNote, setMovementNote] = useState('');
   const [movementErrorMessage, setMovementErrorMessage] = useState('');
 
@@ -266,7 +401,17 @@ export function AdminInventoryPage() {
     });
   }, [filteredInventories]);
 
-  const canSaveMovement = Boolean(movementStoreId && movementVariantId && movementQuantity > 0 && !creatingMovement);
+  // Ajuste por conteo real: el usuario fija el stock contado y calculamos el
+  // delta. Solo aplica cuando hay una fila seleccionada (conocemos stock actual).
+  const isCountAdjustment = movementType === 'ADJUSTMENT' && selectedInventory !== null;
+  const adjustmentDelta = adjustmentCount - Number(selectedInventory?.stock ?? 0);
+
+  const canSaveMovement = Boolean(
+    movementStoreId
+      && movementVariantId
+      && !creatingMovement
+      && (isCountAdjustment ? adjustmentDelta !== 0 : movementQuantity > 0),
+  );
 
   async function loadInventories() {
     setIsLoadingInventory(true);
@@ -371,6 +516,17 @@ export function AdminInventoryPage() {
     loadProductCatalog();
   }, []);
 
+  // Tras un escaneo con match unico: scroll a la fila y quita el resaltado.
+  useEffect(() => {
+    if (focusedInventoryId === null) {
+      return;
+    }
+    const row = document.getElementById(`inv-row-${focusedInventoryId}`);
+    row?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const timer = setTimeout(() => setFocusedInventoryId(null), 3200);
+    return () => clearTimeout(timer);
+  }, [focusedInventoryId]);
+
   function openMovementDrawer(item: Inventory, type: InventoryMovementType) {
     setSelectedInventory(item);
     setMovementStoreId(item.store.id);
@@ -378,6 +534,7 @@ export function AdminInventoryPage() {
     setMovementVariantSearch('');
     setMovementType(type);
     setMovementQuantity(0);
+    setAdjustmentCount(Number(item.stock || 0));
     setMovementNote('');
     setMovementErrorMessage('');
     setMovementDrawerOpen(true);
@@ -418,9 +575,10 @@ export function AdminInventoryPage() {
         body: JSON.stringify({
           storeId: movementStoreId,
           variantId: movementVariantId,
-          quantity: movementQuantity,
+          quantity: isCountAdjustment ? adjustmentDelta : movementQuantity,
           type: movementType,
-          note: movementNote.trim() || undefined,
+          note: movementNote.trim()
+            || (isCountAdjustment ? `Ajuste por conteo real a ${adjustmentCount}` : undefined),
         }),
       });
       const payload = await response.json().catch(() => null);
@@ -437,6 +595,115 @@ export function AdminInventoryPage() {
       setMovementErrorMessage('Error al registrar movimiento.');
     } finally {
       setCreatingMovement(false);
+    }
+  }
+
+  async function postQuickMovement(item: Inventory, type: 'IN' | 'OUT', quantity: number): Promise<boolean> {
+    const response = await fetch('/api/admin/inventory/movements', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        storeId: item.store.id,
+        variantId: item.variant.id,
+        quantity,
+        type,
+        note: type === 'IN' ? 'Ingreso rapido' : 'Salida rapida',
+      }),
+    }).catch(() => null);
+    const payload = response ? await response.json().catch(() => null) : null;
+    if (!response || !response.ok) {
+      showAlert(String((payload as { message?: unknown } | null)?.message || 'Error al registrar movimiento.'), 'error');
+      return false;
+    }
+    return true;
+  }
+
+  // Patch local del stock: evita recargar los ~300 items tras cada movimiento.
+  // Los movimientos IN/OUT solo afectan stock (no reservas), asi que basta con
+  // ajustar stock/availableStock de la fila tocada.
+  function applyStockDelta(inventoryId: number, delta: number) {
+    setInventoryData((prev) => prev.map((row) => {
+      if (row.id !== inventoryId) {
+        return row;
+      }
+      const stock = Math.max(0, Number(row.stock || 0) + delta);
+      const reserved = Number(row.reservedStock || 0);
+      return { ...row, stock, availableStock: stock - reserved };
+    }));
+  }
+
+  async function submitQuickMovement(item: Inventory, type: 'IN' | 'OUT') {
+    if (quickBusyId !== null) {
+      return;
+    }
+    const quantity = Math.max(1, quickQty[item.id] || 1);
+
+    // Control: avisar si la Salida deja el stock negativo o toca lo reservado.
+    if (type === 'OUT') {
+      const stock = Number(item.stock || 0);
+      const reserved = Number(item.reservedStock || 0);
+      const resultStock = stock - quantity;
+      if (resultStock < 0) {
+        const proceed = await confirm({
+          title: 'Stock insuficiente',
+          message: `La salida de ${quantity} deja el stock en ${resultStock} (hay ${stock}). ¿Registrar de todas formas?`,
+          acceptText: 'Registrar',
+          cancelText: 'Cancelar',
+        });
+        if (!proceed) {
+          return;
+        }
+      } else if (resultStock < reserved) {
+        const proceed = await confirm({
+          title: 'Toca stock reservado',
+          message: `Quedarian ${resultStock} y hay ${reserved} reservada(s) para pedidos. La salida invade el stock reservado. ¿Continuar?`,
+          acceptText: 'Continuar',
+          cancelText: 'Cancelar',
+        });
+        if (!proceed) {
+          return;
+        }
+      }
+    }
+
+    setQuickBusyId(item.id);
+    try {
+      const ok = await postQuickMovement(item, type, quantity);
+      if (!ok) {
+        return;
+      }
+      const delta = type === 'IN' ? quantity : -quantity;
+      applyStockDelta(item.id, delta);
+      const verb = type === 'IN' ? 'Ingreso' : 'Salida';
+      const inverse: 'IN' | 'OUT' = type === 'IN' ? 'OUT' : 'IN';
+      setLastQuickAction((prev) => ({
+        ...prev,
+        [item.id]: `${verb} ${type === 'IN' ? '+' : '−'}${quantity}`,
+      }));
+      showAlert(
+        `${verb} de ${quantity} en ${item.store.name}.`,
+        'success',
+        5000,
+        {
+          label: 'Deshacer',
+          onClick: () => {
+            void (async () => {
+              const undone = await postQuickMovement(item, inverse, quantity);
+              if (undone) {
+                applyStockDelta(item.id, -delta);
+                setLastQuickAction((prev) => {
+                  const next = { ...prev };
+                  delete next[item.id];
+                  return next;
+                });
+                showAlert('Movimiento revertido.', 'info');
+              }
+            })();
+          },
+        },
+      );
+    } finally {
+      setQuickBusyId(null);
     }
   }
 
@@ -534,8 +801,70 @@ export function AdminInventoryPage() {
     loadReservations();
   }
 
+  function handleScan(code: string) {
+    const value = String(code || '').trim();
+    if (!value) {
+      return;
+    }
+    setSearchParam(value);
+    const needle = value.toLowerCase();
+    const matches = inventoryData.filter((item) => (
+      item.variant.sku.toLowerCase().includes(needle)
+      || item.variant.product.name.toLowerCase().includes(needle)
+      || item.store.name.toLowerCase().includes(needle)
+      || item.variant.size.name.toLowerCase().includes(needle)
+      || item.variant.color.name.toLowerCase().includes(needle)
+    ));
+
+    if (matches.length === 1) {
+      // Match unico: enfoca la fila (scroll + resaltado) lista para operar.
+      setFocusedInventoryId(matches[0].id);
+      showAlert(`1 resultado: ${matches[0].variant.product.name}`, 'success', 2600);
+    } else if (matches.length === 0) {
+      showAlert(`Sin resultados para: ${value}`, 'warning', 2600);
+    } else {
+      showAlert(`${matches.length} resultados para: ${value}`, 'info', 2200);
+    }
+  }
+
   return (
     <section className="admin-dashboard-grid">
+      <div className="inventory-mobile-toolbar-next">
+        <input
+          type="text"
+          className="inventory-mobile-search-next"
+          value={searchParam}
+          onChange={(event) => setSearchParam(event.target.value)}
+          placeholder="SKU, producto, tienda…"
+          aria-label="Buscar inventario"
+        />
+        {searchParam ? (
+          <button
+            type="button"
+            className="inventory-mobile-clear-next"
+            aria-label="Limpiar busqueda"
+            onClick={() => setSearchParam('')}
+          >
+            ×
+          </button>
+        ) : null}
+        <BarcodeScanButton onScan={handleScan} className="inventory-mobile-tool-btn-next" label="Escanear" />
+        <button
+          type="button"
+          className="inventory-mobile-tool-btn-next primary"
+          onClick={() => openManualMovementDrawer('IN')}
+        >
+          + Nuevo
+        </button>
+        <button
+          type="button"
+          className="inventory-mobile-tool-btn-next"
+          onClick={() => setShowAdvancedFilters((value) => !value)}
+        >
+          Filtros
+        </button>
+      </div>
+
       <article className="admin-card inventory-header-card">
         <div className="inventory-header-copy-next">
           <p className="section-kicker">Administracion de inventario</p>
@@ -563,7 +892,7 @@ export function AdminInventoryPage() {
         </div>
       </article>
 
-      <article className="admin-card admin-filters-card-next inventory-filters-card">
+      <article className={`admin-card admin-filters-card-next inventory-filters-card${showAdvancedFilters ? ' is-open' : ''}`}>
         <fieldset className="admin-filters-fieldset-next">
           <legend className="admin-filters-legend-next">Filtros</legend>
           <div className="inventory-filter-top">
@@ -732,7 +1061,11 @@ export function AdminInventoryPage() {
                 </tr>
               ) : (
                 filteredInventories.map((item, index) => (
-                  <tr key={item.id}>
+                  <tr
+                    key={item.id}
+                    id={`inv-row-${item.id}`}
+                    className={focusedInventoryId === item.id ? 'inventory-row-scan-focus-next' : undefined}
+                  >
                     <td data-label="#">{index + 1}</td>
                     <td data-label="Producto">
                       <div className="inventory-mobile-product-next">
@@ -742,7 +1075,11 @@ export function AdminInventoryPage() {
                     </td>
                     <td data-label="SKU" className="inventory-sku-cell-next">{item.variant.sku}</td>
                     <td data-label="Tienda">{item.store.name}</td>
-                    <td data-label="Disponible">{computeAvailableStock(item)}</td>
+                    <td data-label="Disponible">
+                      <span className={`inventory-avail-next ${getAvailabilityClass(computeAvailableStock(item))}`}>
+                        {computeAvailableStock(item)}
+                      </span>
+                    </td>
                     <td data-label="Reservado">
                       <div>
                         <strong>{item.reservedStock}</strong>
@@ -826,6 +1163,19 @@ export function AdminInventoryPage() {
                           </div>
                         </details>
                       </div>
+                      <InventoryQuickMove
+                        item={item}
+                        qty={Math.max(1, quickQty[item.id] || 1)}
+                        busy={quickBusyId === item.id}
+                        reconciling={reconcilingReserved}
+                        hasMismatch={hasReservedMismatch(item)}
+                        lastAction={lastQuickAction[item.id]}
+                        onQtyChange={(value) => setQuickQty((prev) => ({ ...prev, [item.id]: value }))}
+                        onMove={(type) => submitQuickMovement(item, type)}
+                        onAdjust={() => openMovementDrawer(item, 'ADJUSTMENT')}
+                        onNav={(path) => router.push(path)}
+                        onReconcile={() => reconcileReservedStock(item)}
+                      />
                       {hasReservedMismatch(item) ? (
                         <div className="inventory-row-warning-next">
                           Descuadre
@@ -872,7 +1222,12 @@ export function AdminInventoryPage() {
                   value={movementType}
                   options={INVENTORY_MOVEMENT_TYPE_OPTIONS}
                   ariaLabel="Seleccionar tipo de movimiento"
-                  onChange={setMovementType}
+                  onChange={(nextType) => {
+                    setMovementType(nextType as InventoryMovementType);
+                    if (nextType === 'ADJUSTMENT' && selectedInventory) {
+                      setAdjustmentCount(Number(selectedInventory.stock || 0));
+                    }
+                  }}
                 />
               </div>
 
@@ -922,15 +1277,37 @@ export function AdminInventoryPage() {
                 </div>
               ) : null}
 
-              <label className="inventory-field">
-                <span>Cantidad</span>
-                <input
-                  type="number"
-                  min={1}
-                  value={movementQuantity}
-                  onChange={(event) => setMovementQuantity(Math.max(0, Number(event.target.value) || 0))}
-                />
-              </label>
+              {isCountAdjustment ? (
+                <>
+                  <label className="inventory-field">
+                    <span>Conteo real (stock contado)</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={adjustmentCount}
+                      onChange={(event) => setAdjustmentCount(Math.max(0, Number(event.target.value) || 0))}
+                    />
+                  </label>
+                  <div className="inventory-adjust-delta-next">
+                    Stock actual: {Number(selectedInventory?.stock ?? 0)}
+                    {' → '}
+                    ajuste{' '}
+                    <strong className={adjustmentDelta === 0 ? '' : adjustmentDelta > 0 ? 'is-pos' : 'is-neg'}>
+                      {adjustmentDelta > 0 ? `+${adjustmentDelta}` : adjustmentDelta}
+                    </strong>
+                  </div>
+                </>
+              ) : (
+                <label className="inventory-field">
+                  <span>Cantidad</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={movementQuantity}
+                    onChange={(event) => setMovementQuantity(Math.max(0, Number(event.target.value) || 0))}
+                  />
+                </label>
+              )}
 
               <label className="inventory-field">
                 <span>Nota</span>

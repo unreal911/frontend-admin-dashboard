@@ -238,7 +238,7 @@ export function AdminCategoryPage() {
         </fieldset>
 
         <div className="admin-table-wrap">
-          <table className="admin-table mobile-card-table">
+          <table className="admin-table mobile-card-table list-cards-next">
             <thead>
               <tr>
                 <th>#</th>
@@ -264,7 +264,7 @@ export function AdminCategoryPage() {
                 filtered.map((category, index) => (
                   <tr key={category.id}>
                     <td data-label="#">{index + 1}</td>
-                    <td data-label="Nombre">{category.name}</td>
+                    <td data-label="Nombre" className="list-card-title-next">{category.name}</td>
                     <td data-label="Estado">
                       <span className={`admin-pill ${category.isActive ? 'success' : 'error'}`}>
                         {category.isActive ? 'Activo' : 'Inactivo'}

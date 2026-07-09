@@ -388,7 +388,7 @@ export function AdminProductPage() {
         </fieldset>
 
         <div className="admin-table-wrap">
-          <table className="admin-table mobile-card-table">
+          <table className="admin-table mobile-card-table list-cards-next">
             <thead>
               <tr>
                 <th>#</th>
@@ -417,7 +417,7 @@ export function AdminProductPage() {
                 filtered.map((item, index) => (
                   <tr key={item.id}>
                     <td data-label="#">{index + 1}</td>
-                    <td data-label="Nombre">{item.name}</td>
+                    <td data-label="Nombre" className="list-card-title-next">{item.name}</td>
                     <td data-label="Categoria">{resolveCategoryName(item)}</td>
                     <td data-label="Variantes">{toNumber(item.variantCount) || 0}</td>
                     <td data-label="Imagenes">{toNumber(item.imageCount) || 0}</td>

@@ -356,7 +356,7 @@ export function AdminStorePage() {
         </fieldset>
 
         <div className="admin-table-wrap">
-          <table className="admin-table mobile-card-table">
+          <table className="admin-table mobile-card-table list-cards-next">
             <thead>
               <tr>
                 <th>#</th>
@@ -385,7 +385,7 @@ export function AdminStorePage() {
                 stores.map((store, index) => (
                   <tr key={store.id}>
                     <td data-label="#">{index + 1}</td>
-                    <td data-label="Nombre">{store.name}</td>
+                    <td data-label="Nombre" className="list-card-title-next">{store.name}</td>
                     <td data-label="Codigo">{store.code}</td>
                     <td data-label="Tipo">{store.type === 'WAREHOUSE' ? 'Almacen' : 'Tienda'}</td>
                     <td data-label="Direccion">{store.address || '-'}</td>

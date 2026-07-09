@@ -236,7 +236,7 @@ export function AdminSizePage() {
         </fieldset>
 
         <div className="admin-table-wrap">
-          <table className="admin-table mobile-card-table">
+          <table className="admin-table mobile-card-table list-cards-next">
             <thead>
               <tr>
                 <th>#</th>
@@ -262,7 +262,7 @@ export function AdminSizePage() {
                 filtered.map((size, index) => (
                   <tr key={size.id}>
                     <td data-label="#">{index + 1}</td>
-                    <td data-label="Nombre">{size.name}</td>
+                    <td data-label="Nombre" className="list-card-title-next">{size.name}</td>
                     <td data-label="Estado">
                       <span className={`admin-pill ${size.isActive ? 'success' : 'error'}`}>
                         {size.isActive ? 'Activo' : 'Inactivo'}

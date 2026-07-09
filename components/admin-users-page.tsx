@@ -453,7 +453,7 @@ export function AdminUsersPage() {
         </fieldset>
 
         <div className="admin-table-wrap">
-          <table className="admin-table mobile-card-table">
+          <table className="admin-table mobile-card-table list-cards-next">
             <thead>
               <tr>
                 <th>#</th>
@@ -477,7 +477,7 @@ export function AdminUsersPage() {
                 filteredUsers.map((user, index) => (
                   <tr key={user.id}>
                     <td data-label="#">{index + 1}</td>
-                    <td data-label="Nombre">{user.firstName} {user.lastName}</td>
+                    <td data-label="Nombre" className="list-card-title-next">{user.firstName} {user.lastName}</td>
                     <td data-label="Correo">{user.email}</td>
                     <td data-label="Rol">
                       <span className="admin-status-badge info">{user.role.name}</span>
