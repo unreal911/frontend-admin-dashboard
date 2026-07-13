@@ -9,6 +9,15 @@ import {
   useRef,
   useState,
 } from 'react';
+import {
+  extractPublicIdFromUrl,
+  fileToBase64,
+  parseVariantMode,
+  toNumber,
+  toPositiveNumber,
+  uniqueNumbers,
+} from '@/lib/product-form-utils';
+import { ProductDescriptionEditor } from '@/components/product-description-editor';
 
 export type ProductVariantMode = 'MATRIX' | 'SIMPLE' | 'SIZE_ONLY';
 
@@ -47,6 +56,7 @@ export interface AdminProductDetail {
   name: string;
   description?: string;
   categoryId: number;
+  afectacionIgv?: string;
   isActive: boolean;
   variantMode?: ProductVariantMode;
   marketplaceVariantColorIds?: number[];
@@ -121,41 +131,6 @@ interface GeneratedVariantsResponse {
   message?: string;
 }
 
-function uniqueNumbers(values: number[]): number[] {
-  return [...new Set(values.filter((value) => Number.isInteger(value) && value > 0))];
-}
-
-function parseVariantMode(value: unknown): ProductVariantMode {
-  const normalized = String(value || '').trim().toUpperCase();
-  if (normalized === 'SIMPLE' || normalized === 'SIZE_ONLY') {
-    return normalized;
-  }
-  return 'MATRIX';
-}
-
-function toNumber(value: unknown): number {
-  const normalized = Number(value);
-  return Number.isFinite(normalized) ? normalized : 0;
-}
-
-function toPositiveNumber(value: unknown): number {
-  const normalized = Number(value);
-  return Number.isFinite(normalized) && normalized > 0 ? normalized : 0;
-}
-
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = String(reader.result || '');
-      const base64 = result.includes(',') ? result.split(',')[1] : result;
-      resolve(base64);
-    };
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
-}
-
 function LoadingSpinnerIcon() {
   return (
     <svg className="admin-loading-spinner" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -163,42 +138,6 @@ function LoadingSpinnerIcon() {
       <path d="M21 12a9 9 0 0 0-9-9" />
     </svg>
   );
-}
-
-function extractPublicIdFromUrl(url: string): string {
-  try {
-    const parsed = new URL(url);
-    const pathParts = parsed.pathname.split('/').filter(Boolean);
-    const filenameWithExt = pathParts[pathParts.length - 1] || '';
-    const folder = pathParts[pathParts.length - 2] || '';
-    const filename = filenameWithExt.includes('.')
-      ? filenameWithExt.slice(0, filenameWithExt.lastIndexOf('.'))
-      : filenameWithExt;
-    if (!folder || !filename) {
-      return '';
-    }
-    return `${folder}/${filename}`;
-  } catch {
-    return '';
-  }
-}
-
-function looksLikeHtml(value: string): boolean {
-  return /<\/?[a-z][\s\S]*>/i.test(value);
-}
-
-function sanitizeDescriptionHtml(html: string): string {
-  const container = document.createElement('div');
-  container.innerHTML = html;
-  container.querySelectorAll('script,style').forEach((node) => node.remove());
-  container.querySelectorAll('*').forEach((element) => {
-    Array.from(element.attributes).forEach((attribute) => {
-      if (attribute.name.toLowerCase().startsWith('on')) {
-        element.removeAttribute(attribute.name);
-      }
-    });
-  });
-  return container.innerHTML;
 }
 
 export function AdminProductModal({
@@ -218,6 +157,7 @@ export function AdminProductModal({
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState<number | null>(null);
+  const [afectacionIgv, setAfectacionIgv] = useState('10');
   const [isActive, setIsActive] = useState(true);
   const [variantMode, setVariantMode] = useState<ProductVariantMode>('MATRIX');
   const [selectedColorIds, setSelectedColorIds] = useState<number[]>([]);
@@ -241,7 +181,6 @@ export function AdminProductModal({
   const categorySelectRef = useRef<HTMLSelectElement | null>(null);
   const generateVariantsButtonRef = useRef<HTMLButtonElement | null>(null);
   const marketplaceGenerateButtonRef = useRef<HTMLButtonElement | null>(null);
-  const descriptionEditorRef = useRef<HTMLDivElement | null>(null);
 
   const isEditing = Boolean(product?.id);
   const isPage = variant === 'page';
@@ -265,6 +204,7 @@ export function AdminProductModal({
       setName('');
       setDescription('');
       setCategoryId(null);
+      setAfectacionIgv('10');
       setIsActive(true);
       setVariantMode('MATRIX');
       setSelectedColorIds([]);
@@ -275,7 +215,6 @@ export function AdminProductModal({
       setMarketplaceColorImages([]);
       setVariantGroupImages([]);
       setProductImages([]);
-      syncDescriptionEditorWithValue('');
       return;
     }
 
@@ -293,6 +232,7 @@ export function AdminProductModal({
     const nextDescription = String(product.description || '');
     setDescription(nextDescription);
     setCategoryId(toPositiveNumber(product.categoryId) || null);
+    setAfectacionIgv(product.afectacionIgv || '10');
     setIsActive(Boolean(product.isActive));
     setVariantMode(mode);
 
@@ -384,7 +324,6 @@ export function AdminProductModal({
         })
         .filter((image): image is ProductImageForm => Boolean(image)),
     );
-    syncDescriptionEditorWithValue(nextDescription);
   }, [isFormVisible, product]);
 
   useEffect(() => {
@@ -524,93 +463,6 @@ export function AdminProductModal({
 
   if (!isFormVisible) {
     return null;
-  }
-
-  function syncDescriptionEditorWithValue(value: string) {
-    const editor = descriptionEditorRef.current;
-    if (!editor) {
-      return;
-    }
-
-    if (!value) {
-      editor.innerHTML = '';
-      return;
-    }
-
-    if (looksLikeHtml(value)) {
-      editor.innerHTML = sanitizeDescriptionHtml(value);
-      return;
-    }
-
-    editor.textContent = value;
-  }
-
-  function onDescriptionInput() {
-    const editor = descriptionEditorRef.current;
-    if (!editor) {
-      return;
-    }
-
-    const text = String(editor.textContent || '').trim();
-    const html = text ? sanitizeDescriptionHtml(editor.innerHTML) : '';
-    setDescription(html);
-  }
-
-  function focusDescriptionEditor() {
-    descriptionEditorRef.current?.focus();
-  }
-
-  function applyDescriptionCommand(command: string, value?: string) {
-    focusDescriptionEditor();
-    document.execCommand(command, false, value);
-    onDescriptionInput();
-  }
-
-  function setDescriptionBlock(tagName: 'p' | 'h2' | 'h3' | 'blockquote') {
-    applyDescriptionCommand('formatBlock', tagName);
-  }
-
-  function setDescriptionFont(fontName: string) {
-    if (!fontName) {
-      return;
-    }
-    applyDescriptionCommand('fontName', fontName);
-  }
-
-  function setDescriptionColor(color: string) {
-    if (!color) {
-      return;
-    }
-    applyDescriptionCommand('foreColor', color);
-  }
-
-  function setDescriptionFontSize(size: string) {
-    if (!size) {
-      return;
-    }
-    applyDescriptionCommand('fontSize', size);
-  }
-
-  function insertDescriptionGrid() {
-    const tableHtml = `
-      <table style="width:100%; border-collapse: collapse; margin: 0.5rem 0;">
-        <tbody>
-          <tr>
-            <td style="border:1px solid #94a3b8; padding:6px;">Celda 1</td>
-            <td style="border:1px solid #94a3b8; padding:6px;">Celda 2</td>
-          </tr>
-          <tr>
-            <td style="border:1px solid #94a3b8; padding:6px;">Celda 3</td>
-            <td style="border:1px solid #94a3b8; padding:6px;">Celda 4</td>
-          </tr>
-        </tbody>
-      </table>
-    `;
-    applyDescriptionCommand('insertHTML', tableHtml);
-  }
-
-  function clearDescriptionFormat() {
-    applyDescriptionCommand('removeFormat');
   }
 
   function toggleColor(colorId: number, checked: boolean) {
@@ -1192,6 +1044,7 @@ export function AdminProductModal({
       name: normalizedName,
       description: normalizedDescription,
       categoryId: normalizedCategoryId,
+      afectacionIgv,
       variantMode,
       colorIds: variantMode === 'MATRIX' || shouldPersistMarketplaceDimensions ? normalizedMarketplaceColorIds : [],
       sizeIds: isSimpleMode && !shouldPersistMarketplaceDimensions ? [] : normalizedMarketplaceSizeIds,
@@ -1670,100 +1523,28 @@ export function AdminProductModal({
                 </small>
               ) : null}
             </label>
+
+            <label>
+              <span>Afectacion IGV</span>
+              <select
+                value={afectacionIgv}
+                disabled={isSubmitting}
+                onChange={(event) => {
+                  setAfectacionIgv(event.target.value);
+                  setFormError('');
+                }}
+              >
+                <option value="10">Gravado (18%)</option>
+                <option value="20">Exonerado</option>
+                <option value="30">Inafecto</option>
+              </select>
+              <small className="admin-field-hint">Determina el IGV en la facturacion electronica.</small>
+            </label>
           </div>
 
           <div className="admin-field-block">
             <span>Descripcion</span>
-            <div className="description-editor-shell">
-              <div className="description-toolbar">
-                <select
-                  defaultValue=""
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    if (value) {
-                      setDescriptionBlock(value as 'p' | 'h2' | 'h3' | 'blockquote');
-                    }
-                    event.currentTarget.value = '';
-                  }}
-                >
-                  <option value="">Bloque</option>
-                  <option value="p">Parrafo</option>
-                  <option value="h2">Titulo H2</option>
-                  <option value="h3">Titulo H3</option>
-                  <option value="blockquote">Cita</option>
-                </select>
-
-                <select
-                  defaultValue=""
-                  onChange={(event) => {
-                    setDescriptionFont(event.target.value);
-                    event.currentTarget.value = '';
-                  }}
-                >
-                  <option value="">Fuente</option>
-                  <option value="Arial">Arial</option>
-                  <option value="Georgia">Georgia</option>
-                  <option value="Courier New">Courier</option>
-                  <option value="Tahoma">Tahoma</option>
-                </select>
-
-                <select
-                  defaultValue=""
-                  onChange={(event) => {
-                    setDescriptionFontSize(event.target.value);
-                    event.currentTarget.value = '';
-                  }}
-                >
-                  <option value="">Tamano</option>
-                  <option value="2">Pequeno</option>
-                  <option value="3">Normal</option>
-                  <option value="5">Grande</option>
-                </select>
-
-                <input type="color" className="color-picker" onChange={(event) => setDescriptionColor(event.target.value)} />
-
-                <button type="button" className="admin-ghost-btn" onClick={() => applyDescriptionCommand('bold')}>
-                  <b>B</b>
-                </button>
-                <button type="button" className="admin-ghost-btn" onClick={() => applyDescriptionCommand('italic')}>
-                  <i>I</i>
-                </button>
-                <button type="button" className="admin-ghost-btn" onClick={() => applyDescriptionCommand('underline')}>
-                  <u>U</u>
-                </button>
-                <button type="button" className="admin-ghost-btn" onClick={() => applyDescriptionCommand('insertUnorderedList')}>
-                  Lista
-                </button>
-                <button type="button" className="admin-ghost-btn" onClick={() => applyDescriptionCommand('insertOrderedList')}>
-                  Numerada
-                </button>
-                <button type="button" className="admin-ghost-btn" onClick={() => applyDescriptionCommand('justifyLeft')}>
-                  Izq
-                </button>
-                <button type="button" className="admin-ghost-btn" onClick={() => applyDescriptionCommand('justifyCenter')}>
-                  Centro
-                </button>
-                <button type="button" className="admin-ghost-btn" onClick={() => applyDescriptionCommand('justifyRight')}>
-                  Der
-                </button>
-                <button type="button" className="admin-ghost-btn" onClick={insertDescriptionGrid}>
-                  Grilla
-                </button>
-                <button type="button" className="admin-ghost-btn" onClick={clearDescriptionFormat}>
-                  Limpiar
-                </button>
-              </div>
-
-              <div
-                ref={descriptionEditorRef}
-                className="description-editor-area"
-                contentEditable
-                suppressContentEditableWarning
-                data-placeholder="Descripcion con formato (fuente, tablas, listas...)"
-                onInput={onDescriptionInput}
-                onBlur={onDescriptionInput}
-              />
-            </div>
+            <ProductDescriptionEditor value={description} onChange={setDescription} />
           </div>
 
           </div>

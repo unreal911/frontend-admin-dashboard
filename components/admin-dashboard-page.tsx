@@ -18,7 +18,6 @@ import {
 
 type SalesChannel = 'POS' | 'ECOMMERCE' | 'INTERNAL';
 type StockScope = 'OUT' | 'CRITICAL' | 'LOW' | 'NORMAL' | 'CRITICAL_TOTAL';
-type OperationalAlertAction = 'stock_critical' | 'paid_without_picking' | 'pending_transfers' | 'ready_orders';
 
 interface TopSaleMetric {
   label: string;
@@ -53,17 +52,33 @@ interface PendingOrdersMetric {
   overdue: number;
 }
 
+interface PendingInboxMetric {
+  toConfirm: number;
+  waitingStock: number;
+  toPick: number;
+  waitingTransfer: number;
+  transfersToReceive: number;
+  preparing: number;
+  ready: number;
+  returnPending: number;
+}
+
+type PendingTaskTone = 'urgent' | 'warn' | 'info';
+
+interface PendingTask {
+  key: string;
+  label: string;
+  description: string;
+  count: number;
+  href: string;
+  tone: PendingTaskTone;
+}
+
 interface StoreSalesMetric {
   storeName: string;
   total: number;
   orders: number;
   ticketAverage: number;
-}
-
-interface OperationalAlertMetric {
-  action: OperationalAlertAction;
-  label: string;
-  value: number;
 }
 
 interface DashboardMetrics {
@@ -82,12 +97,12 @@ interface DashboardMetrics {
   topVariantsWeek: TopSaleMetric[];
   stockSummary: StockSummaryMetric;
   pendingOrders: PendingOrdersMetric;
+  pendingInbox: PendingInboxMetric;
   picking: {
     completedToday: number;
     avgPreparationMinutes: number | null;
   };
   salesByStore: StoreSalesMetric[];
-  alerts: OperationalAlertMetric[];
 }
 
 const SALES_ELIGIBLE_STATUSES = new Set<AdminOrderStatus>([
@@ -145,12 +160,21 @@ function createEmptyMetrics(): DashboardMetrics {
       readyToDeliver: 0,
       overdue: 0,
     },
+    pendingInbox: {
+      toConfirm: 0,
+      waitingStock: 0,
+      toPick: 0,
+      waitingTransfer: 0,
+      transfersToReceive: 0,
+      preparing: 0,
+      ready: 0,
+      returnPending: 0,
+    },
     picking: {
       completedToday: 0,
       avgPreparationMinutes: null,
     },
     salesByStore: [],
-    alerts: [],
   };
 }
 
@@ -382,17 +406,16 @@ function computeAveragePreparationMinutes(orders: AdminOrder[]): number | null {
   return minutes.reduce((sum, value) => sum + value, 0) / minutes.length;
 }
 
-function buildOperationalAlerts(input: {
-  stockCritical: number;
-  paidWithoutPicking: number;
-  pendingTransfers: number;
-  readyOrders: number;
-}): OperationalAlertMetric[] {
+function buildPendingInbox(inbox: PendingInboxMetric): PendingTask[] {
   return [
-    { action: 'stock_critical', label: 'productos con stock critico', value: input.stockCritical },
-    { action: 'paid_without_picking', label: 'ordenes pagadas sin picking', value: input.paidWithoutPicking },
-    { action: 'pending_transfers', label: 'transferencias por recibir', value: input.pendingTransfers },
-    { action: 'ready_orders', label: 'ordenes listas sin entregar', value: input.readyOrders },
+    { key: 'to-confirm', label: 'Por confirmar', description: 'Pedidos nuevos sin confirmar', count: inbox.toConfirm, href: '/admin/orders/list?status=PENDING', tone: 'urgent' },
+    { key: 'waiting-stock', label: 'Esperando stock', description: 'Con faltantes por reponer', count: inbox.waitingStock, href: '/admin/orders/list?status=WAITING_STOCK', tone: 'warn' },
+    { key: 'to-pick', label: 'Falta separar', description: 'Confirmados sin picking', count: inbox.toPick, href: '/admin/orders/picking?status=CONFIRMED', tone: 'urgent' },
+    { key: 'waiting-transfer', label: 'Confirmar traslado', description: 'Esperan traslado entre tiendas', count: inbox.waitingTransfer, href: '/admin/orders/list?status=WAITING_TRANSFER', tone: 'warn' },
+    { key: 'transfers-receive', label: 'Traslados por recibir', description: 'Transferencias en transito', count: inbox.transfersToReceive, href: '/admin/transfers?status=TO_RECEIVE', tone: 'warn' },
+    { key: 'preparing', label: 'Separando', description: 'Picking en progreso', count: inbox.preparing, href: '/admin/orders/picking?status=PREPARING', tone: 'info' },
+    { key: 'ready', label: 'Por entregar', description: 'Listas sin entregar', count: inbox.ready, href: '/admin/orders/list?status=READY', tone: 'info' },
+    { key: 'return-pending', label: 'Devoluciones', description: 'Pendientes por procesar', count: inbox.returnPending, href: '/admin/orders/list?status=RETURN_PENDING', tone: 'urgent' },
   ];
 }
 
@@ -463,6 +486,8 @@ export function AdminDashboardPage() {
 
   const salesTrendMax = useMemo(() => Math.max(0, ...metrics.salesTrend.map((item) => item.total)), [metrics.salesTrend]);
   const weekTicket = metrics.weeklyOrders > 0 ? metrics.weeklySales / metrics.weeklyOrders : 0;
+  const pendingTasks = useMemo(() => buildPendingInbox(metrics.pendingInbox), [metrics.pendingInbox]);
+  const pendingTotal = useMemo(() => pendingTasks.reduce((total, task) => total + task.count, 0), [pendingTasks]);
 
   const fetchOrdersPaginated = useCallback(async (params: Record<string, string>): Promise<AdminOrder[]> => {
     const orders: AdminOrder[] = [];
@@ -532,6 +557,8 @@ export function AdminDashboardPage() {
         waitingTransferCount,
         preparingCount,
         readyCount,
+        returnPendingCount,
+        waitingStockCount,
         inventories,
         transfersPayload,
         storesPayload,
@@ -545,6 +572,8 @@ export function AdminDashboardPage() {
         fetchOrderCountByStatus('WAITING_TRANSFER'),
         fetchOrderCountByStatus('PREPARING'),
         fetchOrderCountByStatus('READY'),
+        fetchOrderCountByStatus('RETURN_PENDING'),
+        fetchOrderCountByStatus('WAITING_STOCK'),
         fetchInventories(),
         fetchJson('/api/admin/inventory/transfers'),
         fetchJson('/api/admin/stores?skip=1&take=300&includeInactive=false'),
@@ -560,6 +589,7 @@ export function AdminDashboardPage() {
       const yesterdaySalesOrders = filterSalesOrders(yesterdayOrders);
       const weekSalesOrders = filterSalesOrders(weekOrders);
       const stockSummary = buildStockSummary(inventories);
+      const transfersToReceive = transfers.filter((transfer) => transfer.status === 'PENDING' || transfer.status === 'IN_TRANSIT').length;
       const paidWithoutPicking = confirmedCount + waitingTransferCount;
       const overdueCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
       const overdue = recentOrders.filter((order) => (
@@ -588,17 +618,21 @@ export function AdminDashboardPage() {
           readyToDeliver: readyCount,
           overdue,
         },
+        pendingInbox: {
+          toConfirm: pendingCount,
+          waitingStock: waitingStockCount,
+          toPick: confirmedCount,
+          waitingTransfer: waitingTransferCount,
+          transfersToReceive,
+          preparing: preparingCount,
+          ready: readyCount,
+          returnPending: returnPendingCount,
+        },
         picking: {
           completedToday: countPickingCompletedToday(todayOrders),
           avgPreparationMinutes: computeAveragePreparationMinutes(recentOrders),
         },
         salesByStore: buildSalesByStore(todaySalesOrders, stores),
-        alerts: buildOperationalAlerts({
-          stockCritical: stockSummary.outOfStock + stockSummary.critical,
-          paidWithoutPicking,
-          pendingTransfers: transfers.filter((transfer) => transfer.status === 'PENDING' || transfer.status === 'IN_TRANSIT').length,
-          readyOrders: readyCount,
-        }),
       });
       setLastUpdated(new Date());
     } catch (caught) {
@@ -616,14 +650,6 @@ export function AdminDashboardPage() {
     router.push(`/admin/inventory?stockScope=${scope}&showAdvanced=1`);
   }
 
-  function goToOrdersByStatus(status: AdminOrderStatus) {
-    router.push(`/admin/orders/list?status=${status}`);
-  }
-
-  function goToPaidWithoutPicking() {
-    router.push('/admin/orders/picking?status=CONFIRMED');
-  }
-
   function goToPickingBoard(status = '') {
     router.push(status ? `/admin/orders/picking?status=${status}` : '/admin/orders/picking');
   }
@@ -631,22 +657,6 @@ export function AdminDashboardPage() {
   function goToOverdueOrders() {
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
     router.push(`/admin/orders/list?status=PENDING&endDate=${encodeURIComponent(cutoff.toISOString())}`);
-  }
-
-  function goToOperationalAlert(alert: OperationalAlertMetric) {
-    if (alert.action === 'stock_critical') {
-      goToInventoryStockScope('CRITICAL_TOTAL');
-      return;
-    }
-    if (alert.action === 'paid_without_picking') {
-      goToPaidWithoutPicking();
-      return;
-    }
-    if (alert.action === 'pending_transfers') {
-      router.push('/admin/transfers?status=TO_RECEIVE');
-      return;
-    }
-    goToOrdersByStatus('READY');
   }
 
   function renderTopRows(rows: TopSaleMetric[], emptyLabel: string) {
@@ -672,7 +682,7 @@ export function AdminDashboardPage() {
         <div>
           <p className="section-kicker">Panel operativo</p>
           <h1 className="section-title">Dashboard principal</h1>
-          <p className="section-subtitle">Ventas, operacion diaria, stock y alertas en tiempo real.</p>
+          <p className="section-subtitle">Acciones pendientes, ventas, operacion y stock en tiempo real.</p>
         </div>
         <div className="dashboard-hero-actions-next">
           {lastUpdated ? <span>Actualizado: {formatShortDateTime(lastUpdated)}</span> : null}
@@ -697,6 +707,11 @@ export function AdminDashboardPage() {
           <span className={getTrendClass(metrics.salesVsYesterdayPct)}>vs ayer: {formatPercent(metrics.salesVsYesterdayPct)}</span>
         </article>
         <article className="dashboard-kpi-card-next">
+          <p>Ventas semana</p>
+          <strong>{formatCurrency(metrics.weeklySales)}</strong>
+          <span>{metrics.weeklyOrders} ordenes</span>
+        </article>
+        <article className="dashboard-kpi-card-next">
           <p>Ordenes hoy</p>
           <strong>{metrics.ordersToday}</strong>
           <span>Pagadas o completadas</span>
@@ -704,7 +719,7 @@ export function AdminDashboardPage() {
         <article className="dashboard-kpi-card-next">
           <p>Ticket promedio</p>
           <strong>{formatCurrency(metrics.avgTicketToday)}</strong>
-          <span>Promedio por orden del dia</span>
+          <span>Por orden del dia</span>
         </article>
         <button type="button" className="dashboard-kpi-card-next dashboard-click-card-next" onClick={() => goToInventoryStockScope('CRITICAL_TOTAL')}>
           <p>Productos criticos</p>
@@ -713,10 +728,54 @@ export function AdminDashboardPage() {
         </button>
       </section>
 
+      <div className="dashboard-zone-head-next">
+        <span className="section-kicker">Requiere atencion</span>
+        <h2>Centro de acciones</h2>
+      </div>
+
+      {metrics.pendingOrders.overdue > 0 ? (
+        <button type="button" className="dashboard-sla-banner-next" onClick={goToOverdueOrders}>
+          <span className="dashboard-sla-icon-next" aria-hidden="true">!</span>
+          <span className="dashboard-sla-text-next">
+            <strong>{metrics.pendingOrders.overdue} pedidos atrasados</strong>
+            <span>Mas de 24h sin cerrar. Revisar ahora.</span>
+          </span>
+          <span className="dashboard-sla-cta-next" aria-hidden="true">&rarr;</span>
+        </button>
+      ) : null}
+
+      <article className="admin-card dashboard-panel-next dashboard-inbox-next">
+        <div className="dashboard-panel-header-next">
+          <h2>Pendientes por concretar</h2>
+          <span>{pendingTotal} en cola</span>
+        </div>
+        <p className="admin-muted-text dashboard-inbox-hint-next">Acciones que faltan cerrar en la operacion. Toca una tarjeta para resolverla.</p>
+        <div className="dashboard-inbox-grid-next">
+          {pendingTasks.map((task) => (
+            <button
+              key={task.key}
+              type="button"
+              className={`dashboard-inbox-card-next tone-${task.tone} ${task.count > 0 ? 'has-value' : 'is-empty'}`}
+              onClick={() => router.push(task.href)}
+            >
+              <strong>{task.count}</strong>
+              <span className="dashboard-inbox-label-next">{task.label}</span>
+              <span className="dashboard-inbox-desc-next">{task.description}</span>
+            </button>
+          ))}
+        </div>
+      </article>
+
+      <div className="dashboard-zone-head-next">
+        <span className="section-kicker">Rendimiento</span>
+        <h2>Ventas</h2>
+      </div>
+
       <section className="dashboard-grid-two-next">
         <article className="admin-card dashboard-panel-next">
           <div className="dashboard-panel-header-next">
             <h2>Ventas por canal</h2>
+            <span>Hoy</span>
           </div>
           <div className="dashboard-channel-grid-next">
             {metrics.salesByChannel.map((item) => (
@@ -728,27 +787,30 @@ export function AdminDashboardPage() {
             ))}
           </div>
           <div className="dashboard-week-summary-next">
-            <p><strong>Semana actual:</strong> {formatCurrency(metrics.weeklySales)}</p>
-            <p><strong>Ordenes:</strong> {metrics.weeklyOrders}</p>
-            <p><strong>Ticket promedio:</strong> {formatCurrency(weekTicket)}</p>
+            <p><strong>Semana:</strong> {metrics.weeklyOrders} ordenes</p>
+            <p><strong>Ticket prom.:</strong> {formatCurrency(weekTicket)}</p>
           </div>
         </article>
 
         <article className="admin-card dashboard-panel-next">
           <div className="dashboard-panel-header-next">
-            <h2>Alertas operativas</h2>
+            <h2>Ventas por dia</h2>
+            <span>Ultimos 7 dias</span>
           </div>
-          <div className="dashboard-alert-list-next">
-            {metrics.alerts.map((alert) => (
-              <button
-                key={alert.action}
-                type="button"
-                className={`dashboard-alert-item-next dashboard-click-card-next ${alert.value > 0 ? 'has-value' : ''}`}
-                onClick={() => goToOperationalAlert(alert)}
-              >
-                <strong>{alert.value}</strong>
-                <span>{alert.label}</span>
-              </button>
+          <div className="dashboard-trend-list-next">
+            {metrics.salesTrend.length === 0 ? (
+              <p className="admin-muted-text">Sin ventas recientes para mostrar.</p>
+            ) : metrics.salesTrend.map((trend) => (
+              <div key={trend.label} className="dashboard-trend-row-next">
+                <div className="dashboard-trend-meta-next">
+                  <strong>{trend.label}</strong>
+                  <span>{trend.orders} ordenes</span>
+                </div>
+                <div className="dashboard-trend-bar-next">
+                  <span style={{ width: `${getSalesTrendWidth(trend.total, salesTrendMax)}%` }} />
+                </div>
+                <strong>{formatCurrency(trend.total)}</strong>
+              </div>
             ))}
           </div>
         </article>
@@ -756,26 +818,41 @@ export function AdminDashboardPage() {
 
       <article className="admin-card dashboard-panel-next">
         <div className="dashboard-panel-header-next">
-          <h2>Ventas por dia</h2>
-          <span>Ultimos 7 dias</span>
+          <h2>Ventas por tienda</h2>
+          <span>Hoy</span>
         </div>
-        <div className="dashboard-trend-list-next">
-          {metrics.salesTrend.length === 0 ? (
-            <p className="admin-muted-text">Sin ventas recientes para mostrar.</p>
-          ) : metrics.salesTrend.map((trend) => (
-            <div key={trend.label} className="dashboard-trend-row-next">
-              <div className="dashboard-trend-meta-next">
-                <strong>{trend.label}</strong>
-                <span>{trend.orders} ordenes</span>
-              </div>
-              <div className="dashboard-trend-bar-next">
-                <span style={{ width: `${getSalesTrendWidth(trend.total, salesTrendMax)}%` }} />
-              </div>
-              <strong>{formatCurrency(trend.total)}</strong>
-            </div>
-          ))}
+        <div className="admin-table-wrap">
+          <table className="admin-table mobile-card-table">
+            <thead>
+              <tr>
+                <th>Tienda</th>
+                <th>Ventas</th>
+                <th>Ordenes</th>
+                <th>Ticket promedio</th>
+              </tr>
+            </thead>
+            <tbody>
+              {metrics.salesByStore.length === 0 ? (
+                <tr>
+                  <td colSpan={4} data-label="Estado" className="dashboard-empty-cell-next">Sin ventas por tienda para hoy.</td>
+                </tr>
+              ) : metrics.salesByStore.map((row) => (
+                <tr key={row.storeName}>
+                  <td data-label="Tienda">{row.storeName}</td>
+                  <td data-label="Ventas">{formatCurrency(row.total)}</td>
+                  <td data-label="Ordenes">{row.orders}</td>
+                  <td data-label="Ticket promedio">{formatCurrency(row.ticketAverage)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </article>
+
+      <div className="dashboard-zone-head-next">
+        <span className="section-kicker">Operacion</span>
+        <h2>Inventario y preparacion</h2>
+      </div>
 
       <section className="dashboard-grid-two-next">
         <article className="admin-card dashboard-panel-next">
@@ -804,40 +881,30 @@ export function AdminDashboardPage() {
 
         <article className="admin-card dashboard-panel-next">
           <div className="dashboard-panel-header-next">
-            <h2>Ordenes y picking</h2>
+            <h2>Productividad de preparacion</h2>
+            <span>Hoy</span>
           </div>
           <div className="dashboard-ops-grid-next">
-            <button type="button" onClick={() => goToOrdersByStatus('PENDING')}>
-              <span>Pendientes</span>
-              <strong>{metrics.pendingOrders.pending}</strong>
-            </button>
-            <button type="button" onClick={goToPaidWithoutPicking}>
-              <span>Pagadas sin picking</span>
-              <strong>{metrics.pendingOrders.paidWithoutPicking}</strong>
-            </button>
-            <button type="button" onClick={() => goToPickingBoard('PREPARING')}>
-              <span>Picking en progreso</span>
-              <strong>{metrics.pendingOrders.pickingInProgress}</strong>
-            </button>
-            <button type="button" onClick={() => goToOrdersByStatus('READY')}>
-              <span>Listas por entregar</span>
-              <strong>{metrics.pendingOrders.readyToDeliver}</strong>
-            </button>
-            <button type="button" onClick={goToOverdueOrders}>
-              <span>Atrasadas (+24h)</span>
-              <strong>{metrics.pendingOrders.overdue}</strong>
-            </button>
             <button type="button" onClick={() => goToPickingBoard('READY')}>
-              <span>Picking completado hoy</span>
+              <span>Picking completado</span>
               <strong>{metrics.picking.completedToday}</strong>
             </button>
             <button type="button" onClick={() => goToPickingBoard()}>
               <span>Tiempo prom.</span>
               <strong>{metrics.picking.avgPreparationMinutes === null ? '--' : `${Math.round(metrics.picking.avgPreparationMinutes)} min`}</strong>
             </button>
+            <button type="button" onClick={() => router.push('/admin/orders/list')}>
+              <span>Pedidos en cola</span>
+              <strong>{pendingTotal}</strong>
+            </button>
           </div>
         </article>
       </section>
+
+      <div className="dashboard-zone-head-next">
+        <span className="section-kicker">Analisis</span>
+        <h2>Productos mas vendidos</h2>
+      </div>
 
       <section className="dashboard-grid-two-next">
         <article className="admin-card dashboard-panel-next">
@@ -900,39 +967,6 @@ export function AdminDashboardPage() {
           </div>
         </article>
       </section>
-
-      <article className="admin-card dashboard-panel-next">
-        <div className="dashboard-panel-header-next">
-          <h2>Ventas por tienda</h2>
-          <span>Hoy</span>
-        </div>
-        <div className="admin-table-wrap">
-          <table className="admin-table mobile-card-table">
-            <thead>
-              <tr>
-                <th>Tienda</th>
-                <th>Ventas</th>
-                <th>Ordenes</th>
-                <th>Ticket promedio</th>
-              </tr>
-            </thead>
-            <tbody>
-              {metrics.salesByStore.length === 0 ? (
-                <tr>
-                  <td colSpan={4} data-label="Estado" className="dashboard-empty-cell-next">Sin ventas por tienda para hoy.</td>
-                </tr>
-              ) : metrics.salesByStore.map((row) => (
-                <tr key={row.storeName}>
-                  <td data-label="Tienda">{row.storeName}</td>
-                  <td data-label="Ventas">{formatCurrency(row.total)}</td>
-                  <td data-label="Ordenes">{row.orders}</td>
-                  <td data-label="Ticket promedio">{formatCurrency(row.ticketAverage)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </article>
 
       <article className="admin-card dashboard-shortcuts-next">
         <div>

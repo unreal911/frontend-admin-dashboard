@@ -2,15 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import {
-  AdminCategoryOption,
-  AdminColorOption,
-  AdminProductDetail,
-  AdminProductModal,
-  AdminSizeOption,
-} from '@/components/admin-product-modal';
+import { AdminCategoryOption } from '@/components/admin-product-modal';
 import { useAdminUi } from '@/components/admin-ui-provider';
-import { normalizeProductDetail } from '@/lib/admin-product-normalizers';
 
 interface AdminProductListItem {
   id: number;
@@ -28,14 +21,6 @@ interface ProductListResponse {
 
 interface CategoriesResponse {
   data?: AdminCategoryOption[];
-}
-
-interface ColorsResponse {
-  data?: AdminColorOption[];
-}
-
-interface SizesResponse {
-  data?: AdminSizeOption[];
 }
 
 function toPositiveNumber(value: unknown): number {
@@ -99,49 +84,11 @@ function normalizeCategories(payload: unknown): AdminCategoryOption[] {
     .filter((item): item is AdminCategoryOption => Boolean(item));
 }
 
-function normalizeColors(payload: unknown): AdminColorOption[] {
-  const data = (payload as ColorsResponse | null)?.data;
-  if (!Array.isArray(data)) {
-    return [];
-  }
-
-  const normalized: AdminColorOption[] = [];
-  for (const item of data) {
-    const id = toPositiveNumber((item as AdminColorOption).id);
-    const name = String((item as AdminColorOption).name || '').trim();
-    if (!id || !name) {
-      continue;
-    }
-    normalized.push({
-      id,
-      name,
-      hex: String((item as AdminColorOption).hex || '').trim() || null,
-    });
-  }
-  return normalized;
-}
-
-function normalizeSizes(payload: unknown): AdminSizeOption[] {
-  const data = (payload as SizesResponse | null)?.data;
-  if (!Array.isArray(data)) {
-    return [];
-  }
-  return data
-    .map((item) => {
-      const id = toPositiveNumber((item as AdminSizeOption).id);
-      const name = String((item as AdminSizeOption).name || '').trim();
-      return id && name ? { id, name } : null;
-    })
-    .filter((item): item is AdminSizeOption => Boolean(item));
-}
-
 export function AdminProductPage() {
   const { confirm, showAlert } = useAdminUi();
 
   const [products, setProducts] = useState<AdminProductListItem[]>([]);
   const [categories, setCategories] = useState<AdminCategoryOption[]>([]);
-  const [colors, setColors] = useState<AdminColorOption[]>([]);
-  const [sizes, setSizes] = useState<AdminSizeOption[]>([]);
 
   const [search, setSearch] = useState('');
   const [showActive, setShowActive] = useState(true);
@@ -149,10 +96,6 @@ export function AdminProductPage() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isMutating, setIsMutating] = useState(false);
-  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
-
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<AdminProductDetail | null>(null);
 
   async function loadProducts() {
     setIsLoading(true);
@@ -180,25 +123,14 @@ export function AdminProductPage() {
   }
 
   async function loadMetadata() {
-    const [categoriesResponse, colorsResponse, sizesResponse] = await Promise.all([
-      fetch('/api/admin/categories?skip=1&take=300&isActive=true', { cache: 'no-store' }).catch(() => null),
-      fetch('/api/admin/colors?skip=1&take=300&isActive=true', { cache: 'no-store' }).catch(() => null),
-      fetch('/api/admin/sizes?skip=1&take=300&isActive=true', { cache: 'no-store' }).catch(() => null),
-    ]);
+    const categoriesResponse = await fetch(
+      '/api/admin/categories?skip=1&take=300&isActive=true',
+      { cache: 'no-store' },
+    ).catch(() => null);
 
     if (categoriesResponse?.ok) {
       const payload = await categoriesResponse.json().catch(() => null);
       setCategories(normalizeCategories(payload));
-    }
-
-    if (colorsResponse?.ok) {
-      const payload = await colorsResponse.json().catch(() => null);
-      setColors(normalizeColors(payload));
-    }
-
-    if (sizesResponse?.ok) {
-      const payload = await sizesResponse.json().catch(() => null);
-      setSizes(normalizeSizes(payload));
     }
   }
 
@@ -224,45 +156,6 @@ export function AdminProductPage() {
       return item.category.name;
     }
     return categories.find((category) => category.id === item.categoryId)?.name || String(item.categoryId);
-  }
-
-  async function openEditModal(item: AdminProductListItem) {
-    setIsLoadingDetail(true);
-    try {
-      const response = await fetch(`/api/admin/products/${item.id}`, {
-        method: 'GET',
-        cache: 'no-store',
-      });
-      const payload = await response.json().catch(() => null);
-      if (!response.ok) {
-        showAlert(
-          String((payload as { message?: unknown } | null)?.message || 'No se pudo cargar el producto para editar.'),
-          'error',
-        );
-        return;
-      }
-
-      const normalized = normalizeProductDetail(payload);
-      if (!normalized) {
-        showAlert('No se pudo interpretar la respuesta del producto.', 'error');
-        return;
-      }
-
-      setEditingProduct(normalized);
-      setModalOpen(true);
-    } catch {
-      showAlert('No se pudo cargar el producto para editar.', 'error');
-    } finally {
-      setIsLoadingDetail(false);
-    }
-  }
-
-  function closeModal() {
-    if (isMutating) {
-      return;
-    }
-    setModalOpen(false);
-    setEditingProduct(null);
   }
 
   async function toggleProduct(item: AdminProductListItem) {
@@ -306,43 +199,6 @@ export function AdminProductPage() {
     }
   }
 
-  async function saveProduct(event: { mode: 'create' | 'edit'; id?: number; payload: Record<string, unknown> }) {
-    setIsMutating(true);
-    try {
-      const endpoint = event.mode === 'create'
-        ? '/api/admin/products'
-        : `/api/admin/products/${event.id}`;
-      const method = event.mode === 'create' ? 'POST' : 'PATCH';
-
-      const response = await fetch(endpoint, {
-        method,
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(event.payload),
-      });
-      const payload = await response.json().catch(() => null);
-      if (!response.ok) {
-        const message = String(
-          (payload as { message?: unknown } | null)?.message
-          || `No se pudo ${event.mode === 'create' ? 'crear' : 'actualizar'} el producto.`,
-        );
-        throw new Error(message);
-      }
-
-      await loadProducts();
-      setModalOpen(false);
-      setEditingProduct(null);
-      showAlert(`Producto ${event.mode === 'create' ? 'creado' : 'actualizado'} correctamente.`, 'success');
-    } catch (error) {
-      const message = error instanceof Error
-        ? error.message
-        : `No se pudo ${event.mode === 'create' ? 'crear' : 'actualizar'} el producto.`;
-      showAlert(message, 'error');
-      throw new Error(message);
-    } finally {
-      setIsMutating(false);
-    }
-  }
-
   return (
     <section className="admin-dashboard-grid">
       <article className="admin-card admin-filters-card-next">
@@ -378,8 +234,8 @@ export function AdminProductPage() {
             <div className="admin-filters-actions-next">
               <Link
                 href="/admin/product/create"
-                className={`admin-primary-btn ${isMutating || isLoadingDetail ? 'disabled' : ''}`}
-                aria-disabled={isMutating || isLoadingDetail}
+                className={`admin-primary-btn ${isMutating ? 'disabled' : ''}`}
+                aria-disabled={isMutating}
               >
                 Agregar
               </Link>
@@ -428,14 +284,13 @@ export function AdminProductPage() {
                     </td>
                     <td data-label="Accion">
                       <div className="admin-table-actions">
-                        <button
-                          type="button"
-                          className="admin-ghost-btn"
-                          onClick={() => openEditModal(item)}
-                          disabled={isLoadingDetail || isMutating}
+                        <Link
+                          href={`/admin/product/${item.id}/edit`}
+                          className={`admin-ghost-btn ${isMutating ? 'disabled' : ''}`}
+                          aria-disabled={isMutating}
                         >
-                          {isLoadingDetail ? 'Cargando...' : 'Editar'}
-                        </button>
+                          Editar
+                        </Link>
                         <button
                           type="button"
                           className="admin-ghost-btn"
@@ -453,17 +308,6 @@ export function AdminProductPage() {
           </table>
         </div>
       </article>
-
-      <AdminProductModal
-        open={modalOpen}
-        product={editingProduct}
-        categories={categories}
-        colors={colors}
-        sizes={sizes}
-        isSubmitting={isMutating}
-        onClose={closeModal}
-        onSubmit={saveProduct}
-      />
     </section>
   );
 }

@@ -1,0 +1,1969 @@
+/* Semaforo de disponibilidad (desktop + movil): estado de un vistazo. */
+.inventory-avail-next {
+  font-weight: 800;
+}
+
+.inventory-avail-next.is-out {
+  color: #f87171;
+}
+
+.inventory-avail-next.is-low {
+  color: #f59e0b;
+}
+
+.inventory-avail-next.is-ok {
+  color: #22c55e;
+}
+
+/* Escaneo con match unico: pulso de resaltado en la fila enfocada. */
+.inventory-row-scan-focus-next > td {
+  background: color-mix(in oklab, var(--mk-ok, #22c55e) 18%, transparent) !important;
+  animation: inventory-scan-pulse-next 1s ease-out 2;
+}
+
+@keyframes inventory-scan-pulse-next {
+  0% { background-color: color-mix(in oklab, var(--mk-ok, #22c55e) 42%, transparent); }
+  100% { background-color: color-mix(in oklab, var(--mk-ok, #22c55e) 12%, transparent); }
+}
+
+/* Ajuste por conteo real: muestra el delta calculado (stock actual -> ajuste). */
+.inventory-adjust-delta-next {
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--admin-text) 6%, transparent);
+  font-size: 0.85rem;
+  color: color-mix(in oklab, var(--admin-text) 75%, transparent);
+}
+
+.inventory-adjust-delta-next strong.is-pos {
+  color: #22c55e;
+}
+
+.inventory-adjust-delta-next strong.is-neg {
+  color: #f87171;
+}
+
+/* Ops rapida movil: barra sticky de busqueda/escaneo y acciones inline por fila.
+   Ocultas en desktop (la tabla densa + drawer siguen siendo lo mejor ahi). */
+.inventory-mobile-toolbar-next,
+.inventory-quick-move-next {
+  display: none;
+}
+
+.inventory-scan-overlay {
+  z-index: 3400;
+}
+
+.inventory-scan-modal {
+  position: fixed;
+  z-index: 3401;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(92vw, 420px);
+  display: grid;
+  gap: 0.6rem;
+  justify-items: center;
+  border: 1px solid var(--admin-border);
+  border-radius: 14px;
+  background: var(--admin-surface);
+  padding: 0.9rem;
+  box-shadow: 0 24px 48px rgba(16, 36, 63, 0.32);
+}
+
+.inventory-scan-video {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 10px;
+  background: #000;
+}
+
+.inventory-scan-hint {
+  margin: 0;
+  color: var(--admin-muted);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.inventory-movements-filter-grid,
+.inventory-traceability-filter-grid,
+.transfer-filter-grid {
+  display: grid;
+  gap: 0.62rem;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto;
+  align-items: end;
+}
+
+.transfer-filter-grid {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+
+.inventory-filter-inline-action {
+  display: flex;
+  align-items: flex-end;
+}
+
+.inventory-drawer-overlay {
+  display: block;
+  place-items: unset;
+  padding: 0;
+  overflow: hidden;
+  z-index: 3320;
+}
+
+.inventory-movement-drawer {
+  position: fixed;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 3330;
+  width: min(96vw, 760px);
+  max-width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  min-width: 0;
+  border-left: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  box-shadow: -16px 0 34px rgba(16, 36, 63, 0.2);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+}
+
+.inventory-drawer-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.95rem 1rem;
+  border-bottom: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+}
+
+.inventory-drawer-head > div {
+  min-width: 0;
+}
+
+.inventory-drawer-head h3 {
+  margin: 0;
+  font-size: 1.08rem;
+}
+
+.inventory-drawer-head p {
+  margin: 0.25rem 0 0;
+  color: var(--admin-muted);
+  font-size: 0.82rem;
+}
+
+.inventory-drawer-body {
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding: 0.95rem 1rem;
+  display: grid;
+  gap: 0.7rem;
+  align-content: start;
+}
+
+.inventory-drawer-body > * {
+  min-width: 0;
+}
+
+.inventory-drawer-foot {
+  border-top: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
+  box-shadow: 0 -12px 24px rgba(2, 8, 23, 0.08);
+}
+
+.transfer-overlay {
+  display: block;
+  place-items: unset;
+  padding: 0;
+  overflow: hidden;
+  z-index: 3320;
+}
+
+.transfer-drawer-next {
+  position: fixed;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 3330;
+  width: min(96vw, 900px);
+  max-width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  min-width: 0;
+  border-left: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  box-shadow: -16px 0 34px rgba(16, 36, 63, 0.2);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+}
+
+.transfer-draft-box-next {
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--admin-surface) 72%, var(--admin-surface-soft));
+  padding: 0.65rem;
+  display: grid;
+  gap: 0.58rem;
+}
+
+.transfer-draft-box-head-next {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+}
+
+.transfer-draft-box-head-next p {
+  margin: 0;
+  color: var(--admin-text);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.transfer-draft-list-next {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.transfer-draft-item-next {
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--admin-surface) 88%, var(--admin-surface-soft));
+  padding: 0.58rem;
+  display: grid;
+  gap: 0.45rem;
+  grid-template-columns: minmax(0, 1fr) minmax(86px, 120px) auto;
+  min-width: 0;
+}
+
+.transfer-draft-item-next select,
+.transfer-draft-item-next input {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--admin-surface) 72%, var(--admin-surface-soft));
+  color: var(--admin-text);
+  padding: 0.46rem 0.58rem;
+  font: inherit;
+  min-width: 0;
+}
+
+.transfer-draft-item-next p {
+  margin: 0;
+  grid-column: 1 / -1;
+}
+
+.transfer-details-modal-next {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(900px, calc(100vw - 1.8rem));
+  max-height: calc(100vh - 1.8rem);
+  max-height: calc(100dvh - 1.8rem);
+  overflow: auto;
+  z-index: 3330;
+  border: 1px solid var(--admin-border);
+  border-radius: 14px;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  box-shadow: 0 24px 48px rgba(16, 36, 63, 0.28);
+  padding: 0.95rem 1rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.transfer-details-header-next {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.transfer-details-header-next h3 {
+  margin: 0;
+}
+
+.transfer-details-header-next p {
+  margin: 0.25rem 0 0;
+  color: var(--admin-muted);
+}
+
+.transfer-details-grid-next {
+  display: grid;
+  gap: 0.62rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.transfer-details-grid-next > div {
+  border: 1px dashed color-mix(in oklab, var(--admin-primary) 45%, var(--admin-border));
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--admin-surface) 72%, var(--admin-surface-soft));
+  padding: 0.62rem;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.transfer-details-grid-next > div p {
+  margin: 0;
+  color: var(--admin-text);
+  font-size: 0.8rem;
+}
+
+.transfer-details-label-next {
+  margin: 0;
+  color: var(--admin-muted) !important;
+  font-size: 0.72rem !important;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-weight: 800;
+}
+
+.transfer-items-box-next {
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--admin-surface) 80%, var(--admin-surface-soft));
+  padding: 0.75rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.transfer-items-box-next h4 {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.transfer-item-list-next {
+  display: grid;
+  gap: 0.46rem;
+}
+
+.transfer-item-card-next {
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--admin-surface) 88%, var(--admin-surface-soft));
+  padding: 0.56rem 0.62rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.transfer-item-text-next {
+  min-width: 0;
+}
+
+.transfer-item-name-next {
+  margin: 0;
+  color: var(--admin-text);
+  font-size: 0.82rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.transfer-item-meta-next {
+  margin: 0.24rem 0 0;
+  color: var(--admin-muted);
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.transfer-item-sku-next {
+  margin: 0.2rem 0 0;
+  color: var(--admin-muted);
+  font-size: 0.76rem;
+  overflow-wrap: anywhere;
+}
+
+.transfer-note-box-next {
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--admin-surface) 72%, var(--admin-surface-soft));
+  padding: 0.62rem 0.68rem;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.transfer-note-box-next p {
+  margin: 0;
+  color: var(--admin-text);
+  font-size: 0.82rem;
+}
+
+@media (max-width: 960px) {
+  .inventory-movements-filter-grid,
+  .inventory-traceability-filter-grid,
+  .transfer-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .inventory-filter-inline-action {
+    align-items: stretch;
+  }
+
+  .inventory-search-join-next {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .inventory-movement-drawer,
+  .transfer-drawer-next {
+    left: 0;
+    width: 100vw;
+    border-left: 0;
+  }
+
+  .inventory-drawer-head,
+  .inventory-drawer-body,
+  .inventory-drawer-foot {
+    padding-left: 0.85rem;
+    padding-right: 0.85rem;
+  }
+
+  .transfer-details-modal-next {
+    width: calc(100vw - 1rem);
+    max-height: calc(100vh - 1rem);
+    max-height: calc(100dvh - 1rem);
+    padding: 0.82rem;
+  }
+
+  .transfer-details-grid-next {
+    grid-template-columns: 1fr;
+  }
+
+  .transfer-item-card-next {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .transfer-draft-item-next {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Mantiene el mismo patron de cards mobile del frontend Angular original */
+@media (max-width: 768px) {
+  .dashboard-page-next,
+  .dashboard-panel-next,
+  .dashboard-shortcuts-next,
+  .dashboard-table-pair-next > div {
+    min-width: 0;
+  }
+
+  .dashboard-page-next .admin-card {
+    overflow: hidden;
+  }
+
+  .dashboard-hero-next,
+  .dashboard-grid-two-next,
+  .dashboard-shortcuts-next,
+  .dashboard-table-pair-next {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-hero-actions-next {
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .dashboard-hero-actions-next .admin-primary-btn {
+    width: 100%;
+  }
+
+  /* Tiles compactos 2-up: menos scroll, info agrupada y legible */
+  .dashboard-kpi-grid-next,
+  .dashboard-channel-grid-next,
+  .dashboard-stock-grid-next,
+  .dashboard-ops-grid-next,
+  .dashboard-shortcuts-next .admin-link-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  /* Densidad: tiles mas chicos para que quepan mas por pantalla */
+  .dashboard-kpi-card-next,
+  .dashboard-channel-card-next,
+  .dashboard-stock-card-next,
+  .dashboard-ops-grid-next button {
+    padding: 0.6rem;
+  }
+
+  .dashboard-kpi-card-next strong {
+    font-size: 1.2rem;
+  }
+
+  .dashboard-channel-card-next strong,
+  .dashboard-stock-card-next strong,
+  .dashboard-ops-grid-next strong {
+    font-size: 1.05rem;
+  }
+
+  .dashboard-kpi-card-next p,
+  .dashboard-channel-card-next p,
+  .dashboard-kpi-card-next span,
+  .dashboard-channel-card-next span,
+  .dashboard-stock-card-next span,
+  .dashboard-ops-grid-next span {
+    font-size: 0.72rem;
+  }
+
+  .dashboard-panel-header-next {
+    align-items: flex-start;
+  }
+
+  /* Alertas: conservar el layout icono + texto (no romper a 1 col) */
+  .dashboard-alert-item-next {
+    grid-template-columns: 2rem 1fr;
+  }
+
+  .dashboard-alert-item-next strong {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .dashboard-trend-row-next {
+    grid-template-columns: 4.5rem minmax(0, 1fr) auto;
+    gap: 0.45rem;
+    align-items: center;
+  }
+
+  .dashboard-trend-meta-next span {
+    display: none;
+  }
+
+  .dashboard-trend-row-next > strong {
+    font-size: 0.82rem;
+    white-space: nowrap;
+  }
+
+  .dashboard-table-pair-next .admin-table-wrap {
+    overflow: visible;
+  }
+
+  .dashboard-table-pair-next table.mobile-card-table tbody td {
+    display: grid !important;
+    grid-template-columns: minmax(0, 0.42fr) minmax(0, 0.58fr);
+    gap: 0.55rem;
+  }
+
+  .dashboard-table-pair-next table.mobile-card-table tbody td::before {
+    flex: none;
+    min-width: 0;
+  }
+
+  .dashboard-table-pair-next table.mobile-card-table tbody td,
+  .dashboard-table-pair-next table.mobile-card-table tbody td > *,
+  .dashboard-shortcuts-next .admin-link-card,
+  .dashboard-channel-card-next,
+  .dashboard-ops-grid-next button,
+  .dashboard-stock-card-next {
+    overflow-wrap: anywhere;
+    word-break: normal;
+  }
+
+  .dashboard-empty-cell-next {
+    text-align: left;
+  }
+
+  .admin-table-wrap {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    overflow: visible;
+  }
+
+  /* Barra sticky de busqueda/escaneo: siempre al alcance, sin scrollear arriba. */
+  .inventory-mobile-toolbar-next {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    margin: -0.25rem -0.25rem 0.15rem;
+    padding: 0.5rem 0.25rem;
+    background: color-mix(in oklab, var(--admin-bg, var(--admin-surface)) 94%, transparent);
+    backdrop-filter: blur(6px);
+  }
+
+  .inventory-mobile-search-next {
+    flex: 1 1 100%;
+    min-width: 0;
+    border: 1px solid var(--admin-border);
+    border-radius: 10px;
+    background: var(--admin-surface);
+    color: var(--admin-text);
+    min-height: 42px;
+    padding: 0.5rem 2.2rem 0.5rem 0.7rem;
+    font: inherit;
+  }
+
+  .inventory-mobile-clear-next {
+    position: absolute;
+    right: 0.6rem;
+    top: 0.62rem;
+    width: 30px;
+    height: 30px;
+    border: 0;
+    border-radius: 50%;
+    background: color-mix(in oklab, var(--admin-primary) 12%, var(--admin-surface));
+    color: var(--admin-text);
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .inventory-mobile-tool-btn-next {
+    flex: 1 1 0;
+    min-height: 40px;
+    border: 1px solid var(--admin-border);
+    border-radius: 10px;
+    background: var(--admin-surface);
+    color: var(--admin-text);
+    font: inherit;
+    font-weight: 800;
+    font-size: 0.82rem;
+    cursor: pointer;
+  }
+
+  .inventory-mobile-tool-btn-next.primary {
+    border-color: color-mix(in oklab, #22c55e 60%, var(--admin-border));
+    background: color-mix(in oklab, #22c55e 14%, var(--admin-surface));
+    color: color-mix(in oklab, #22c55e 42%, var(--admin-text));
+  }
+
+  /* Busqueda/escaneo/nuevo/filtros viven en la barra sticky: se evita duplicar
+     chrome. La card de filtros solo aparece al abrir "Filtros" (is-open) y
+     entonces muestra unicamente los filtros avanzados. */
+  .inventory-quick-card,
+  .inventory-filter-top,
+  .inventory-summary-card,
+  .inventory-filters-card:not(.is-open) {
+    display: none !important;
+  }
+
+  .inventory-header-card {
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+    padding: 0.95rem;
+  }
+
+  .inventory-header-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .inventory-header-actions .admin-ghost-btn,
+  .inventory-header-actions .admin-primary-btn {
+    width: 100%;
+    min-height: 38px;
+    padding-inline: 0.62rem;
+  }
+
+  .inventory-metric-strip-next {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .inventory-metric-strip-next span {
+    text-align: center;
+    padding-inline: 0.42rem;
+  }
+
+  .inventory-filters-card {
+    padding: 0.9rem;
+  }
+
+  .inventory-filters-card .admin-filters-fieldset-next {
+    padding: 0;
+  }
+
+  .inventory-search-join-next {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .inventory-search-join-next .admin-primary-btn {
+    width: 100%;
+  }
+
+  .inventory-quick-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .inventory-quick-actions .admin-primary-btn,
+  .inventory-quick-actions .admin-ghost-btn {
+    width: 100%;
+  }
+
+  table.mobile-card-table.admin-table {
+    width: 100%;
+    min-width: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  table.mobile-card-table thead {
+    display: none !important;
+  }
+
+  table.mobile-card-table tbody {
+    display: block;
+  }
+
+  table.mobile-card-table tbody tr {
+    display: block;
+    border: 1px solid var(--admin-border);
+    border-radius: 12px;
+    background: color-mix(in oklab, var(--admin-surface) 88%, var(--admin-surface-soft));
+    margin-bottom: 0.75rem;
+    padding: 0.7rem 0.8rem;
+    box-shadow: 0 2px 8px rgba(16, 36, 63, 0.08);
+  }
+
+  table.mobile-card-table tbody td,
+  table.mobile-card-table tbody th {
+    display: flex !important;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.75rem;
+    width: 100%;
+    text-align: left !important;
+    border: 0 !important;
+    padding: 0.4rem 0 !important;
+    background: transparent !important;
+    white-space: normal !important;
+  }
+
+  table.mobile-card-table tbody td > *,
+  table.mobile-card-table tbody th > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  table.mobile-card-table tbody td::before,
+  table.mobile-card-table tbody th::before {
+    content: attr(data-label);
+    flex: 0 0 42%;
+    color: #57708e;
+    font-weight: 700;
+    font-size: 0.78rem;
+    line-height: 1.2;
+  }
+
+  table.mobile-card-table tbody td[data-label='']::before,
+  table.mobile-card-table tbody th[data-label='']::before {
+    display: none;
+  }
+
+  .inventory-table-wrap-next table.mobile-card-table tbody tr {
+    display: grid;
+    gap: 0.48rem;
+    padding: 0.78rem 0.78rem 0.9rem;
+    margin-bottom: 1.15rem;
+  }
+
+  .inventory-table-wrap-next table.mobile-card-table tbody td {
+    padding: 0 !important;
+  }
+
+  .inventory-table-wrap-next table.mobile-card-table tbody td[data-label='#'] {
+    display: none !important;
+  }
+
+  .inventory-table-wrap-next table.mobile-card-table tbody td[data-label='Producto'] {
+    display: block !important;
+    padding-bottom: 0.32rem !important;
+    border-bottom: 1px solid var(--admin-border) !important;
+  }
+
+  .inventory-table-wrap-next table.mobile-card-table tbody td[data-label='Producto']::before,
+  .inventory-table-wrap-next table.mobile-card-table tbody td.inventory-sku-cell-next {
+    display: none !important;
+  }
+
+  .inventory-mobile-product-next {
+    display: grid;
+    gap: 0.28rem;
+  }
+
+  .inventory-mobile-product-next strong {
+    color: var(--admin-text);
+    font-size: 0.9rem;
+    line-height: 1.25;
+  }
+
+  .inventory-mobile-product-next small {
+    width: max-content;
+    max-width: 100%;
+    border: 1px solid color-mix(in oklab, var(--admin-primary) 42%, var(--admin-border));
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--admin-primary) 11%, var(--admin-surface));
+    color: var(--admin-muted);
+    padding: 0.18rem 0.48rem;
+    font-size: 0.72rem;
+    font-weight: 800;
+  }
+
+  .inventory-table-wrap-next table.mobile-card-table tbody td[data-label='Tienda'],
+  .inventory-table-wrap-next table.mobile-card-table tbody td[data-label='Disponible'],
+  .inventory-table-wrap-next table.mobile-card-table tbody td[data-label='Reservado'] {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.22rem 0 !important;
+  }
+
+  .inventory-table-wrap-next table.mobile-card-table tbody td[data-label='Reservado'] {
+    align-items: start;
+  }
+
+  .inventory-table-wrap-next table.mobile-card-table tbody td[data-label='Tienda']::before,
+  .inventory-table-wrap-next table.mobile-card-table tbody td[data-label='Disponible']::before,
+  .inventory-table-wrap-next table.mobile-card-table tbody td[data-label='Reservado']::before {
+    flex: none;
+    color: var(--admin-muted);
+  }
+
+  .inventory-table-wrap-next table.mobile-card-table tbody td[data-label='Reservado'] > div {
+    text-align: right;
+  }
+
+  .inventory-table-wrap-next table.mobile-card-table tbody td[data-label='Accion'] {
+    margin-top: 0.22rem;
+    padding-top: 0.48rem !important;
+    border-top: 1px solid var(--admin-border) !important;
+  }
+
+  /* La celda Accion es flex-column: el `flex:0 0 42%` heredado del ::before
+     generico reserva 42% de la ALTURA y desborda los botones fuera del card.
+     Se fuerza tamano por contenido. */
+  .inventory-table-wrap-next table.mobile-card-table tbody td[data-label='Accion']::before {
+    flex: 0 0 auto;
+  }
+
+  /* En movil las pills I/S/A/M/T se reemplazan por acciones rapidas inline.
+     Selector con la ruta completa para ganar en especificidad al
+     `td[data-label*='Accion'] > div { display:flex !important }` generico. */
+  .inventory-table-wrap-next table.mobile-card-table tbody td[data-label*='Accion'] > .inventory-row-actions-next {
+    display: none !important;
+  }
+
+  .inventory-table-wrap-next table.mobile-card-table tbody td[data-label*='Accion'] > .inventory-quick-move-next {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    align-items: stretch;
+    gap: 0.55rem;
+    width: 100%;
+  }
+
+  .inventory-quick-move-top-next {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .inventory-qty-stepper-next {
+    display: inline-flex;
+    align-items: stretch;
+    border: 1px solid var(--admin-border);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--admin-surface);
+  }
+
+  .inventory-qty-stepper-next button {
+    width: 46px;
+    min-height: 42px;
+    border: 0;
+    background: color-mix(in oklab, var(--admin-primary) 8%, var(--admin-surface));
+    color: var(--admin-text);
+    font-size: 1.35rem;
+    font-weight: 900;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .inventory-qty-stepper-next button:disabled {
+    opacity: 0.4;
+  }
+
+  .inventory-qty-stepper-next input {
+    width: 52px;
+    border: 0;
+    border-inline: 1px solid var(--admin-border);
+    background: transparent;
+    color: var(--admin-text);
+    text-align: center;
+    font: inherit;
+    font-size: 1rem;
+    font-weight: 800;
+    -moz-appearance: textfield;
+  }
+
+  .inventory-qty-stepper-next input::-webkit-outer-spin-button,
+  .inventory-qty-stepper-next input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  .inventory-qty-presets-next {
+    display: flex;
+    gap: 0.4rem;
+  }
+
+  .inventory-qty-preset-next {
+    flex: 1 1 0;
+    min-height: 36px;
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+    background: var(--admin-surface);
+    color: var(--admin-muted);
+    font: inherit;
+    font-weight: 800;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+
+  .inventory-qty-preset-next.is-active {
+    border-color: var(--admin-primary);
+    background: color-mix(in oklab, var(--admin-primary) 16%, var(--admin-surface));
+    color: var(--admin-text);
+  }
+
+  .inventory-quick-move-btns-next {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+
+  .inventory-move-btn-next {
+    min-height: 46px;
+    border-radius: 10px;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 800;
+    cursor: pointer;
+    padding-inline: 0.4rem;
+  }
+
+  .inventory-move-btn-next:disabled {
+    opacity: 0.6;
+  }
+
+  .inventory-move-btn-next.income {
+    border: 1px solid color-mix(in oklab, #22c55e 72%, var(--admin-border));
+    background: color-mix(in oklab, #22c55e 16%, var(--admin-surface));
+    color: color-mix(in oklab, #22c55e 40%, var(--admin-text));
+  }
+
+  .inventory-move-btn-next.outcome {
+    border: 1px solid color-mix(in oklab, #f97316 72%, var(--admin-border));
+    background: color-mix(in oklab, #f97316 16%, var(--admin-surface));
+    color: color-mix(in oklab, #f97316 44%, var(--admin-text));
+  }
+
+  .inventory-last-action-next {
+    margin: 0.15rem 0 0;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: color-mix(in oklab, var(--admin-text) 55%, transparent);
+  }
+
+  .inventory-table-wrap-next .inventory-quick-move-next .inventory-actions-menu-next {
+    display: inline-block;
+  }
+
+  .inventory-more-next {
+    flex: 0 0 auto;
+  }
+
+  .inventory-more-next .inventory-actions-trigger-next {
+    min-height: 42px;
+    padding-inline: 0.85rem;
+  }
+
+  .inventory-more-next .inventory-actions-list-next {
+    right: 0;
+    left: auto;
+  }
+
+  table.mobile-card-table tbody td[data-label*='Accion'],
+  table.mobile-card-table tbody th[data-label*='Accion'],
+  table.mobile-card-table tbody td[data-label*='Action'],
+  table.mobile-card-table tbody th[data-label*='Action'] {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.45rem;
+  }
+
+  table.mobile-card-table tbody td[data-label*='Accion'] > div,
+  table.mobile-card-table tbody th[data-label*='Accion'] > div,
+  table.mobile-card-table tbody td[data-label*='Action'] > div,
+  table.mobile-card-table tbody th[data-label*='Action'] > div {
+    display: flex !important;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 0.4rem;
+    width: 100%;
+  }
+
+  table.mobile-card-table tbody td[data-label*='Accion'] .admin-ghost-btn,
+  table.mobile-card-table tbody th[data-label*='Accion'] .admin-ghost-btn,
+  table.mobile-card-table tbody td[data-label*='Action'] .admin-ghost-btn,
+  table.mobile-card-table tbody th[data-label*='Action'] .admin-ghost-btn {
+    max-width: 100%;
+  }
+
+  /* Tarjetas compactas en movil: ver varias de un vistazo para atender/despachar rapido (opt-in) */
+  /* Menos padding lateral en la card que hospeda la lista movil: evita la doble
+     caja (card externa + row-card) que roba ancho en pantallas chicas. */
+  .admin-dashboard-grid > .admin-card:has(table.mobile-card-table) {
+    padding: 0.75rem 0.55rem;
+  }
+
+  .list-cards-next.mobile-card-table tbody tr {
+    padding: 0.5rem 0.62rem;
+    margin-bottom: 0.5rem;
+    border-radius: 10px;
+    gap: 0;
+  }
+
+  .list-cards-next.mobile-card-table tbody td,
+  .list-cards-next.mobile-card-table tbody th {
+    padding: 0.13rem 0 !important;
+    gap: 0.6rem;
+    font-size: 0.82rem;
+    align-items: center;
+    line-height: 1.25;
+  }
+
+  .list-cards-next.mobile-card-table tbody td::before,
+  .list-cards-next.mobile-card-table tbody th::before {
+    flex-basis: 36%;
+    font-size: 0.71rem;
+    font-weight: 700;
+    color: var(--admin-muted);
+  }
+
+  .list-cards-next.mobile-card-table tbody td[data-label='#'],
+  .list-cards-next.mobile-card-table tbody th[data-label='#'] {
+    display: none !important;
+  }
+
+  /* Campo principal como titulo escaneable de la tarjeta */
+  .list-cards-next.mobile-card-table tbody td.list-card-title-next {
+    display: flex !important;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0 0 0.3rem !important;
+    margin-bottom: 0.3rem;
+    border-bottom: 1px solid var(--admin-border) !important;
+    font-size: 0.92rem;
+    font-weight: 800;
+    color: var(--admin-text);
+    line-height: 1.2;
+  }
+
+  .list-cards-next.mobile-card-table tbody td.list-card-title-next::before {
+    display: none !important;
+  }
+
+  /* Acciones compactas en una fila */
+  .list-cards-next.mobile-card-table tbody td[data-label*='Accion'],
+  .list-cards-next.mobile-card-table tbody td[data-label*='Action'] {
+    margin-top: 0.26rem;
+    padding-top: 0.4rem !important;
+    border-top: 1px solid var(--admin-border) !important;
+  }
+
+  .list-cards-next.mobile-card-table tbody td[data-label*='Accion'] .admin-ghost-btn,
+  .list-cards-next.mobile-card-table tbody td[data-label*='Accion'] .admin-primary-btn,
+  .list-cards-next.mobile-card-table tbody td[data-label*='Action'] .admin-ghost-btn,
+  .list-cards-next.mobile-card-table tbody td[data-label*='Action'] .admin-primary-btn {
+    min-height: 32px;
+    padding-block: 0.28rem;
+    padding-inline: 0.7rem;
+    font-size: 0.8rem;
+  }
+
+  /* ===== Listas operativas: item compacto orientado a la accion (menos scroll, acciones al alcance) ===== */
+  .ops-cards-next.mobile-card-table tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 0.6rem;
+    row-gap: 0.18rem;
+    padding: 0.55rem 0.7rem;
+    margin-bottom: 0.5rem;
+    border-radius: 10px;
+  }
+
+  .ops-cards-next.mobile-card-table tbody td,
+  .ops-cards-next.mobile-card-table tbody th {
+    grid-column: 1 / -1;
+    display: flex !important;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.7rem;
+    padding: 0.07rem 0 !important;
+    font-size: 0.8rem;
+    line-height: 1.25;
+  }
+
+  .ops-cards-next.mobile-card-table tbody td > *,
+  .ops-cards-next.mobile-card-table tbody th > * {
+    min-width: 0;
+  }
+
+  .ops-cards-next.mobile-card-table tbody td::before,
+  .ops-cards-next.mobile-card-table tbody th::before {
+    flex: 0 0 auto;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--admin-muted);
+  }
+
+  .ops-cards-next.mobile-card-table tbody td[data-label='#'],
+  .ops-cards-next.mobile-card-table tbody td.ops-hide-mobile {
+    display: none !important;
+  }
+
+  /* Titulo: fila 1, columna 1 (truncado a 2 lineas) */
+  .ops-cards-next.mobile-card-table tbody td.list-card-title-next {
+    grid-column: 1;
+    grid-row: 1;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    padding: 0 0 0.32rem !important;
+    margin: 0;
+    border: 0 !important;
+    font-size: 0.9rem;
+    font-weight: 800;
+    color: var(--admin-text);
+    line-height: 1.22;
+  }
+
+  .ops-cards-next.mobile-card-table tbody td.list-card-title-next::before {
+    display: none !important;
+  }
+
+  /* Estado / tipo: fila 1, columna 2, alineado a la derecha */
+  .ops-cards-next.mobile-card-table tbody td.ops-status-next {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    justify-content: flex-end;
+    padding: 0 0 0.32rem !important;
+    white-space: nowrap;
+  }
+
+  .ops-cards-next.mobile-card-table tbody td.ops-status-next::before {
+    display: none !important;
+  }
+
+  /* Divisor sutil bajo la cabecera del item */
+  .ops-cards-next.mobile-card-table tbody td.list-card-title-next,
+  .ops-cards-next.mobile-card-table tbody td.ops-status-next {
+    border-bottom: 1px solid var(--admin-border) !important;
+    margin-bottom: 0.12rem;
+  }
+
+  /* Acciones: pie compacto a lo ancho, botones al alcance del pulgar */
+  .ops-cards-next.mobile-card-table tbody td[data-label*='Accion'],
+  .ops-cards-next.mobile-card-table tbody td[data-label*='Action'] {
+    grid-column: 1 / -1;
+    margin-top: 0.28rem;
+    padding-top: 0.42rem !important;
+    border-top: 1px solid var(--admin-border) !important;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ops-cards-next.mobile-card-table tbody td[data-label*='Accion']::before,
+  .ops-cards-next.mobile-card-table tbody td[data-label*='Action']::before {
+    display: none !important;
+  }
+
+  .ops-cards-next.mobile-card-table tbody td[data-label*='Accion'] .admin-table-actions,
+  .ops-cards-next.mobile-card-table tbody td[data-label*='Accion'] > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    width: 100%;
+  }
+
+  .ops-cards-next.mobile-card-table tbody td[data-label*='Accion'] .admin-ghost-btn,
+  .ops-cards-next.mobile-card-table tbody td[data-label*='Accion'] .admin-primary-btn {
+    flex: 1 1 auto;
+    min-height: 34px;
+    padding: 0.3rem 0.6rem;
+    font-size: 0.78rem;
+  }
+
+  .admin-alert-root {
+    right: 0.75rem;
+    left: 0.75rem;
+    width: auto;
+  }
+
+  .admin-confirm-overlay,
+  .admin-modal-overlay {
+    padding: 0.75rem;
+  }
+
+  .admin-modal-head-next {
+    gap: 0.6rem;
+  }
+
+  .admin-modal-close-next {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+  }
+
+  .admin-product-basic-grid,
+  .admin-product-selection-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-product-modal-dialog {
+    max-height: calc(100vh - 1.5rem);
+    max-height: calc(100dvh - 1.5rem);
+  }
+
+  .activity-details-modal {
+    width: calc(100vw - 1.5rem);
+    max-height: calc(100vh - 1.5rem);
+    max-height: calc(100dvh - 1.5rem);
+    padding: 0.8rem 0.82rem;
+  }
+
+  .activity-details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .activity-product-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-user-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-permission-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .admin-toolbar input[type='text'] {
+    min-width: 100%;
+  }
+
+  .admin-filters-layout-next,
+  .admin-toolbar-join-next,
+  .admin-toolbar-checks-next,
+  .admin-filters-actions-next,
+  .stores-inline-filters-next {
+    width: 100%;
+  }
+
+  .admin-filters-actions-next {
+    justify-content: flex-start;
+  }
+
+  .admin-filters-actions-next .admin-ghost-btn,
+  .admin-filters-actions-next .admin-primary-btn,
+  .admin-toolbar-join-next .admin-primary-btn {
+    width: 100%;
+  }
+
+  .roles-status-select-next,
+  .roles-status-select-next select,
+  .stores-inline-filters-next select {
+    width: 100%;
+    min-width: 100%;
+  }
+
+  .admin-toolbar input[type='number'],
+  .admin-toolbar select {
+    width: 100%;
+    min-width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .admin-pagination {
+    justify-content: flex-start;
+  }
+
+  .settings-card-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .company-settings-layout,
+  .company-settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .toggle-wrap {
+    align-self: flex-start;
+  }
+
+  .settings-page {
+    padding-bottom: 8rem;
+  }
+
+  .setting-switch {
+    align-self: flex-start;
+  }
+
+  .setting-switch-text {
+    min-width: 0;
+    text-align: left;
+  }
+
+  .setting-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.55rem;
+  }
+
+  .settings-actionbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .settings-actionbar-buttons {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .settings-actionbar-buttons button {
+    flex: 1 1 auto;
+  }
+
+  .activity-header-actions {
+    width: 100%;
+  }
+
+  .activity-filters-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .activity-filter-actions {
+    gap: 0.45rem;
+  }
+}
+
+@media (max-width: 720px) {
+  .admin-workspace {
+    --admin-topbar-offset: 9.4rem;
+  }
+
+  .admin-topbar {
+    min-height: auto;
+    padding: 0.72rem;
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    gap: 0.62rem;
+    background:
+      linear-gradient(135deg, color-mix(in oklab, var(--admin-primary) 8%, transparent), transparent 44%),
+      var(--admin-surface);
+    box-shadow: 0 14px 30px rgba(2, 8, 23, 0.18);
+  }
+
+  .admin-topbar-left-next {
+    width: 100%;
+    flex: none;
+    align-items: center;
+    gap: 0.62rem;
+    min-width: 0;
+  }
+
+  .admin-navbar-title-next {
+    padding-inline: 0;
+    font-size: 0.98rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .admin-drawer-toggle-next,
+  .admin-notification-button-next {
+    width: 38px;
+    min-width: 38px;
+    height: 38px;
+    border-radius: 12px;
+  }
+
+  .admin-topbar-actions {
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr) 68px;
+    grid-template-areas:
+      'bell user theme'
+      'logout logout logout';
+    width: 100%;
+    align-items: center;
+    justify-content: stretch;
+    gap: 0.5rem;
+    flex: none;
+  }
+
+  .admin-notifications-next {
+    grid-area: bell;
+    min-width: 0;
+  }
+
+  .admin-topbar-user-next {
+    grid-area: user;
+    min-width: 0;
+    max-width: 100%;
+    height: 38px;
+    border-radius: 12px;
+    padding: 0.25rem 0.42rem;
+    gap: 0.36rem;
+    overflow: hidden;
+  }
+
+  .admin-topbar-user-next strong {
+    max-width: none;
+    font-size: 0.8rem;
+    min-width: 0;
+  }
+
+  .admin-topbar-role-badge-next {
+    min-height: 20px;
+    padding-inline: 0.42rem;
+    font-size: 0.65rem;
+  }
+
+  .theme-toggle-next {
+    grid-area: theme;
+    justify-self: end;
+  }
+
+  .admin-navbar-logout-next {
+    grid-area: logout;
+    width: 100%;
+    min-height: 38px;
+    border-radius: 12px;
+  }
+
+  .admin-notification-panel-next {
+    left: 0;
+    right: auto;
+    width: min(340px, calc(100vw - 1.4rem));
+  }
+
+  .theme-toggle-track-next {
+    width: 68px;
+    height: 34px;
+  }
+
+  .theme-toggle-track-next::before,
+  .theme-toggle-thumb-next {
+    width: 30px;
+  }
+
+  .theme-toggle-thumb-next {
+    font-size: 0;
+  }
+
+  .theme-toggle-thumb-next::after {
+    content: '';
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: currentColor;
+  }
+
+  [data-theme='light'] .theme-toggle-track-next::before,
+  [data-theme='light'] .theme-toggle-thumb-next {
+    transform: translateX(32px);
+  }
+}
+
+.orders-container-next {
+  padding: 1.25rem;
+  min-height: calc(100vh - 9rem);
+  background: var(--admin-page-bg);
+  color: var(--admin-text);
+}
+
+.orders-header-next {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.orders-header-next h1 {
+  margin: 0;
+  font-size: 1.4rem;
+  color: var(--admin-text);
+}
+
+.orders-header-next p {
+  margin: 0;
+  color: var(--admin-muted);
+}
+
+.orders-header-card-next {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.orders-filters-shell-next {
+  display: grid;
+  gap: 1rem;
+}
+
+.orders-filters-toolbar-next {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.orders-filters-toolbar-copy-next h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--admin-text);
+}
+
+.orders-filters-toolbar-copy-next p {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: var(--admin-muted);
+}
+
+.orders-open-filters-btn-next {
+  min-height: 2.5rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--admin-primary) 35%, var(--admin-border));
+  background: color-mix(in oklab, var(--admin-primary) 12%, var(--admin-surface-soft));
+  color: var(--admin-text);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.orders-open-filters-btn-next:hover {
+  transform: translateY(-1px);
+  border-color: var(--admin-primary);
+}
+
+.orders-open-filters-count-next {
+  min-width: 1.45rem;
+  height: 1.45rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.35rem;
+  font-size: 0.75rem;
+  line-height: 1;
+  background: color-mix(in oklab, var(--admin-primary) 30%, transparent);
+  color: var(--admin-text);
+}
+
+.orders-filters-grid-next {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+
+.orders-filter-field-full-next {
+  grid-column: 1 / -1;
+}
+
+.quick-status-section-next {
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  padding: 0.75rem;
+  background: color-mix(in oklab, var(--admin-surface-soft) 70%, var(--admin-surface));
+  display: grid;
+  gap: 0.5rem;
+}
+
+.quick-status-title-next {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--admin-text);
+}
+
+.quick-status-list-next {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.quick-status-badge-next {
+  border: 1px solid var(--admin-border);
+  border-radius: 999px;
+  background: var(--admin-surface-soft);
+  color: var(--admin-text);
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0.35rem 0.7rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  transition: border-color 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
+}
+
+.quick-status-badge-next:hover {
+  transform: translateY(-1px);
+  border-color: var(--admin-primary);
+}
+
+.quick-status-badge-next.active {
+  border-color: var(--admin-primary);
+  background: color-mix(in oklab, var(--admin-primary) 16%, var(--admin-surface));
+}
+
+.quick-status-count-next {
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--admin-primary) 20%, transparent);
+  color: var(--admin-text);
+  min-width: 1.3rem;
+  height: 1.3rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 0.35rem;
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+.active-filters-next {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.active-filter-chip-next {
+  border: 1px solid var(--admin-border);
+  border-radius: 999px;
+  background: var(--admin-surface-soft);
+  color: var(--admin-text);
+  font-size: 0.8rem;
+  padding: 0.28rem 0.7rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.active-filter-chip-next:hover {
+  border-color: var(--admin-primary);
+  background: color-mix(in oklab, var(--admin-primary) 10%, var(--admin-surface));
+}
+
+.active-filter-label-next {
+  color: var(--admin-muted);
+  font-weight: 700;
+}
+
+.active-filter-remove-next {
+  font-size: 0.72rem;
+  border-left: 1px solid color-mix(in oklab, var(--admin-border) 80%, transparent);
+  padding-left: 0.35rem;
+}
+
+.active-filters-clear-next {
+  border: none;
+  background: transparent;
+  color: var(--admin-primary);
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.orders-filters-modal-overlay-next {
+  position: fixed;
+  inset: 0;
+  z-index: 3400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(0.7rem, 2vw, 1.5rem);
+  background: var(--admin-overlay);
+  backdrop-filter: blur(2px);
+}
+
+.orders-filters-modal-next {
+  width: min(860px, 100%);
+  max-height: calc(100vh - 1.5rem);
+  max-height: calc(100dvh - 1.5rem);
+  overflow: auto;
+  border: 1px solid var(--admin-border);
+  border-radius: 14px;
+  background: var(--admin-surface);
+  box-shadow: 0 22px 44px rgba(0, 0, 0, 0.35);
+}
+
+.orders-filters-modal-header-next {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--admin-border);
+  padding: 1rem;
+}
+
+.orders-filters-modal-header-next h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--admin-text);
+}
+
+.orders-filters-modal-header-next p {
+  margin: 0.3rem 0 0;
+  color: var(--admin-muted);
+  font-size: 0.86rem;
+}
+
+.orders-filters-modal-close-next {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface-soft);
+  color: var(--admin-text);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.orders-filters-modal-body-next {
+  padding: 1rem;
+}
+
+.orders-filters-modal-actions-next {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.95rem;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.orders-status-pill-next {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  border-radius: 999px;
+  font-size: 0.73rem;
+  font-weight: 800;
+  padding: 0.2rem 0.54rem;
+  min-width: 6.6rem;
+}
+
+.orders-money-cell-next {
+  font-weight: 800;
+  color: var(--admin-success);
+}
+
+.orders-code-next {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.orders-table-section-next {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.orders-row-next:hover td {
+  background: color-mix(in oklab, var(--admin-primary) 7%, var(--admin-surface));
+}
+
+.orders-status-select-next {
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: var(--admin-surface-soft);
+  color: var(--admin-text);
+  padding: 0.38rem 0.5rem;
+  font-size: 0.78rem;
+}
+
+/* ------------------------------------------------------------------ */
+/* Registro rapido en DESKTOP: el mismo principio de velocidad del     */
+/* movil (stepper + presets + Ingreso/Salida directo, sin drawer)      */
+/* aplicado a la tabla densa de escritorio.                            */
+/* ------------------------------------------------------------------ */
+@media (min-width: 769px) {
+  /* Ocultar las pills que abren el drawer y mostrar el registro rapido */
+  .inventory-table-wrap-next table.admin-table tbody td[data-label*='Accion'] > .inventory-row-actions-next {
+    display: none;
+  }
+
+  .inventory-table-wrap-next table.admin-table tbody td[data-label*='Accion'] {
+    min-width: 260px;
+  }
+
+  .inventory-quick-move-next {
+    display: grid;
+    gap: 0.4rem;
+    min-width: 244px;
+  }
+
+  .inventory-quick-move-top-next {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.4rem;
+  }
+
+  .inventory-quick-move-next .inventory-qty-stepper-next {
+    display: inline-flex;
+    align-items: stretch;
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--admin-surface);
+  }
+
+  .inventory-quick-move-next .inventory-qty-stepper-next button {
+    width: 34px;
+    min-height: 34px;
+    border: 0;
+    background: color-mix(in oklab, var(--admin-primary) 8%, var(--admin-surface));
+    color: var(--admin-text);
+    font-size: 1.15rem;
+    font-weight: 900;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .inventory-quick-move-next .inventory-qty-stepper-next button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .inventory-quick-move-next .inventory-qty-stepper-next input {
+    width: 46px;
+    border: 0;
+    border-inline: 1px solid var(--admin-border);
+    background: transparent;
+    color: var(--admin-text);
+    text-align: center;
+    font: inherit;
+    font-weight: 800;
+    -moz-appearance: textfield;
+  }
+
+  .inventory-quick-move-next .inventory-qty-stepper-next input::-webkit-outer-spin-button,
+  .inventory-quick-move-next .inventory-qty-stepper-next input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  .inventory-quick-move-next .inventory-qty-presets-next {
+    display: flex;
+    gap: 0.3rem;
+  }
+
+  .inventory-quick-move-next .inventory-qty-preset-next {
+    flex: 1 1 0;
+    min-height: 30px;
+    border: 1px solid var(--admin-border);
+    border-radius: 7px;
+    background: var(--admin-surface);
+    color: var(--admin-muted);
+    font: inherit;
+    font-weight: 800;
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+
+  .inventory-quick-move-next .inventory-qty-preset-next.is-active {
+    border-color: var(--admin-primary);
+    background: color-mix(in oklab, var(--admin-primary) 16%, var(--admin-surface));
+    color: var(--admin-text);
+  }
+
+  .inventory-quick-move-next .inventory-quick-move-btns-next {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4rem;
+  }
+
+  .inventory-quick-move-next .inventory-move-btn-next {
+    min-height: 38px;
+    border-radius: 8px;
+    font: inherit;
+    font-size: 0.84rem;
+    font-weight: 800;
+    cursor: pointer;
+    padding-inline: 0.3rem;
+  }
+
+  .inventory-quick-move-next .inventory-move-btn-next:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .inventory-quick-move-next .inventory-move-btn-next.income {
+    border: 1px solid color-mix(in oklab, #22c55e 72%, var(--admin-border));
+    background: color-mix(in oklab, #22c55e 14%, var(--admin-surface));
+    color: color-mix(in oklab, #22c55e 42%, var(--admin-text));
+  }
+
+  .inventory-quick-move-next .inventory-move-btn-next.outcome {
+    border: 1px solid color-mix(in oklab, #f97316 72%, var(--admin-border));
+    background: color-mix(in oklab, #f97316 14%, var(--admin-surface));
+    color: color-mix(in oklab, #f97316 46%, var(--admin-text));
+  }
+
+  .inventory-quick-move-next .inventory-last-action-next {
+    margin: 0.1rem 0 0;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: color-mix(in oklab, var(--admin-text) 55%, transparent);
+  }
+}
+

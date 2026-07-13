@@ -98,6 +98,16 @@ function routeIcon(route: AdminRouteItem) {
   if (slug === 'orders/picking') {
     return <path d="M9 3H5a2 2 0 0 0-2 2v4h18V5a2 2 0 0 0-2-2h-4 M12 3V2a1 1 0 0 0-1-1h2a1 1 0 0 0-1 1v1 M6 7h12" />;
   }
+  if (slug.startsWith('sunat')) {
+    return (
+      <>
+        <path d="M6 2h9l3 3v17l-2-1-2 1-2-1-2 1-2-1-2 1V2z" />
+        <path d="M9 7h6" />
+        <path d="M9 11h6" />
+        <path d="M9 15h4" />
+      </>
+    );
+  }
   if (slug === 'users') {
     return <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8a4 4 0 1 0 0 8" />;
   }

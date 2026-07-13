@@ -1,0 +1,1230 @@
+/* =========================================================================
+   Panel de preparacion de pedido ecommerce (SaaS) — prefijo .ff-
+   ========================================================================= */
+.ff-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.ff-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+  border-radius: 16px;
+  min-width: 0;
+}
+
+.ff-muted {
+  color: var(--admin-muted);
+  font-size: 0.82rem;
+}
+
+.ff-tiny {
+  font-size: 0.74rem;
+}
+
+/* Header --------------------------------------------------------------- */
+.ff-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.ff-header-title {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.ff-header-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.ff-header-row h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.ff-code {
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+/* Badges de estado ----------------------------------------------------- */
+.ff-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.22rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.ff-badge-gray { background: color-mix(in oklab, var(--admin-muted) 16%, var(--admin-surface)); color: var(--admin-muted); }
+.ff-badge-blue { background: color-mix(in oklab, #3b82f6 16%, var(--admin-surface)); color: #2563eb; }
+.ff-badge-amber { background: color-mix(in oklab, #f59e0b 18%, var(--admin-surface)); color: #b45309; }
+.ff-badge-green { background: color-mix(in oklab, var(--admin-success) 18%, var(--admin-surface)); color: color-mix(in oklab, var(--admin-success) 78%, var(--admin-text)); }
+
+/* Botones -------------------------------------------------------------- */
+.ff-ghost-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  padding: 0.5rem 0.9rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.ff-ghost-btn:hover { background: color-mix(in oklab, var(--admin-surface-soft) 60%, var(--admin-surface)); }
+.ff-ghost-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.ff-ghost-btn.ff-sm { padding: 0.4rem 0.7rem; font-size: 0.78rem; }
+.ff-ghost-btn.ff-xs { padding: 0.25rem 0.55rem; font-size: 0.74rem; border-radius: 8px; }
+
+.ff-primary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border: none;
+  border-radius: 10px;
+  background: var(--admin-primary);
+  color: #ffffff;
+  padding: 0.65rem 1.3rem;
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.ff-primary-btn:hover { filter: brightness(1.05); }
+.ff-primary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.ff-danger-btn { background: var(--admin-danger, #e74c3c); }
+
+.ff-link-btn {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--admin-primary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ff-icon-btn {
+  border: 1px solid transparent;
+  background: none;
+  border-radius: 8px;
+  width: 30px;
+  height: 30px;
+  font-size: 1.1rem;
+  color: var(--admin-muted);
+  cursor: pointer;
+}
+
+.ff-icon-btn:hover { background: color-mix(in oklab, var(--admin-surface-soft) 60%, var(--admin-surface)); }
+
+/* Stats superiores ----------------------------------------------------- */
+.ff-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.85rem;
+}
+
+.ff-stat {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  background: var(--admin-surface);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.ff-stat-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.ff-stat-icon.is-indigo { background: color-mix(in oklab, #6366f1 16%, var(--admin-surface)); color: #4f46e5; }
+.ff-stat-icon.is-green { background: color-mix(in oklab, var(--admin-success) 16%, var(--admin-surface)); color: color-mix(in oklab, var(--admin-success) 75%, var(--admin-text)); }
+.ff-stat-icon.is-blue { background: color-mix(in oklab, #3b82f6 16%, var(--admin-surface)); color: #2563eb; }
+.ff-stat-icon.is-amber { background: color-mix(in oklab, #f59e0b 18%, var(--admin-surface)); color: #b45309; }
+.ff-stat-icon.is-red { background: color-mix(in oklab, var(--admin-danger, #e74c3c) 16%, var(--admin-surface)); color: var(--admin-danger, #e74c3c); }
+
+.ff-stat-body { display: grid; gap: 0.1rem; flex: 1; }
+.ff-stat-label { color: var(--admin-muted); font-size: 0.78rem; }
+.ff-stat-value { font-size: 1.35rem; line-height: 1; }
+.ff-stat-value em { font-style: normal; font-size: 0.76rem; font-weight: 600; color: var(--admin-muted); }
+
+/* Tabla ---------------------------------------------------------------- */
+.ff-table-block {
+  border: 1px solid var(--admin-border);
+  border-radius: 14px;
+  padding: 1rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.85rem;
+  background: color-mix(in oklab, var(--admin-surface) 96%, var(--admin-surface-soft));
+}
+
+.ff-table-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.ff-table-head h3 { margin: 0; font-size: 1.05rem; }
+.ff-table-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.ff-empty { padding: 1.5rem; text-align: center; }
+
+.ff-table-wrap { overflow-x: auto; }
+
+.ff-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+}
+
+.ff-table thead th {
+  text-align: left;
+  padding: 0.55rem 0.7rem;
+  border-bottom: 1px solid var(--admin-border);
+  color: var(--admin-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.ff-table tbody td {
+  padding: 0.8rem 0.7rem;
+  border-bottom: 1px solid color-mix(in oklab, var(--admin-border) 70%, transparent);
+  vertical-align: top;
+}
+
+.ff-table tbody tr:last-child td { border-bottom: none; }
+.ff-table .ff-num { text-align: center; white-space: nowrap; }
+.ff-table .ff-center { text-align: center; }
+.ff-col-prod { min-width: 210px; }
+
+.ff-product { display: flex; align-items: center; gap: 0.65rem; }
+.ff-product-info { display: grid; gap: 0.1rem; }
+.ff-product-name { font-weight: 700; }
+.ff-sku { color: var(--admin-muted); font-size: 0.74rem; }
+
+.ff-thumb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--admin-surface-soft) 70%, var(--admin-surface));
+  border: 1px solid var(--admin-border);
+  font-weight: 800;
+  color: var(--admin-muted);
+  flex-shrink: 0;
+}
+
+/* Select tienda -------------------------------------------------------- */
+.ff-store-col { min-width: 200px; }
+.ff-store-cell { display: grid; gap: 0.25rem; margin-bottom: 0.5rem; }
+.ff-store-cell:last-child { margin-bottom: 0; }
+.ff-store-row { display: flex; align-items: center; gap: 0.3rem; }
+
+.ff-select {
+  width: 100%;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  padding: 0.5rem 0.6rem;
+  font-size: 0.83rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ff-select:disabled { opacity: 0.55; cursor: not-allowed; }
+.ff-select.is-empty { color: var(--admin-muted); font-style: italic; font-weight: 500; }
+
+.ff-store-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  width: fit-content;
+  padding: 0.08rem 0.45rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--admin-surface-soft) 70%, var(--admin-surface));
+  color: var(--admin-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.ff-store-tag.is-rec {
+  background: color-mix(in oklab, var(--admin-success) 16%, var(--admin-surface));
+  color: color-mix(in oklab, var(--admin-success) 78%, var(--admin-text));
+}
+
+.ff-store-avail { color: var(--admin-success); font-size: 0.74rem; font-weight: 600; }
+.ff-store-warn { color: var(--admin-danger, #e74c3c); font-size: 0.74rem; font-weight: 600; }
+
+.ff-split-remove {
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: var(--admin-surface);
+  color: var(--admin-danger, #e74c3c);
+  width: 28px;
+  height: 32px;
+  font-size: 1rem;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* Disponible ----------------------------------------------------------- */
+.ff-avail { font-weight: 800; font-size: 1rem; }
+.ff-avail.is-green { color: var(--admin-success); }
+.ff-avail.is-amber { color: #b45309; }
+.ff-avail.is-red { color: var(--admin-danger, #e74c3c); }
+.ff-avail.is-muted { color: var(--admin-muted); font-weight: 600; }
+
+/* Celda de linea ya reservada (reversible) */
+.ff-reserved-cell {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: start;
+}
+
+.ff-reserved-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--admin-success) 14%, var(--admin-surface));
+  color: color-mix(in oklab, var(--admin-success) 80%, var(--admin-text));
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.ff-release-inline {
+  border: 1px solid color-mix(in oklab, var(--admin-warning) 45%, var(--admin-border));
+  border-radius: 8px;
+  background: var(--admin-surface);
+  color: #b45309;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ff-release-inline:hover { background: color-mix(in oklab, var(--admin-warning) 12%, var(--admin-surface)); }
+.ff-release-inline:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.ff-qty-none { color: var(--admin-muted); font-size: 0.8rem; font-weight: 600; }
+
+/* Stepper -------------------------------------------------------------- */
+.ff-qty-col { min-width: 130px; }
+.ff-qty { display: grid; gap: 0.25rem; justify-items: center; margin-bottom: 0.5rem; }
+.ff-qty:last-child { margin-bottom: 0; }
+
+.ff-stepper {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--admin-surface);
+}
+
+.ff-stepper button {
+  border: none;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  width: 32px;
+  height: 34px;
+  font-size: 1.05rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.ff-stepper button:disabled { opacity: 0.4; cursor: not-allowed; }
+.ff-stepper.is-disabled { opacity: 0.7; }
+
+.ff-stepper span {
+  min-width: 38px;
+  text-align: center;
+  font-weight: 700;
+  border-left: 1px solid var(--admin-border);
+  border-right: 1px solid var(--admin-border);
+  padding: 0.35rem 0;
+}
+
+/* Input numerico directo dentro del stepper (tipear cantidad). */
+.ff-stepper-input {
+  width: 44px;
+  min-width: 44px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--admin-text);
+  background: var(--admin-surface);
+  border: none;
+  border-left: 1px solid var(--admin-border);
+  border-right: 1px solid var(--admin-border);
+  padding: 0.35rem 0;
+  -moz-appearance: textfield;
+}
+.ff-stepper-input:focus {
+  outline: 2px solid var(--admin-primary);
+  outline-offset: -2px;
+}
+.ff-stepper-input:disabled { opacity: 0.7; }
+.ff-stepper.is-syncing .ff-stepper-input { color: var(--admin-muted); }
+
+.ff-qty-max { color: var(--admin-muted); font-size: 0.72rem; }
+
+/* Estado "guardando" del stepper (espera respuesta de la API) ---------- */
+.ff-stepper.is-syncing { opacity: 0.8; }
+.ff-stepper.is-syncing span { color: var(--admin-muted); }
+.ff-qty-sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--admin-muted);
+  font-size: 0.72rem;
+}
+.ff-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--admin-border);
+  border-top-color: var(--admin-primary, #2563eb);
+  border-radius: 50%;
+  animation: ff-spin 0.6s linear infinite;
+}
+.ff-spinner-sm { width: 11px; height: 11px; border-width: 2px; }
+@keyframes ff-spin { to { transform: rotate(360deg); } }
+.order-detail-pick-spin-next { margin-left: 0.4rem; vertical-align: middle; }
+
+.ff-stepper-lg { display: flex; }
+.ff-stepper-lg span { flex: 1; }
+.ff-stepper-lg button { width: 44px; height: 40px; }
+
+/* Asignado ------------------------------------------------------------- */
+.ff-assigned { font-weight: 700; }
+.ff-assigned.is-reservado { color: var(--admin-success); }
+.ff-assigned.is-configurado { color: #2563eb; }
+.ff-assigned.is-parcial { color: #b45309; }
+.ff-assigned.is-pendiente { color: var(--admin-muted); }
+.ff-assigned.is-sin_stock { color: var(--admin-danger, #e74c3c); }
+.ff-sync-hint { font-weight: 500; font-size: 0.72rem; color: var(--admin-muted); }
+
+/* Badge de estado de linea --------------------------------------------- */
+.ff-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.28rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.ff-state-gray { background: color-mix(in oklab, var(--admin-muted) 14%, var(--admin-surface)); color: var(--admin-muted); }
+.ff-state-blue { background: color-mix(in oklab, #3b82f6 14%, var(--admin-surface)); color: #2563eb; }
+.ff-state-amber { background: color-mix(in oklab, #f59e0b 18%, var(--admin-surface)); color: #b45309; }
+.ff-state-green { background: color-mix(in oklab, var(--admin-success) 16%, var(--admin-surface)); color: color-mix(in oklab, var(--admin-success) 78%, var(--admin-text)); }
+.ff-state-red { background: color-mix(in oklab, var(--admin-danger, #e74c3c) 14%, var(--admin-surface)); color: var(--admin-danger, #e74c3c); }
+
+/* Menu de acciones por fila -------------------------------------------- */
+.ff-actions-col { position: relative; }
+.ff-row-menu-wrap { position: relative; display: inline-block; }
+
+.ff-row-menu {
+  position: absolute;
+  right: 0;
+  top: 34px;
+  z-index: 20;
+  display: grid;
+  min-width: 190px;
+  padding: 0.35rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: var(--admin-surface);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
+.ff-row-menu button {
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 0.5rem 0.6rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  color: var(--admin-text);
+  cursor: pointer;
+}
+
+.ff-row-menu button:hover { background: color-mix(in oklab, var(--admin-surface-soft) 60%, var(--admin-surface)); }
+.ff-row-menu button:disabled { opacity: 0.45; cursor: not-allowed; }
+.ff-row-menu .ff-danger { color: var(--admin-danger, #e74c3c); }
+
+/* Agregar otra tienda -------------------------------------------------- */
+.ff-add-store {
+  display: grid;
+  gap: 0.2rem;
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 0.9rem;
+  border: 1px dashed var(--admin-border);
+  border-radius: 12px;
+  background: none;
+  color: var(--admin-primary);
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ff-add-store span { color: var(--admin-muted); font-size: 0.76rem; font-weight: 500; }
+.ff-add-store:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.ff-add-store-inline {
+  border: none;
+  background: none;
+  padding: 0.15rem 0;
+  color: var(--admin-primary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+}
+
+.ff-add-store-inline:hover { text-decoration: underline; }
+
+/* Leyenda -------------------------------------------------------------- */
+.ff-legend { display: flex; flex-wrap: wrap; gap: 1.1rem; padding-top: 0.5rem; }
+.ff-legend span { display: inline-flex; align-items: center; gap: 0.4rem; color: var(--admin-muted); font-size: 0.78rem; }
+.ff-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.ff-dot.is-green { background: var(--admin-success); }
+.ff-dot.is-amber { background: #f59e0b; }
+.ff-dot.is-gray { background: var(--admin-muted); }
+.ff-dot.is-red { background: var(--admin-danger, #e74c3c); }
+
+/* Footer --------------------------------------------------------------- */
+.ff-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--admin-border);
+}
+
+.ff-footer-summary { display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
+.ff-footer-block { display: grid; gap: 0.1rem; }
+.ff-footer-metric { display: grid; gap: 0.1rem; }
+.ff-footer-metric strong.is-green { color: var(--admin-success); }
+.ff-footer-metric strong.is-red { color: var(--admin-danger, #e74c3c); }
+
+.ff-footer-actions { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; }
+.ff-reserve-wrap { display: grid; gap: 0.2rem; justify-items: end; }
+.ff-reserve-hint { font-size: 0.74rem; }
+
+/* Sidebar -------------------------------------------------------------- */
+.ff-sidebar { display: grid; gap: 1rem; position: sticky; top: 1rem; }
+.ff-side-card { border-radius: 14px; }
+.ff-side-card h3 { margin: 0 0 0.7rem; font-size: 0.98rem; }
+
+.ff-quick-actions { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.2rem; }
+.ff-quick-actions button {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 0.55rem 0.5rem;
+  border-radius: 8px;
+  font-size: 0.84rem;
+  color: var(--admin-text);
+  cursor: pointer;
+}
+.ff-quick-actions button:hover { background: color-mix(in oklab, var(--admin-surface-soft) 60%, var(--admin-surface)); }
+
+.ff-removed-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.7rem; }
+.ff-removed-list li { display: grid; gap: 0.2rem; padding-bottom: 0.6rem; border-bottom: 1px solid var(--admin-border); }
+.ff-removed-list li:last-child { border-bottom: none; padding-bottom: 0; }
+.ff-removed-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.ff-removed-note { font-size: 0.78rem; color: var(--admin-text); }
+
+.ff-activity { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.85rem; }
+.ff-activity li { display: grid; grid-template-columns: 44px 1fr; gap: 0.4rem; align-items: start; }
+.ff-activity-time { color: var(--admin-muted); font-size: 0.74rem; font-weight: 600; }
+.ff-activity-text { font-size: 0.82rem; line-height: 1.35; }
+
+.ff-tips { background: color-mix(in oklab, #f59e0b 8%, var(--admin-surface)); border-color: color-mix(in oklab, #f59e0b 30%, var(--admin-border)); }
+.ff-tips ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.5rem; }
+.ff-tips li { font-size: 0.8rem; line-height: 1.35; color: var(--admin-text); }
+
+/* Modal ---------------------------------------------------------------- */
+.ff-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.ff-modal { width: min(460px, 100%); display: grid; gap: 0.85rem; border-radius: 16px; }
+.ff-modal h3 { margin: 0; }
+.ff-field { display: grid; gap: 0.35rem; }
+.ff-field > span { font-size: 0.8rem; font-weight: 600; color: var(--admin-muted); }
+
+.ff-textarea {
+  width: 100%;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  padding: 0.6rem;
+  font-size: 0.85rem;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.ff-modal-actions { display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 0.3rem; }
+
+/* Selector de producto (modal agregar) */
+.ff-add-results {
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: var(--admin-surface-soft);
+}
+.ff-add-results > ul { list-style: none; margin: 0; padding: 0.25rem; display: grid; gap: 0.25rem; }
+.ff-add-results > p { margin: 0; padding: 0.75rem; }
+.ff-add-option {
+  width: 100%;
+  display: grid;
+  gap: 0.15rem;
+  text-align: left;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  padding: 0.5rem 0.6rem;
+  cursor: pointer;
+}
+.ff-add-option:hover { border-color: var(--admin-border); }
+.ff-add-option.is-selected { border-color: var(--admin-primary); background: color-mix(in oklab, var(--admin-primary) 12%, var(--admin-surface)); }
+.ff-add-option-name { font-weight: 600; font-size: 0.88rem; }
+
+/* Chips de variante (color/talla) al agregar producto ------------------ */
+.ff-variant-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.ff-variant-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 999px;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  padding: 0.3rem 0.6rem 0.3rem 0.35rem;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.ff-variant-chip:hover { border-color: var(--admin-primary); }
+.ff-variant-chip.is-selected {
+  border-color: var(--admin-primary);
+  background: color-mix(in oklab, var(--admin-primary) 14%, var(--admin-surface));
+}
+.ff-swatch {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in oklab, var(--admin-text) 25%, transparent);
+  flex: 0 0 auto;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+.ff-variant-chip-color { font-weight: 600; }
+.ff-variant-chip-size {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.05rem 0.35rem;
+  border-radius: 6px;
+  background: var(--admin-surface-soft);
+  color: var(--admin-muted, var(--admin-text));
+}
+
+/* Responsive ----------------------------------------------------------- */
+@media (max-width: 1180px) {
+  /* minmax(0,1fr) (no `1fr`=minmax(auto,1fr)) para que la columna NO crezca al
+     max-content de un hijo ancho y desborde en movil. */
+  .ff-panel { grid-template-columns: minmax(0, 1fr); }
+  .ff-sidebar { position: static; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+}
+
+/* Movil: la tabla se convierte en tarjetas apiladas (data-label) */
+@media (max-width: 760px) {
+  .ff-table thead { display: none; }
+  .ff-table,
+  .ff-table tbody,
+  .ff-table tr,
+  .ff-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .ff-table tr {
+    border: 1px solid var(--admin-border);
+    border-radius: 12px;
+    background: var(--admin-surface);
+    padding: 0.6rem 0.85rem;
+    margin-bottom: 0.85rem;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  }
+
+  .ff-table tbody td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.55rem 0;
+    border-bottom: 1px dashed color-mix(in oklab, var(--admin-border) 70%, transparent);
+    text-align: right;
+  }
+
+  .ff-table tbody tr td:last-child { border-bottom: none; }
+
+  .ff-table tbody td::before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    text-align: left;
+    color: var(--admin-muted);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  /* La fila de producto encabeza la tarjeta, sin etiqueta */
+  .ff-table td.ff-col-prod {
+    border-bottom: 1px solid var(--admin-border);
+    padding-bottom: 0.7rem;
+    margin-bottom: 0.3rem;
+  }
+
+  .ff-table td.ff-col-prod::before { display: none; }
+
+  .ff-table .ff-num,
+  .ff-table .ff-center { text-align: right; }
+
+  /* Controles anchos ocupan el lado derecho completo */
+  .ff-store-col,
+  .ff-qty-col { align-items: flex-start; }
+  .ff-store-cell,
+  .ff-qty { width: auto; min-width: 0; }
+  .ff-store-col .ff-store-cell { align-items: flex-end; }
+  .ff-select { min-width: 180px; }
+
+  .ff-table td.ff-actions-col { justify-content: flex-end; }
+  .ff-row-menu { right: 0; }
+
+  .ff-footer { flex-direction: column; align-items: stretch; }
+  .ff-footer-actions { flex-direction: column; align-items: stretch; }
+  .ff-footer-actions > button,
+  .ff-reserve-wrap { width: 100%; }
+  .ff-reserve-wrap { justify-items: stretch; }
+  .ff-primary-btn { width: 100%; }
+  .ff-reserve-hint { text-align: center; }
+}
+
+/* ===================================================================== */
+/* Picking operativo: layout compacto en movil (una fila por variante)   */
+/* La visibilidad la controla .order-detail-mobile-only-next; por eso el  */
+/* display flex de .pk-board se activa solo dentro del @media movil, para */
+/* no filtrar el bloque al escritorio.                                    */
+/* ===================================================================== */
+.pk-product {
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  background: var(--admin-surface);
+  overflow: hidden;
+}
+
+.pk-product-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.7rem;
+  background: var(--admin-surface-soft);
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.pk-thumb {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--admin-primary-text);
+  background: var(--admin-primary-strong);
+}
+
+.pk-product-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--admin-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pk-status {
+  flex: none;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--admin-border);
+  color: var(--admin-muted);
+  background: var(--admin-surface);
+}
+.pk-status.is-pending { color: var(--admin-muted); }
+.pk-status.is-partial {
+  color: #b45309;
+  border-color: color-mix(in oklab, #f59e0b 45%, var(--admin-border));
+  background: color-mix(in oklab, #f59e0b 12%, var(--admin-surface));
+}
+.pk-status.is-completed {
+  color: var(--mk-ok);
+  border-color: color-mix(in oklab, var(--mk-ok) 45%, var(--admin-border));
+  background: color-mix(in oklab, var(--mk-ok) 12%, var(--admin-surface));
+}
+
+.pk-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.pk-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.5rem 0.7rem;
+  border-top: 1px solid color-mix(in oklab, var(--admin-border) 55%, transparent);
+}
+.pk-row:first-child { border-top: none; }
+.pk-row.is-completed { background: color-mix(in oklab, var(--mk-ok) 6%, transparent); }
+
+.pk-var {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.pk-var-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--admin-text);
+}
+
+.pk-metrics {
+  flex: none;
+  display: flex;
+  gap: 0.45rem;
+}
+
+.pk-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.05;
+  min-width: 2.1rem;
+}
+.pk-metric b {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--admin-text);
+}
+.pk-metric small {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--admin-muted);
+}
+.pk-metric.is-picked b { color: var(--mk-ok); }
+.pk-metric.is-missing b { color: var(--admin-danger); }
+
+.pk-row-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.pk-step {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 7px;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+.pk-step:hover:not(:disabled) { background: var(--admin-surface-muted); }
+
+.pk-complete {
+  height: 30px;
+  padding: 0 0.7rem;
+  border-radius: 7px;
+  border: 1px solid var(--admin-primary-strong);
+  background: var(--admin-primary-strong);
+  color: var(--admin-primary-text);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pk-complete:hover:not(:disabled) { filter: brightness(1.05); }
+.pk-complete-short { display: none; }
+
+.pk-req {
+  height: 30px;
+  padding: 0 0.55rem;
+  border-radius: 7px;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  color: var(--admin-muted);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.pk-step:disabled,
+.pk-complete:disabled,
+.pk-req:disabled { opacity: 0.5; cursor: not-allowed; }
+
+@media (max-width: 768px) {
+  .pk-board { display: flex; flex-direction: column; gap: 0.75rem; }
+  .pk-complete { width: 34px; padding: 0; font-size: 0.9rem; }
+  .pk-complete-full { display: none; }
+  .pk-complete-short { display: inline; }
+  .pk-metric { min-width: 1.8rem; }
+  .pk-metric b { font-size: 0.88rem; }
+}
+
+/* ===================================================================== */
+/* Reserva: vista compacta movil (una tarjeta por variante)              */
+/* ===================================================================== */
+.ff-mobile-cards { display: none; }
+
+.ff-mcard {
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  background: var(--admin-surface);
+  padding: 0.6rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+.ff-mcard-head { display: flex; align-items: flex-start; gap: 0.5rem; }
+/* Badge de estado compacto para no robar ancho al nombre en la tarjeta movil. */
+.ff-mcard-head .ff-badge {
+  flex: none;
+  font-size: 0.6rem;
+  padding: 0.12rem 0.42rem;
+  white-space: nowrap;
+}
+.ff-mcard-title { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.ff-mcard-title .ff-product-name {
+  font-weight: 600;
+  font-size: 0.92rem;
+  overflow: hidden;
+  /* En movil el nombre usa hasta 2 lineas en vez de cortarse con "..."
+     (habia poco ancho por el thumb + badge). */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.ff-mcard-variant { font-size: 0.8rem; color: var(--admin-muted); }
+/* Thumb decorativo mas compacto en la tarjeta movil: libera ancho para el nombre. */
+.ff-mcard-head .ff-thumb { width: 34px; height: 34px; border-radius: 8px; }
+
+/* Una sola tira (no 3 mini-cards): un fondo, 3 columnas planas con divisor.
+   Evita el "card dentro de card" que apretaba el contenido en movil. */
+.ff-mcard-metrics {
+  display: flex;
+  gap: 0;
+  background: var(--admin-surface-soft);
+  border-radius: 8px;
+  padding: 0.28rem 0;
+}
+.ff-mcard-metrics .ff-metric {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.08rem 0;
+  background: transparent;
+  line-height: 1.1;
+}
+.ff-mcard-metrics .ff-metric + .ff-metric {
+  border-left: 1px solid color-mix(in oklab, var(--admin-border) 60%, transparent);
+}
+.ff-mcard-metrics .ff-metric b { font-size: 0.98rem; color: var(--admin-text); }
+.ff-mcard-metrics .ff-metric small {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--admin-muted);
+}
+.ff-mcard-metrics .ff-metric.is-green b { color: var(--mk-ok); }
+.ff-mcard-metrics .ff-metric.is-red b { color: var(--admin-danger); }
+.ff-mcard-metrics .ff-metric.is-amber b { color: #b45309; }
+.ff-mcard-metrics .ff-metric.is-assigned-green b { color: var(--mk-ok); }
+.ff-mcard-metrics .ff-metric.is-assigned-amber b { color: #b45309; }
+
+.ff-mcard-store { display: flex; align-items: center; gap: 0.5rem; }
+.ff-mcard-store-info {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.ff-mcard-store-info .ff-select { min-width: 0; width: 100%; }
+.ff-mcard-store-empty { display: flex; flex-direction: column; gap: 0.3rem; }
+
+@media (max-width: 768px) {
+  .ff-desktop-only { display: none !important; }
+  .ff-mobile-cards { display: flex; flex-direction: column; gap: 0.6rem; }
+}
+
+/* ===================================================================== */
+/* Barra inferior sticky (movil): reserva y picking                      */
+/* ===================================================================== */
+.ff-sticky-bar,
+.pk-sticky-bar { display: none; }
+.ff-sticky-info,
+.pk-sticky-info { display: flex; flex-direction: column; line-height: 1.05; flex: none; }
+.ff-sticky-info strong,
+.pk-sticky-info strong { font-size: 1.05rem; color: var(--admin-text); }
+.ff-sticky-info small,
+.pk-sticky-info small {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--admin-muted);
+}
+
+@media (max-width: 768px) {
+  .ff-sticky-bar,
+  .pk-sticky-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 45;
+    padding: 0.6rem 0.9rem calc(0.6rem + env(safe-area-inset-bottom, 0px));
+    background: var(--admin-surface);
+    border-top: 1px solid var(--admin-border);
+    box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.14);
+  }
+  .ff-sticky-bar .ff-primary-btn,
+  .pk-sticky-bar .admin-primary-btn { flex: 1; min-height: 44px; }
+  /* Espacio para que la barra fija no tape el final del contenido. */
+  .ff-panel { padding-bottom: 84px; }
+  .order-detail-page-next { padding-bottom: 84px; }
+}
+
+/* ===================================================================== */
+/* Escaneo de picking (pistola/teclado + camara)                         */
+/* ===================================================================== */
+.pk-scan {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0.4rem 0 0.6rem;
+  padding: 0.6rem;
+  border: 1px solid var(--admin-primary);
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--admin-primary) 8%, var(--admin-surface));
+}
+.pk-scan-row { display: flex; gap: 0.4rem; }
+.pk-scan-input {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  padding: 0 0.6rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  font-size: 0.95rem;
+}
+.pk-scan-input:focus { outline: 2px solid var(--admin-primary); outline-offset: -2px; }
+.pk-scan-camera { display: flex; flex-direction: column; gap: 0.3rem; align-items: center; }
+.pk-scan-video {
+  width: 100%;
+  max-width: 420px;
+  border-radius: 10px;
+  background: #000;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+.pk-scan-hint { font-size: 0.72rem; color: var(--admin-muted); }
+.order-detail-action-btn-next.is-active {
+  border-color: var(--admin-primary);
+  color: var(--admin-primary);
+}
+
+/* ===================================================================== */
+/* Modo pantalla completa de operacion (picking)                         */
+/* ===================================================================== */
+.pk-fs-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+body.pk-fullscreen-active { overflow: hidden; }
+.pk-fs-target.is-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  margin: 0;
+  border-radius: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  background: var(--admin-page-bg);
+  padding: 1rem 1rem calc(1rem + 96px);
+}
+
+/* Seleccion multiple + accion en lote (picking) */
+.pk-select-col { width: 34px; text-align: center; }
+.pk-row-select { flex: none; width: 18px; height: 18px; margin-right: 0.1rem; }
+.pk-batch-bar { align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+
+/* Input numerico directo de cantidad separada (picking, desktop + movil) */
+.pk-picked-input {
+  width: 46px;
+  min-width: 46px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--admin-text);
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: 7px;
+  padding: 0.3rem 0;
+}
+.pk-picked-input:focus { outline: 2px solid var(--admin-primary); outline-offset: -2px; }
+.pk-picked-input:disabled { opacity: 0.6; }
+
+/* Stepper de preparacion (2 pasos: Reservar -> Separar) — mobile-first ---- */
+.prep-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.85rem;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+.prep-step {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--admin-muted);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.prep-step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--admin-border);
+  color: var(--admin-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  flex: 0 0 auto;
+}
+.prep-step.is-active { color: var(--admin-text); }
+.prep-step.is-active .prep-step-num { background: var(--admin-primary); color: #fff; }
+.prep-step.is-done .prep-step-num { background: var(--mk-ok, #16a34a); color: #fff; }
+.prep-step.is-done { color: var(--admin-text); }
+.prep-step-sep {
+  flex: 1 1 auto;
+  height: 2px;
+  min-width: 18px;
+  background: var(--admin-border);
+  border-radius: 2px;
+}
+
+/* Menos scroll en movil: ocultar sidebar (info secundaria). Sus acciones ya
+   estan en la fila/sticky-bar. */
+@media (max-width: 768px) {
+  .prep-stepper { padding: 0.5rem 0.6rem; gap: 0.4rem; }
+  .prep-step-label { font-size: 0.85rem; }
+  .ff-sidebar { display: none; }
+}
+
+/* Menos "card dentro de card dentro de card" en movil: los envoltorios
+   intermedios ceden su padding/borde para que las tarjetas de producto ganen
+   ancho (antes quedaban aplastadas a ~229px de 390 por padding acumulado). */
+@media (max-width: 768px) {
+  .order-detail-page-next { padding-left: 0.5rem; padding-right: 0.5rem; }
+  .order-detail-page-next .admin-card { padding: 0.75rem; }
+  /* El bloque de tabla deja de ser una card: sin borde/fondo/padding lateral. */
+  .ff-table-block { padding: 0; border: 0; background: transparent; }
+  .ff-mcard { padding: 0.6rem; }
+}

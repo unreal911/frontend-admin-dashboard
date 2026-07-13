@@ -11,6 +11,8 @@ type MovementTypeFilter = 'ALL' | InventoryMovementType;
 
 const ALLOWED_TYPES: MovementTypeFilter[] = ['ALL', 'IN', 'OUT', 'ADJUSTMENT', 'TRANSFER_OUT', 'TRANSFER_IN', 'RESERVED', 'UNRESERVED'];
 
+const MOVEMENTS_PAGE_SIZE = 20;
+
 const MOVEMENT_TYPE_OPTIONS: AdminSelectOption<MovementTypeFilter>[] = [
   { value: 'ALL', label: 'Todos' },
   { value: 'IN', label: 'Ingreso' },
@@ -21,6 +23,29 @@ const MOVEMENT_TYPE_OPTIONS: AdminSelectOption<MovementTypeFilter>[] = [
   { value: 'RESERVED', label: 'Comprometido' },
   { value: 'UNRESERVED', label: 'Liberado' },
 ];
+
+function normalizeVariantAttribute(value?: string | null): string {
+  const normalized = String(value || '').trim();
+  if (!normalized || normalized.startsWith('__SIN_')) {
+    return '';
+  }
+  return normalized;
+}
+
+/**
+ * Titulo de la tarjeta de movimiento. Para producto unico (sin color/talla
+ * reales) muestra solo el nombre del producto; si tiene variante, agrega
+ * color / talla y el SKU.
+ */
+function buildMovementTitle(variant: InventoryMovement['inventory']['variant']): string {
+  const color = normalizeVariantAttribute(variant.color?.name);
+  const size = normalizeVariantAttribute(variant.size?.name);
+  const attrs = [color, size].filter(Boolean).join(' / ');
+  if (!attrs) {
+    return variant.product.name;
+  }
+  return `${variant.product.name} - ${attrs} - ${variant.sku}`;
+}
 
 function parseInventoryId(value: string | null): number | null {
   const parsed = Number(value || 0);
@@ -71,6 +96,7 @@ export function AdminInventoryMovementsPage() {
   const [searchParam, setSearchParam] = useState('');
   const [movementTypeFilter, setMovementTypeFilter] = useState<MovementTypeFilter>('ALL');
   const [inventoryIdFilter, setInventoryIdFilter] = useState<number | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const filteredMovements = useMemo(() => {
     const query = searchParam.trim().toLowerCase();
@@ -104,6 +130,26 @@ export function AdminInventoryMovementsPage() {
       })
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [movementsData, inventoryIdFilter, movementTypeFilter, searchParam]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredMovements.length / MOVEMENTS_PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages);
+
+  const pagedMovements = useMemo(() => {
+    const start = (safePage - 1) * MOVEMENTS_PAGE_SIZE;
+    return filteredMovements.slice(start, start + MOVEMENTS_PAGE_SIZE);
+  }, [filteredMovements, safePage]);
+
+  // Volver a la primera pagina cuando cambian los filtros o la busqueda
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [inventoryIdFilter, movementTypeFilter, searchParam]);
+
+  // Corregir la pagina si el total se reduce (p. ej. tras filtrar)
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   async function loadMovements() {
     setLoading(true);
@@ -232,7 +278,7 @@ export function AdminInventoryMovementsPage() {
                   <td colSpan={8} data-label="Estado">No hay movimientos para los filtros seleccionados.</td>
                 </tr>
               ) : (
-                filteredMovements.map((movement) => (
+                pagedMovements.map((movement) => (
                   <tr key={movement.id}>
                     <td data-label="#">{movement.id}</td>
                     <td data-label="Fecha">{formatDate(movement.createdAt)}</td>
@@ -242,7 +288,7 @@ export function AdminInventoryMovementsPage() {
                       </span>
                     </td>
                     <td data-label="Variante" className="list-card-title-next">
-                      {movement.inventory.variant.product.name} - {movement.inventory.variant.color.name} / {movement.inventory.variant.size.name} - {movement.inventory.variant.sku}
+                      {buildMovementTitle(movement.inventory.variant)}
                     </td>
                     <td data-label="Tienda">{movement.inventory.store.name} ({movement.inventory.store.code})</td>
                     <td data-label="Cantidad">{movement.quantity}</td>
@@ -260,6 +306,28 @@ export function AdminInventoryMovementsPage() {
             </tbody>
           </table>
         </div>
+
+        {!loading && filteredMovements.length > 0 ? (
+          <div className="admin-pagination">
+            <button
+              type="button"
+              className="admin-ghost-btn"
+              disabled={safePage <= 1}
+              onClick={() => setCurrentPage((value) => Math.max(1, value - 1))}
+            >
+              Anterior
+            </button>
+            <p>Pagina {safePage} de {totalPages} ({filteredMovements.length} movimientos)</p>
+            <button
+              type="button"
+              className="admin-ghost-btn"
+              disabled={safePage >= totalPages}
+              onClick={() => setCurrentPage((value) => Math.min(totalPages, value + 1))}
+            >
+              Siguiente
+            </button>
+          </div>
+        ) : null}
       </article>
     </section>
   );

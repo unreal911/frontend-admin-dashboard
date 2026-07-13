@@ -41,11 +41,14 @@ export const ADMIN_ROUTE_ITEMS: AdminRouteItem[] = [
   { slug: 'orders/list', label: 'Pedidos', group: 'Pedidos', permission: 'orders.view', description: 'Listado de pedidos.' },
   { slug: 'orders/pos', label: 'POS', group: 'Pedidos', permission: 'pos.view', description: 'Punto de venta para creacion de pedidos.' },
   { slug: 'orders/picking', label: 'Picking', group: 'Pedidos', permission: 'picking.view', description: 'Tablero de picking.' },
+  { slug: 'sunat', label: 'SUNAT', group: 'Pedidos', permission: 'orders.view', description: 'Facturacion electronica: declaracion de boletas y comprobantes.' },
+  { slug: 'sunat/comprobantes', label: 'Comprobantes', group: 'Pedidos', permission: 'orders.view', description: 'Comprobantes emitidos: notas de credito/debito y anulaciones.' },
 
   { slug: 'users', label: 'Usuarios', group: 'Accesos', permission: 'users.view', description: 'Gestion de usuarios.' },
   { slug: 'roles', label: 'Roles', group: 'Accesos', permission: 'roles.view', description: 'Gestion de roles y permisos.' },
 
   { slug: 'settings', label: 'Configuracion', group: 'Sistema', permission: 'settings.manage', description: 'Parametros globales del sistema.' },
+  { slug: 'sunat/configuracion', label: 'Emisor SUNAT', group: 'Sistema', permission: 'sunat.config', description: 'Datos del emisor, credenciales y certificado para facturacion electronica.' },
   { slug: 'audit-logs', label: 'Auditoria', group: 'Sistema', permission: 'settings.manage', description: 'Bitacora de auditoria.' },
   { slug: 'user-activities', label: 'Actividades', group: 'Sistema', permission: 'settings.manage', description: 'Actividad de usuarios.' },
 ];

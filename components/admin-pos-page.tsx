@@ -1,14 +1,26 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import Image from 'next/image';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAdminAuth } from '@/components/admin-auth-provider';
 import { useAdminUi } from '@/components/admin-ui-provider';
+import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
 import {
   AdminOrder,
   normalizeOrdersListResponse,
   normalizeVariantStockResponse,
 } from '@/lib/admin-order-types';
+
+type PosDocType = 'NOTA' | 'BOLETA' | 'FACTURA';
+
+const POS_DOC_TYPE_STORAGE_KEY = 'pos_doc_type';
+
+const POS_DOC_TYPE_LABELS: Record<PosDocType, string> = {
+  NOTA: 'Nota de venta',
+  BOLETA: 'Boleta',
+  FACTURA: 'Factura',
+};
 
 interface PosStore {
   id: number;
@@ -264,13 +276,16 @@ function buildOrderNote(
   reference: string,
   paidAmount?: number,
   changeAmount?: number,
+  clientAddress?: string,
 ): string {
+  const address = asText(clientAddress);
   const parts = [
     asText(baseNote),
     `Metodo de pago: ${paymentMethod}`,
     `Ref: ${reference}`,
     Number.isFinite(paidAmount) ? `Monto recibido: ${Number(paidAmount).toFixed(2)}` : '',
     Number.isFinite(changeAmount) ? `Vuelto: ${Number(changeAmount).toFixed(2)}` : '',
+    address ? `Direccion: ${address}` : '',
   ].filter(Boolean);
   return parts.join(' | ');
 }
@@ -289,6 +304,7 @@ export function AdminPosPage() {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todos');
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   const [cart, setCart] = useState<PosCartItem[]>([]);
   const [applyIgv, setApplyIgv] = useState(false);
@@ -309,6 +325,8 @@ export function AdminPosPage() {
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('');
   const [clientEmail, setClientEmail] = useState('');
+  const [clienteTipoDoc, setClienteTipoDoc] = useState('1');
+  const [clienteNumDoc, setClienteNumDoc] = useState('');
   const [clientAddress, setClientAddress] = useState('');
   const [orderNote, setOrderNote] = useState('');
   const [amountPaid, setAmountPaid] = useState(0);
@@ -316,6 +334,10 @@ export function AdminPosPage() {
   const [salesHistory, setSalesHistory] = useState<AdminOrder[]>([]);
   const [loadingSalesHistory, setLoadingSalesHistory] = useState(false);
   const [showSalesHistory, setShowSalesHistory] = useState(false);
+  const [boletaEnabled, setBoletaEnabled] = useState(false);
+  const [facturaEnabled, setFacturaEnabled] = useState(false);
+  const [docType, setDocType] = useState<PosDocType>('NOTA');
+  const [pendingPrint, setPendingPrint] = useState<{ id: number; code: string } | null>(null);
   const canSell = hasPermission('pos.sell');
   const canCharge = hasPermission('pos.charge');
   const canCancelSale = hasPermission('pos.cancel_sale');
@@ -624,6 +646,58 @@ export function AdminPosPage() {
     loadPaymentMethods();
   }, [loadStores, loadProducts, loadPaymentMethods]);
 
+  // Restaura el ultimo tipo de comprobante elegido (solo etiqueta impresa)
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(POS_DOC_TYPE_STORAGE_KEY);
+      if (saved === 'NOTA' || saved === 'BOLETA' || saved === 'FACTURA') {
+        setDocType(saved);
+      }
+    } catch {
+      // localStorage no disponible
+    }
+  }, []);
+
+  // Habilitacion de Boleta/Factura desde Configuracion
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const response = await fetch('/api/admin/system-config/order-workflow', { method: 'GET', cache: 'no-store' });
+        const payload = await response.json().catch(() => null);
+        if (!active || !response.ok) return;
+        const data = (payload as { data?: { posBoletaEnabled?: unknown; posFacturaEnabled?: unknown } } | null)?.data || {};
+        setBoletaEnabled(data.posBoletaEnabled === true);
+        setFacturaEnabled(data.posFacturaEnabled === true);
+      } catch {
+        // sin config: solo Nota de venta
+      }
+    })();
+    return () => { active = false; };
+  }, []);
+
+  // Si se deshabilita el tipo actual, vuelve a Nota de venta
+  useEffect(() => {
+    if (docType === 'BOLETA' && !boletaEnabled) setDocType('NOTA');
+    if (docType === 'FACTURA' && !facturaEnabled) setDocType('NOTA');
+  }, [docType, boletaEnabled, facturaEnabled]);
+
+  const docTypeOptions = useMemo<AdminSelectOption<PosDocType>[]>(() => {
+    const options: AdminSelectOption<PosDocType>[] = [{ value: 'NOTA', label: POS_DOC_TYPE_LABELS.NOTA }];
+    if (boletaEnabled) options.push({ value: 'BOLETA', label: POS_DOC_TYPE_LABELS.BOLETA });
+    if (facturaEnabled) options.push({ value: 'FACTURA', label: POS_DOC_TYPE_LABELS.FACTURA });
+    return options;
+  }, [boletaEnabled, facturaEnabled]);
+
+  function updateDocType(next: PosDocType) {
+    setDocType(next);
+    try {
+      window.localStorage.setItem(POS_DOC_TYPE_STORAGE_KEY, next);
+    } catch {
+      // localStorage no disponible
+    }
+  }
+
   useEffect(() => {
     if (!selectedStoreId) return;
     loadSalesHistory(selectedStoreId);
@@ -822,6 +896,109 @@ export function AdminPosPage() {
     setShowPaymentDrawer(false);
   }
 
+  // F3: abre el selector de variante con la variante exacta del codigo escaneado (barcode o SKU)
+  function selectByScannedCode(code: string) {
+    if (!canSell) {
+      showAlert('No tienes permiso para agregar productos al carrito POS.', 'error');
+      return;
+    }
+    const needle = code.trim().toLowerCase();
+    if (!needle) return;
+
+    let foundProduct: PosProduct | null = null;
+    let foundVariant: PosVariant | null = null;
+    for (const product of products) {
+      const variant = product.variants.find((candidate) =>
+        asText(candidate.barcode).toLowerCase() === needle
+        || candidate.sku.toLowerCase() === needle);
+      if (variant) {
+        foundProduct = product;
+        foundVariant = variant;
+        break;
+      }
+    }
+
+    if (!foundProduct || !foundVariant) {
+      showAlert(`Sin coincidencia para el codigo ${code}.`, 'warning');
+      return;
+    }
+
+    setSearchTerm('');
+    setSelectedProductId(foundProduct.id);
+    setSelectedColor(foundVariant.colorName);
+    setSelectedSize(foundVariant.sizeName);
+    setRemoteStockOptions([]);
+    setSelectedFulfillmentStoreId(null);
+    setVariantQuantity(Math.min(1, Math.max(1, foundVariant.availableStock || 1)));
+  }
+
+  // F3: atajos de teclado + lector de codigo de barras fisico (rafaga rapida terminada en Enter)
+  useEffect(() => {
+    let buffer = '';
+    let lastKeyTime = 0;
+
+    const isEditable = (node: Element | null) => {
+      if (!node) return false;
+      const el = node as HTMLElement;
+      return el.tagName === 'INPUT'
+        || el.tagName === 'TEXTAREA'
+        || el.tagName === 'SELECT'
+        || el.isContentEditable;
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // F9 = cobrar
+      if (event.key === 'F9') {
+        event.preventDefault();
+        if (canCharge && cart.length > 0 && !showPaymentDrawer) openPaymentPanel();
+        return;
+      }
+
+      // Esc = cerrar capas por prioridad
+      if (event.key === 'Escape') {
+        if (showPaymentDrawer) { closePaymentPanel(); return; }
+        if (selectedProductId !== null) { closeVariantSelector(); return; }
+        if (showMobileCart) { setShowMobileCart(false); return; }
+        return;
+      }
+
+      const editing = isEditable(document.activeElement);
+
+      // "/" enfoca la busqueda (si no se esta escribiendo en un campo)
+      if (event.key === '/' && !editing) {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+        return;
+      }
+
+      // Lector de codigo de barras: solo con el foco fuera de campos editables
+      if (editing) { buffer = ''; return; }
+
+      const now = Date.now();
+      if (now - lastKeyTime > 80) buffer = '';
+      lastKeyTime = now;
+
+      if (event.key === 'Enter') {
+        const code = buffer.trim();
+        buffer = '';
+        if (code.length >= 3) {
+          event.preventDefault();
+          selectByScannedCode(code);
+        }
+        return;
+      }
+
+      if (event.key.length === 1) {
+        buffer += event.key;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canCharge, cart, total, products, showPaymentDrawer, selectedProductId, showMobileCart, canSell]);
+
   async function validateCartStockSnapshot(): Promise<boolean> {
     const requestedByStoreAndVariant = new Map<string, {
       storeId: number;
@@ -925,6 +1102,16 @@ export function AdminPosPage() {
       showAlert('El monto pagado no cubre el total.', 'error');
       return;
     }
+    if (docType === 'FACTURA') {
+      if (clienteTipoDoc !== '6' || !/^\d{11}$/.test(asText(clienteNumDoc))) {
+        showAlert('Para emitir Factura ingresa un RUC valido (11 digitos).', 'warning');
+        return;
+      }
+      if (!asText(clientName)) {
+        showAlert('Para emitir Factura ingresa la razon social del cliente.', 'warning');
+        return;
+      }
+    }
 
     setSubmittingPayment(true);
     try {
@@ -953,7 +1140,10 @@ export function AdminPosPage() {
           clientName: asText(clientName, 'Cliente POS'),
           clientEmail: asText(clientEmail) || undefined,
           clientPhone: asText(clientPhone) || undefined,
-          note: buildOrderNote([orderNote, fulfillmentNote].filter(Boolean).join(' | '), selectedPaymentMethod, paymentReference, amountPaid, change),
+          clienteTipoDoc: asText(clienteNumDoc) ? clienteTipoDoc : undefined,
+          clienteNumDoc: asText(clienteNumDoc) || undefined,
+          comprobanteTipo: docType === 'NOTA' ? undefined : docType,
+          note: buildOrderNote([orderNote, fulfillmentNote].filter(Boolean).join(' | '), selectedPaymentMethod, paymentReference, amountPaid, change, clientAddress),
           items: cart.map((item) => ({
             variantId: item.variantId,
             quantity: item.quantity,
@@ -974,13 +1164,25 @@ export function AdminPosPage() {
         return;
       }
 
-      const code = asText((payload as { data?: { code?: unknown } }).data?.code, 'VENTA');
+      const createdOrder = (payload as { data?: { code?: unknown; id?: unknown } }).data || {};
+      const code = asText(createdOrder.code, 'VENTA');
+      const createdId = Number(createdOrder.id) || 0;
+      const comprobanteInfo = (payload as { data?: { comprobante?: { serie?: unknown; numero?: unknown; tipo?: unknown; estado?: unknown } } }).data?.comprobante;
       showAlert(`Venta creada: ${code}`, 'success', 4200);
+      if (comprobanteInfo?.serie) {
+        const label = `${asText(comprobanteInfo.serie)}-${asText(comprobanteInfo.numero)}`;
+        showAlert(`${asText(comprobanteInfo.tipo) === 'FACTURA' ? 'Factura' : 'Boleta'} ${label} generada.`, 'success', 5000);
+      }
+      if (createdId > 0) {
+        setPendingPrint({ id: createdId, code });
+      }
       setCart([]);
       setShowPaymentDrawer(false);
       setClientName('');
       setClientPhone('');
       setClientEmail('');
+      setClienteNumDoc('');
+      setClienteTipoDoc('1');
       setClientAddress('');
       setOrderNote('');
       setAmountPaid(0);
@@ -1012,10 +1214,19 @@ export function AdminPosPage() {
         <article className="admin-card admin-pos-catalog-next">
           <div className="admin-pos-toolbar-next">
             <input
+              ref={searchInputRef}
               type="text"
               className="admin-pos-search-input-next"
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && filteredProducts.length === 1) {
+                  event.preventDefault();
+                  openVariantSelector(filteredProducts[0]);
+                } else if (event.key === 'Escape') {
+                  event.currentTarget.blur();
+                }
+              }}
               placeholder="Buscar por nombre, SKU, color o talla"
             />
 
@@ -1082,7 +1293,7 @@ export function AdminPosPage() {
                 >
                   <div className="admin-pos-product-image-next">
                     {product.imageUrl ? (
-                      <img src={product.imageUrl} alt={product.name} />
+                      <Image src={product.imageUrl} alt={product.name} fill sizes="150px" style={{ objectFit: 'cover' }} />
                     ) : (
                       <span>Sin imagen</span>
                     )}
@@ -1126,7 +1337,7 @@ export function AdminPosPage() {
               {cart.map((item) => (
                 <article key={`${item.variantId}-${item.fulfillmentStoreId}`} className="admin-pos-cart-item-next">
                   <div className="admin-pos-cart-item-image-next">
-                    {item.imageUrl ? <img src={item.imageUrl} alt={item.productName} /> : <span>N/A</span>}
+                    {item.imageUrl ? <Image src={item.imageUrl} alt={item.productName} fill sizes="50px" style={{ objectFit: 'cover' }} /> : <span>N/A</span>}
                   </div>
                   <div className="admin-pos-cart-item-main-next">
                     <h5>{item.productName}</h5>
@@ -1263,7 +1474,7 @@ export function AdminPosPage() {
 
               <div className="admin-pos-variant-image-next">
                 {(selectedVariant.imageUrl || selectedProduct.imageUrl) ? (
-                  <img src={selectedVariant.imageUrl || selectedProduct.imageUrl || ''} alt={selectedProduct.name} />
+                  <Image src={selectedVariant.imageUrl || selectedProduct.imageUrl || ''} alt={selectedProduct.name} fill sizes="92px" style={{ objectFit: 'cover' }} />
                 ) : (
                   <span>Sin imagen</span>
                 )}
@@ -1460,6 +1671,29 @@ export function AdminPosPage() {
                   />
                 </label>
                 <label className="admin-pos-form-group-next">
+                  <span>Tipo doc.</span>
+                  <select
+                    className="admin-pos-form-input-next"
+                    value={clienteTipoDoc}
+                    onChange={(event) => setClienteTipoDoc(event.target.value)}
+                  >
+                    <option value="1">DNI</option>
+                    <option value="6">RUC</option>
+                  </select>
+                </label>
+                <label className="admin-pos-form-group-next">
+                  <span>N° documento</span>
+                  <input
+                    className="admin-pos-form-input-next"
+                    type="text"
+                    inputMode="numeric"
+                    value={clienteNumDoc}
+                    onChange={(event) => setClienteNumDoc(event.target.value.replace(/\D/g, ''))}
+                    placeholder={clienteTipoDoc === '6' ? 'RUC (11 digitos)' : 'DNI (8 digitos)'}
+                    maxLength={clienteTipoDoc === '6' ? 11 : 8}
+                  />
+                </label>
+                <label className="admin-pos-form-group-next">
                   <span>Direccion</span>
                   <input
                     className="admin-pos-form-input-next"
@@ -1479,6 +1713,21 @@ export function AdminPosPage() {
                     placeholder="Referencia interna"
                   />
                 </label>
+              </div>
+
+              <div className="admin-pos-doc-type-next">
+                <span className="admin-pos-doc-type-label-next">Comprobante</span>
+                <AdminSelect
+                  ariaLabel="Tipo de comprobante"
+                  value={docType}
+                  options={docTypeOptions}
+                  onChange={updateDocType}
+                />
+                {!boletaEnabled && !facturaEnabled ? (
+                  <small className="admin-pos-doc-type-hint-next">
+                    Habilita Boleta y Factura en Configuracion.
+                  </small>
+                ) : null}
               </div>
 
               <div className="admin-pos-payment-methods-next">
@@ -1549,6 +1798,37 @@ export function AdminPosPage() {
               </button>
             </div>
           </aside>
+        </div>
+      ) : null}
+
+      {pendingPrint ? (
+        <div className="admin-modal-overlay" onClick={() => setPendingPrint(null)}>
+          <article className="admin-pos-print-prompt-next" onClick={(event) => event.stopPropagation()}>
+            <h3>Venta {pendingPrint.code} registrada</h3>
+            <p>Deseas imprimir el comprobante ({POS_DOC_TYPE_LABELS[docType]})?</p>
+            <div className="admin-pos-print-prompt-actions-next">
+              <button
+                type="button"
+                className="admin-pos-drawer-primary-btn-next"
+                onClick={() => {
+                  const target = pendingPrint;
+                  setPendingPrint(null);
+                  if (target) {
+                    window.open(`/admin/orders/${target.id}?print=1&doc=${docType}`, '_blank', 'noopener');
+                  }
+                }}
+              >
+                Imprimir
+              </button>
+              <button
+                type="button"
+                className="admin-pos-drawer-secondary-btn-next"
+                onClick={() => setPendingPrint(null)}
+              >
+                No, gracias
+              </button>
+            </div>
+          </article>
         </div>
       ) : null}
 

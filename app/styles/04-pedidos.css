@@ -1,0 +1,402 @@
+.orders-print-btn-next {
+  color: var(--admin-success);
+  border-color: color-mix(in oklab, var(--admin-success) 55%, var(--admin-border));
+}
+
+.orders-print-btn-next:hover {
+  border-color: var(--admin-success);
+  background: color-mix(in oklab, var(--admin-success) 12%, var(--admin-surface-soft));
+}
+
+.order-detail-page-next {
+  padding: 1.25rem;
+  min-height: calc(100vh - 9rem);
+  max-width: 1200px;
+  margin: 0 auto;
+  background: var(--admin-page-bg);
+  /* Es grid (.admin-dashboard-grid): sin columnas explicitas la columna implicita
+     es `auto` y crece al max-content del hijo mas ancho (tabla/SKU nowrap) →
+     desborda el ancho en movil y desfasa toda la pagina. minmax(0,1fr) fija la
+     columna al contenedor; los hijos anchos scrollean dentro de su wrapper. */
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.order-detail-page-next > * {
+  min-width: 0;
+}
+
+/* La preparacion ecommerce ocupa todo el ancho disponible */
+.order-detail-page-next--wide {
+  max-width: none;
+}
+
+.order-detail-page-next .admin-card {
+  padding: 1.2rem;
+  border-radius: 8px;
+}
+
+.order-detail-page-next .admin-card h3 {
+  font-size: 1.05rem;
+}
+
+.order-detail-header-next {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.15rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid var(--admin-border);
+}
+
+.order-detail-header-left-next {
+  min-width: 0;
+  display: grid;
+  gap: 0.38rem;
+}
+
+.order-detail-code-next {
+  margin: 0;
+  font-size: 1.9rem;
+  line-height: 1.05;
+  color: var(--admin-text);
+}
+
+.order-detail-client-next {
+  margin: 0;
+  color: var(--admin-muted);
+  font-size: 0.9rem;
+}
+
+.order-detail-header-actions-next {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.order-detail-header-actions-next .admin-ghost-btn {
+  border-radius: 4px;
+  padding: 0.5rem 0.92rem;
+  font-size: 0.84rem;
+  background: color-mix(in oklab, var(--admin-surface) 68%, var(--admin-surface-soft));
+}
+
+.order-detail-header-btn-next {
+  min-height: 36px;
+}
+
+.order-detail-header-actions-next .inventory-field {
+  min-width: 170px;
+  max-width: 200px;
+}
+
+.order-detail-print-picker-next {
+  min-width: 170px;
+}
+
+/* Menu de acciones de cabecera: barra inline en desktop (display:contents deja
+   que sus hijos participen del flex de .order-detail-header-actions-next), y se
+   convierte en dropdown compacto en movil (ver media query 900px). */
+.order-detail-actions-menu-next {
+  display: contents;
+}
+
+.order-detail-actions-trigger-next {
+  display: none;
+}
+
+.order-detail-actions-pop-next {
+  display: contents;
+}
+
+.order-detail-actions-backdrop-next {
+  display: none;
+}
+
+.order-detail-grid-next {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.2rem;
+  margin-bottom: 0.6rem;
+}
+
+.order-detail-summary-next {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.order-detail-summary-next h3 {
+  margin: 0;
+}
+
+.order-detail-status-pill-next {
+  min-width: 8rem;
+  width: fit-content;
+  margin-bottom: 0.1rem;
+}
+
+.order-detail-progress-wrap-next {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.order-detail-progress-label-next {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  font-size: 0.82rem;
+  color: var(--admin-muted);
+}
+
+.order-detail-progress-track-next {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--admin-border) 78%, var(--admin-surface-soft));
+  overflow: hidden;
+}
+
+.order-detail-progress-fill-next {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--admin-primary) 0%, var(--admin-success) 100%);
+}
+
+.order-detail-transitions-next {
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--admin-surface-soft) 78%, var(--admin-surface));
+  padding: 0.65rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.order-detail-transitions-next > p {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--admin-muted);
+}
+
+.order-detail-transitions-list-next {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.order-detail-transition-pill-next {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--admin-border);
+  border-radius: 999px;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 0.22rem 0.58rem;
+}
+
+.order-detail-info-list-next {
+  display: grid;
+  gap: 0;
+}
+
+.order-detail-info-row-next {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.7rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--admin-border);
+  color: var(--admin-muted);
+  font-size: 0.86rem;
+}
+
+.order-detail-info-row-next label {
+  color: var(--admin-text);
+  font-weight: 700;
+}
+
+.order-detail-info-row-next span {
+  text-align: right;
+}
+
+.order-detail-info-row-next:last-child {
+  border-bottom: 0;
+}
+
+.order-detail-info-total-next {
+  margin-top: 0.2rem;
+  padding-top: 0.65rem;
+  border-top: 2px solid color-mix(in oklab, var(--admin-primary) 65%, var(--admin-border));
+}
+
+.order-detail-info-total-next label,
+.order-detail-info-total-next span {
+  color: var(--admin-text);
+  font-weight: 800;
+}
+
+.order-item-badge-next {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0.2rem 0.58rem;
+  font-size: 0.74rem;
+  font-weight: 800;
+  border: 1px solid transparent;
+}
+
+.order-item-badge-next.is-picked {
+  border-color: color-mix(in oklab, var(--admin-success) 45%, var(--admin-border));
+  background: color-mix(in oklab, var(--admin-success) 16%, var(--admin-surface));
+  color: color-mix(in oklab, var(--admin-success) 80%, var(--admin-text));
+}
+
+.order-item-badge-next.is-partial {
+  border-color: color-mix(in oklab, var(--admin-warning) 45%, var(--admin-border));
+  background: color-mix(in oklab, var(--admin-warning) 15%, var(--admin-surface));
+  color: color-mix(in oklab, var(--admin-warning) 85%, var(--admin-text));
+}
+
+.order-item-badge-next.is-pending {
+  border-color: var(--admin-border);
+  background: color-mix(in oklab, var(--admin-surface-soft) 78%, var(--admin-surface));
+  color: var(--admin-muted);
+}
+
+.order-item-badge-next.is-complete {
+  border-color: color-mix(in oklab, var(--admin-success) 45%, var(--admin-border));
+  background: color-mix(in oklab, var(--admin-success) 16%, var(--admin-surface));
+  color: color-mix(in oklab, var(--admin-success) 80%, var(--admin-text));
+}
+
+.order-detail-table-next {
+  background: color-mix(in oklab, var(--admin-surface) 90%, var(--admin-surface-soft));
+}
+
+.order-detail-table-next thead th {
+  background: color-mix(in oklab, var(--admin-surface-soft) 78%, var(--admin-surface));
+}
+
+.order-detail-table-next th,
+.order-detail-table-next td {
+  padding: 0.76rem 0.75rem;
+}
+
+.order-detail-table-next td {
+  color: var(--admin-muted);
+}
+
+.order-detail-table-next tbody tr:nth-child(odd),
+.order-detail-table-next tbody tr:nth-child(even) {
+  background: color-mix(in oklab, var(--admin-surface) 90%, var(--admin-surface-soft));
+}
+
+.order-detail-table-next tbody tr:hover td {
+  background: color-mix(in oklab, var(--admin-primary) 8%, var(--admin-surface));
+}
+
+.order-detail-desktop-only-next {
+  display: block;
+}
+
+.order-detail-mobile-only-next {
+  display: none;
+}
+
+.order-detail-mobile-cards-next {
+  margin-top: 0.85rem;
+  gap: 0.72rem;
+}
+
+.order-detail-mobile-card-next {
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--admin-surface-soft) 75%, var(--admin-surface));
+  padding: 0.82rem;
+}
+
+.order-detail-mobile-card-head-next {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.55rem;
+  margin-bottom: 0.65rem;
+}
+
+.order-detail-mobile-card-head-next h4 {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--admin-text);
+}
+
+.order-detail-mobile-fields-next {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.order-detail-mobile-field-next {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  border-top: 1px solid var(--admin-border);
+  padding-top: 0.38rem;
+}
+
+.order-detail-mobile-field-next span {
+  color: var(--admin-muted);
+  font-size: 0.78rem;
+}
+
+.order-detail-mobile-field-next strong {
+  color: var(--admin-text);
+  font-size: 0.82rem;
+  text-align: right;
+}
+
+.order-detail-status-row-next {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.order-detail-meta-next {
+  margin-bottom: 1rem;
+}
+
+.order-detail-meta-summary-next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.order-detail-meta-chip-next {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.order-detail-meta-chip-next > span {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--admin-muted);
+}
+
+.order-detail-meta-chip-next > strong {
+  font-size: 0.95rem;
+  color: var(--admin-text);
+}
+
+.order-detail-meta-toggle-next {
+  margin-left: auto;
+}
+
+.order-detail-meta-next > .order-detail-grid-next {
+  margin-top: 1rem;
+}
+

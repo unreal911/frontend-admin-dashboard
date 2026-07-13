@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { useAdminAuth } from '@/components/admin-auth-provider';
 import { ADMIN_LIVE_UPDATE_EVENT } from '@/components/admin-shell-provider';
 import { useAdminUi } from '@/components/admin-ui-provider';
+import { AdminSelect } from '@/components/admin-select';
 import {
   AdminOrder,
   AdminOrderItem,
@@ -1385,14 +1386,12 @@ export function AdminPickingBoardPage() {
       <section className="picking-board-layout-next">
         <article className="admin-card picking-orders-panel-next">
           <div className="picking-toolbar-next">
-            <select
+            <AdminSelect
+              ariaLabel="Filtrar por estado"
               value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value as '' | AdminOrderStatus)}
-            >
-              {STATUS_SHORTCUTS.map((status) => (
-                <option key={status.value || 'all'} value={status.value}>{status.label}</option>
-              ))}
-            </select>
+              options={STATUS_SHORTCUTS.map((status) => ({ value: status.value, label: status.label }))}
+              onChange={(next) => setStatusFilter(next as '' | AdminOrderStatus)}
+            />
             <div className="picking-status-shortcuts-next">
               {STATUS_SHORTCUTS.map((shortcut) => (
                 <button

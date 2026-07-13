@@ -104,11 +104,15 @@ export function normalizeProductDetail(payload: unknown): AdminProductDetail | n
     }
   }
 
+  const afectacionIgvRaw = String((raw as { afectacionIgv?: unknown }).afectacionIgv || '10');
+  const afectacionIgv = ['10', '20', '30'].includes(afectacionIgvRaw) ? afectacionIgvRaw : '10';
+
   return {
     id,
     name,
     description: String(raw.description || ''),
     categoryId,
+    afectacionIgv,
     isActive: raw.isActive !== false,
     variantMode: parseVariantMode(raw.variantMode),
     marketplaceVariantColorIds: uniqueNumbers(

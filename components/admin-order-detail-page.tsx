@@ -148,6 +148,11 @@ function parsePaymentReference(note: string): string {
   return match?.[1]?.trim() || '-';
 }
 
+function parseClientAddress(note: string): string {
+  const match = String(note || '').match(/(?:^|\|)\s*DIRECCION\s*:\s*([^|]+)/i);
+  return match?.[1]?.trim() || '';
+}
+
 function parsePaymentAmount(note: string, labels: string[]): number | null {
   const safeLabels = labels.map((label) => label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
   const match = String(note || '').match(new RegExp(`(?:${safeLabels})\\s*:\\s*S?\\/?\\s*([\\d.,]+)`, 'i'));
@@ -695,6 +700,7 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
   const [completingReturn, setCompletingReturn] = useState(false);
   const [returnResponsibilityManagementEnabled, setReturnResponsibilityManagementEnabled] = useState(true);
   const [pickingResponsibilityFlowEnabledSetting, setPickingResponsibilityFlowEnabledSetting] = useState<boolean | null>(null);
+  const [companyInfo, setCompanyInfo] = useState<{ name: string; address: string; phone: string }>({ name: '', address: '', phone: '' });
   const hasLoadedOrderOnceRef = useRef(false);
 
   const canUpdateOrderStatus = hasPermission('orders.status.update');
@@ -703,6 +709,17 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
   const canCompletePickingPermission = hasPermission('picking.complete');
   const shouldAutoPrint = searchParams.get('print') === '1';
   const preferredPrintLayout: PrintLayout = searchParams.get('style') === 'ticket' ? 'ticket' : 'invoice';
+  const printDocParam = String(searchParams.get('doc') || '').toUpperCase();
+  const printDocLabel = printDocParam === 'NOTA'
+    ? 'NOTA DE VENTA'
+    : printDocParam === 'FACTURA'
+      ? 'FACTURA'
+      : 'BOLETA DE VENTA';
+  const printDocShort = printDocParam === 'NOTA'
+    ? 'Nota de venta'
+    : printDocParam === 'FACTURA'
+      ? 'Factura'
+      : 'Boleta';
   const currentUserId = Number(user?.id || 0);
   const pickingPrimaryResponsible = order?.pickingResponsibility?.primaryResponsible || null;
   const isPickingResponsibilityFlowEnabled = useMemo(() => {
@@ -1153,6 +1170,9 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
       data?: {
         returnResponsibilityManagementEnabled?: unknown;
         pickingResponsibilityFlowEnabled?: unknown;
+        companyName?: unknown;
+        companyAddress?: unknown;
+        companyPhone?: unknown;
       };
     } | null)?.data;
     if (data && typeof data === 'object') {
@@ -1160,6 +1180,11 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
       if (typeof data.pickingResponsibilityFlowEnabled === 'boolean') {
         setPickingResponsibilityFlowEnabledSetting(data.pickingResponsibilityFlowEnabled);
       }
+      setCompanyInfo({
+        name: String(data.companyName || '').trim(),
+        address: String(data.companyAddress || '').trim(),
+        phone: String(data.companyPhone || '').trim(),
+      });
     }
   }, []);
 
@@ -2104,13 +2129,16 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
 
   const sourceStoreAddress = String(
     ((order.sourceStore as { address?: unknown } | null)?.address
+      || companyInfo.address
       || 'Direccion no registrada'),
   );
   const sourceStorePhone = String(
     ((order.sourceStore as { phone?: unknown } | null)?.phone
+      || companyInfo.phone
       || order.clientPhone
       || '-'),
   );
+  const clientAddress = parseClientAddress(order.note);
   const productStoreColumnLabel = order.salesChannel === 'ECOMMERCE' && !hasActiveReservations
     ? 'Tienda ref.'
     : 'Reserva';
@@ -3260,7 +3288,7 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
               <p>Telefono: {sourceStorePhone}</p>
             </div>
             <div className="invoice-meta-next">
-              <p className="invoice-doc-next">BOLETA DE VENTA</p>
+              <p className="invoice-doc-next">{printDocLabel}</p>
               <p className="invoice-code-next">{order.code}</p>
               <p>{formatDateTime(order.createdAt)}</p>
             </div>
@@ -3268,8 +3296,9 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
 
           <div className="invoice-client-next">
             <div><strong>Cliente:</strong> {order.clientName || 'Cliente varios'}</div>
-            <div><strong>Correo:</strong> {order.clientEmail || '-'}</div>
+            {order.clientEmail ? <div><strong>Correo:</strong> {order.clientEmail}</div> : null}
             <div><strong>Telefono:</strong> {order.clientPhone || '-'}</div>
+            {clientAddress ? <div><strong>Direccion:</strong> {clientAddress}</div> : null}
             <div><strong>Canal:</strong> {getChannelLabel(order.salesChannel)}</div>
           </div>
 
@@ -3325,13 +3354,15 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
             <p className="ticket-title-next">{order.sourceStore?.name || 'HYDRA COMPANY'}</p>
             <p>{sourceStoreAddress}</p>
             <p>{formatDateTime(order.createdAt)}</p>
-            <p>Boleta: {order.code}</p>
+            <p>{printDocShort}: {order.code}</p>
           </div>
 
           <div className="ticket-divider-next" />
 
           <div className="ticket-client-next">
             <p>Cliente: {order.clientName || 'Cliente varios'}</p>
+            {order.clientPhone ? <p>Telefono: {order.clientPhone}</p> : null}
+            {clientAddress ? <p>Direccion: {clientAddress}</p> : null}
             <p>Canal: {getChannelLabel(order.salesChannel)}</p>
           </div>
 

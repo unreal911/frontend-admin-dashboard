@@ -18,6 +18,9 @@ interface OrderWorkflowSettings {
   companyEmail: string;
   companyLogoUrl: string;
   marketplaceHeroHeading: string;
+  posBoletaEnabled: boolean;
+  posFacturaEnabled: boolean;
+  brandDisplay: 'logo' | 'logo_text';
 }
 
 const MARKETPLACE_HERO_HEADING_MAX_LENGTH = 60;
@@ -44,6 +47,9 @@ const DEFAULT_SETTINGS: OrderWorkflowSettings = {
   companyEmail: '',
   companyLogoUrl: '',
   marketplaceHeroHeading: DEFAULT_MARKETPLACE_HERO_HEADING,
+  posBoletaEnabled: false,
+  posFacturaEnabled: false,
+  brandDisplay: 'logo_text',
 };
 
 function normalizeText(value: unknown): string {
@@ -74,6 +80,9 @@ function normalizeSettings(payload: unknown): OrderWorkflowSettings {
     companyEmail: normalizeText(data.companyEmail),
     companyLogoUrl: normalizeText(data.companyLogoUrl),
     marketplaceHeroHeading: normalizeText(data.marketplaceHeroHeading).slice(0, MARKETPLACE_HERO_HEADING_MAX_LENGTH) || DEFAULT_MARKETPLACE_HERO_HEADING,
+    posBoletaEnabled: data.posBoletaEnabled === true,
+    posFacturaEnabled: data.posFacturaEnabled === true,
+    brandDisplay: data.brandDisplay === 'logo' ? 'logo' : 'logo_text',
   };
 }
 
@@ -136,6 +145,36 @@ function reconcileAllowedIds(ids: number[], activeMethodIds: Set<number>, fallba
   return [...fallbackIds];
 }
 
+interface SettingSwitchProps {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+  onLabel?: string;
+  offLabel?: string;
+  ariaLabel: string;
+}
+
+function SettingSwitch({ checked, onChange, disabled = false, onLabel = 'Activo', offLabel = 'Inactivo', ariaLabel }: SettingSwitchProps) {
+  return (
+    <label className={`setting-switch${checked ? ' is-on' : ''}${disabled ? ' is-disabled' : ''}`}>
+      <span className="setting-switch-text">{checked ? onLabel : offLabel}</span>
+      <span className="setting-switch-track" aria-hidden="true">
+        <span className="setting-switch-thumb" />
+      </span>
+      <input
+        type="checkbox"
+        className="setting-switch-input"
+        role="switch"
+        aria-label={ariaLabel}
+        aria-checked={checked}
+        checked={checked}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.checked)}
+      />
+    </label>
+  );
+}
+
 export function AdminSettingsPage() {
   const { showAlert } = useAdminUi();
 
@@ -162,6 +201,9 @@ export function AdminSettingsPage() {
       || settings.companyEmail !== initialSettings.companyEmail
       || settings.companyLogoUrl !== initialSettings.companyLogoUrl
       || settings.marketplaceHeroHeading !== initialSettings.marketplaceHeroHeading
+      || settings.posBoletaEnabled !== initialSettings.posBoletaEnabled
+      || settings.posFacturaEnabled !== initialSettings.posFacturaEnabled
+      || settings.brandDisplay !== initialSettings.brandDisplay
       || companyLogoFile !== null
       || !areNumberArraysEqual(settings.marketplacePaymentMethodIds, initialSettings.marketplacePaymentMethodIds);
   }, [settings, initialSettings, companyLogoFile]);
@@ -347,25 +389,19 @@ export function AdminSettingsPage() {
 
   return (
     <section className="settings-page">
-      <article className="admin-card">
-        <p className="section-kicker">Admin Dashboard</p>
-        <h1 className="section-title">Configuracion Operativa</h1>
+      <article className="admin-card settings-hero">
+        <p className="section-kicker">Configuracion</p>
+        <h1 className="section-title">Configuracion operativa</h1>
         <p className="section-subtitle">
-          Activa o desactiva reglas globales del flujo de ordenes.
+          Ajusta la identidad de la empresa y las reglas del flujo de ventas, marketplace y punto de venta.
         </p>
       </article>
 
-      <div className="settings-actions">
-        <button type="button" className="admin-ghost-btn" onClick={reload} disabled={saving}>
-          Recargar
-        </button>
-        <button type="button" className="admin-ghost-btn" onClick={resetChanges} disabled={loading || saving || !hasChanges}>
-          Deshacer
-        </button>
-        <button type="button" className="admin-primary-btn" onClick={saveSettings} disabled={loading || saving || !hasChanges}>
-          {saving ? 'Guardando...' : 'Guardar cambios'}
-        </button>
-      </div>
+      <section className="settings-group">
+        <header className="settings-group-head">
+          <span className="settings-group-eyebrow">Identidad</span>
+          <h2 className="settings-group-title">Empresa</h2>
+        </header>
 
       <article className="settings-card company-settings-card">
         <div className="settings-card-head">
@@ -398,6 +434,33 @@ export function AdminSettingsPage() {
             <button type="button" className="admin-ghost-btn" onClick={clearCompanyLogo} disabled={loading || saving || (!settings.companyLogoUrl && !companyLogoFile)}>
               Quitar logo
             </button>
+
+            <div className="brand-display-field">
+              <span className="brand-display-label">Mostrar en la tienda</span>
+              <div className="brand-display-options" role="group" aria-label="Como mostrar la marca">
+                <button
+                  type="button"
+                  className={`brand-display-option${settings.brandDisplay === 'logo' ? ' active' : ''}`}
+                  aria-pressed={settings.brandDisplay === 'logo'}
+                  disabled={loading || saving}
+                  onClick={() => updateSetting('brandDisplay', 'logo')}
+                >
+                  Solo logo
+                </button>
+                <button
+                  type="button"
+                  className={`brand-display-option${settings.brandDisplay === 'logo_text' ? ' active' : ''}`}
+                  aria-pressed={settings.brandDisplay === 'logo_text'}
+                  disabled={loading || saving}
+                  onClick={() => updateSetting('brandDisplay', 'logo_text')}
+                >
+                  Logo + nombre
+                </button>
+              </div>
+              <small className="admin-field-hint">
+                Usa &quot;Solo logo&quot; si tu imagen ya incluye el nombre de la marca.
+              </small>
+            </div>
           </div>
 
           <div className="company-settings-grid">
@@ -474,11 +537,18 @@ export function AdminSettingsPage() {
           </div>
         </div>
       </article>
+      </section>
+
+      <section className="settings-group">
+        <header className="settings-group-head">
+          <span className="settings-group-eyebrow">Tienda publica</span>
+          <h2 className="settings-group-title">Marketplace mayorista</h2>
+        </header>
 
       <article className="settings-card">
         <div className="settings-card-head">
           <div>
-            <h2>Tienda publica (marketplace)</h2>
+            <h2>Titulo principal (hero)</h2>
             <p>Personaliza el titulo principal del catalogo mayorista. El nombre y logo de la marca se toman de &quot;Datos de empresa&quot;.</p>
           </div>
           <span className="settings-pill">Marca</span>
@@ -503,54 +573,17 @@ export function AdminSettingsPage() {
       <article className="settings-card">
         <div className="settings-card-head">
           <div>
-            <h2>Gestion de Responsabilidades de Devolucion</h2>
-            <p>Cuando esta activa, al cancelar un pedido con unidades separadas se asigna como responsable a quien cancela, con opcion de delegar o confirmar la devolucion.</p>
-          </div>
-          <label className="toggle-wrap">
-            <span>{settings.returnResponsibilityManagementEnabled ? 'Activa' : 'Desactivada'}</span>
-            <input
-              type="checkbox"
-              checked={settings.returnResponsibilityManagementEnabled}
-              disabled={loading || saving}
-              onChange={(event) => updateSetting('returnResponsibilityManagementEnabled', event.target.checked)}
-            />
-          </label>
-        </div>
-      </article>
-
-      <article className="settings-card">
-        <div className="settings-card-head">
-          <div>
-            <h2>Flujo de Responsabilidad en Picking</h2>
-            <p>Si esta activo, quien confirma la orden queda como responsable principal de picking y puede delegar.</p>
-          </div>
-          <label className="toggle-wrap">
-            <span>{settings.pickingResponsibilityFlowEnabled ? 'Activo' : 'Desactivado'}</span>
-            <input
-              type="checkbox"
-              checked={settings.pickingResponsibilityFlowEnabled}
-              disabled={loading || saving}
-              onChange={(event) => updateSetting('pickingResponsibilityFlowEnabled', event.target.checked)}
-            />
-          </label>
-        </div>
-      </article>
-
-      <article className="settings-card">
-        <div className="settings-card-head">
-          <div>
-            <h2>Metodos de Pago en Marketplace</h2>
+            <h2>Metodos de pago en marketplace</h2>
             <p>Define si el checkout del marketplace mostrara metodos de pago y cuales estaran disponibles para el cliente.</p>
           </div>
-          <label className="toggle-wrap">
-            <span>{settings.marketplacePaymentMethodsEnabled ? 'Activa' : 'Desactivada'}</span>
-            <input
-              type="checkbox"
-              checked={settings.marketplacePaymentMethodsEnabled}
-              disabled={loading || loadingPaymentMethods || saving}
-              onChange={(event) => updateSetting('marketplacePaymentMethodsEnabled', event.target.checked)}
-            />
-          </label>
+          <SettingSwitch
+            ariaLabel="Metodos de pago en marketplace"
+            checked={settings.marketplacePaymentMethodsEnabled}
+            disabled={loading || loadingPaymentMethods || saving}
+            onChange={(checked) => updateSetting('marketplacePaymentMethodsEnabled', checked)}
+            onLabel="Activa"
+            offLabel="Desactivada"
+          />
         </div>
 
         {loadingPaymentMethods ? (
@@ -577,38 +610,135 @@ export function AdminSettingsPage() {
       <article className="settings-card">
         <div className="settings-card-head">
           <div>
-            <h2>IGV en Ecommerce</h2>
+            <h2>IGV en ecommerce</h2>
             <p>Define si el checkout del marketplace debe incluir IGV (18%) en el total.</p>
           </div>
-          <label className="toggle-wrap">
-            <span>{settings.marketplaceIncludeIgv ? 'Incluido' : 'No incluido'}</span>
-            <input
-              type="checkbox"
-              checked={settings.marketplaceIncludeIgv}
-              disabled={loading || saving}
-              onChange={(event) => updateSetting('marketplaceIncludeIgv', event.target.checked)}
-            />
-          </label>
+          <SettingSwitch
+            ariaLabel="IGV en ecommerce"
+            checked={settings.marketplaceIncludeIgv}
+            disabled={loading || saving}
+            onChange={(checked) => updateSetting('marketplaceIncludeIgv', checked)}
+            onLabel="Incluido"
+            offLabel="No incluido"
+          />
         </div>
       </article>
 
       <article className="settings-card">
         <div className="settings-card-head">
           <div>
-            <h2>Reserva en Marketplace</h2>
+            <h2>Reserva de stock en marketplace</h2>
             <p>Las compras del marketplace se registran como proformas. Las reservas se generan manualmente desde el detalle del pedido.</p>
           </div>
-          <label className="toggle-wrap">
-            <span>Manual</span>
-            <input
-              type="checkbox"
-              checked={false}
-              disabled
-              onChange={() => updateSetting('marketplaceAutoReserveStock', false)}
-            />
-          </label>
+          <span className="settings-pill">Solo manual</span>
         </div>
       </article>
+      </section>
+
+      <section className="settings-group">
+        <header className="settings-group-head">
+          <span className="settings-group-eyebrow">Flujo de ordenes</span>
+          <h2 className="settings-group-title">Responsabilidades</h2>
+        </header>
+
+      <article className="settings-card">
+        <div className="settings-card-head">
+          <div>
+            <h2>Responsabilidad de devolucion</h2>
+            <p>Cuando esta activa, al cancelar un pedido con unidades separadas se asigna como responsable a quien cancela, con opcion de delegar o confirmar la devolucion.</p>
+          </div>
+          <SettingSwitch
+            ariaLabel="Responsabilidad de devolucion"
+            checked={settings.returnResponsibilityManagementEnabled}
+            disabled={loading || saving}
+            onChange={(checked) => updateSetting('returnResponsibilityManagementEnabled', checked)}
+            onLabel="Activa"
+            offLabel="Desactivada"
+          />
+        </div>
+      </article>
+
+      <article className="settings-card">
+        <div className="settings-card-head">
+          <div>
+            <h2>Responsabilidad en picking</h2>
+            <p>Si esta activo, quien confirma la orden queda como responsable principal de picking y puede delegar.</p>
+          </div>
+          <SettingSwitch
+            ariaLabel="Responsabilidad en picking"
+            checked={settings.pickingResponsibilityFlowEnabled}
+            disabled={loading || saving}
+            onChange={(checked) => updateSetting('pickingResponsibilityFlowEnabled', checked)}
+            onLabel="Activo"
+            offLabel="Desactivado"
+          />
+        </div>
+      </article>
+      </section>
+
+      <section className="settings-group">
+        <header className="settings-group-head">
+          <span className="settings-group-eyebrow">Punto de venta</span>
+          <h2 className="settings-group-title">Comprobantes</h2>
+        </header>
+
+      <article className="settings-card">
+        <div className="settings-card-head">
+          <div>
+            <h2>Comprobantes disponibles al cobrar</h2>
+            <p>Elige que tipos de comprobante se podran seleccionar al cobrar en el Punto de Venta. La Nota de venta siempre esta disponible.</p>
+          </div>
+          <span className="settings-pill">POS</span>
+        </div>
+
+        <div className="setting-row">
+          <div className="setting-row-info">
+            <strong>Boleta</strong>
+            <p className="settings-muted">Permite seleccionar Boleta de venta al cobrar.</p>
+          </div>
+          <SettingSwitch
+            ariaLabel="Habilitar Boleta en POS"
+            checked={settings.posBoletaEnabled}
+            disabled={loading || saving}
+            onChange={(checked) => updateSetting('posBoletaEnabled', checked)}
+            onLabel="Habilitada"
+            offLabel="Deshabilitada"
+          />
+        </div>
+
+        <div className="setting-row">
+          <div className="setting-row-info">
+            <strong>Factura</strong>
+            <p className="settings-muted">Permite seleccionar Factura al cobrar.</p>
+          </div>
+          <SettingSwitch
+            ariaLabel="Habilitar Factura en POS"
+            checked={settings.posFacturaEnabled}
+            disabled={loading || saving}
+            onChange={(checked) => updateSetting('posFacturaEnabled', checked)}
+            onLabel="Habilitada"
+            offLabel="Deshabilitada"
+          />
+        </div>
+      </article>
+      </section>
+
+      <div className="settings-actionbar">
+        <p className={`settings-actionbar-status${hasChanges ? ' has-changes' : ''}`}>
+          {loading ? 'Cargando configuracion...' : hasChanges ? 'Tienes cambios sin guardar' : 'Todo guardado'}
+        </p>
+        <div className="settings-actionbar-buttons">
+          <button type="button" className="admin-ghost-btn" onClick={reload} disabled={saving}>
+            Recargar
+          </button>
+          <button type="button" className="admin-ghost-btn" onClick={resetChanges} disabled={loading || saving || !hasChanges}>
+            Deshacer
+          </button>
+          <button type="button" className="admin-primary-btn" onClick={saveSettings} disabled={loading || saving || !hasChanges}>
+            {saving ? 'Guardando...' : 'Guardar cambios'}
+          </button>
+        </div>
+      </div>
     </section>
   );
 }

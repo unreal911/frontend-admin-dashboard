@@ -1,0 +1,1521 @@
+.admin-pos-header-next {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.admin-pos-store-heading-next h1 {
+  margin: 0;
+  color: var(--admin-text);
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.admin-pos-online-status-next {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+  color: var(--admin-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.admin-pos-online-status-next::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #0f9f6e;
+}
+
+.admin-pos-header-actions-next {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.admin-pos-layout-next {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  min-height: 640px;
+  height: calc(100vh - 11rem);
+  overflow: hidden;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+}
+
+.admin-pos-layout-next > .admin-card {
+  border-radius: 0;
+  border: 0;
+  gap: 0;
+  padding: 0;
+}
+
+.admin-pos-catalog-next {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--admin-surface);
+}
+
+.admin-pos-toolbar-next {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px 190px;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem 1rem;
+  align-items: center;
+  background: var(--admin-surface);
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-pos-search-input-next,
+.admin-pos-store-select-next {
+  width: 100%;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: var(--admin-surface-soft);
+  color: var(--admin-text);
+  font-size: 0.92rem;
+}
+
+.admin-pos-search-input-next {
+  padding: 0.73rem 0.95rem;
+}
+
+.admin-pos-store-select-next {
+  padding: 0.48rem 0.72rem;
+}
+
+.admin-pos-search-input-next:focus,
+.admin-pos-store-select-next:focus {
+  outline: none;
+  border-color: var(--admin-primary-strong);
+}
+
+.admin-pos-scan-btn-next {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: var(--admin-surface);
+  color: var(--admin-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: -2px;
+}
+
+.admin-pos-store-selector-next {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-pos-store-selector-next span {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--admin-text);
+}
+
+.admin-pos-categories-next {
+  display: flex;
+  gap: 0.5rem;
+  padding: 1rem 1.25rem;
+  background: var(--admin-surface);
+  border-bottom: 1px solid var(--admin-border);
+  overflow-x: auto;
+}
+
+.admin-pos-category-btn-next {
+  border: 1px solid var(--admin-border);
+  border-radius: 20px;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  font-size: 0.86rem;
+  font-weight: 700;
+  padding: 0.44rem 0.9rem;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.admin-pos-category-btn-next:hover {
+  border-color: var(--admin-primary-strong);
+  color: var(--admin-primary-strong);
+}
+
+.admin-pos-category-btn-next.active {
+  background: var(--admin-primary-strong);
+  border-color: var(--admin-primary-strong);
+  color: var(--admin-primary-text);
+}
+
+.admin-pos-products-info-next {
+  margin: 0;
+  padding: 0.75rem 1.25rem;
+  background: var(--admin-surface-soft);
+  color: var(--admin-muted);
+  font-size: 0.83rem;
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-pos-products-grid-next {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  align-content: start;
+  gap: 0.9rem;
+  padding: 1rem 1.25rem;
+  overflow-y: auto;
+  background: var(--admin-surface);
+}
+
+.admin-pos-product-card-next {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr);
+  gap: 0.9rem;
+  align-items: center;
+  min-height: 102px;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: var(--admin-surface);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+  text-align: left;
+  overflow: hidden;
+}
+
+.admin-pos-product-card-next:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px color-mix(in oklab, var(--admin-primary-strong) 16%, transparent);
+  border-color: var(--admin-primary-strong);
+}
+
+.admin-pos-product-image-next {
+  position: relative;
+  width: 74px;
+  height: 82px;
+  margin-left: 0.75rem;
+  background: var(--admin-surface-soft);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-pos-product-image-next img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.admin-pos-product-image-next span {
+  color: var(--admin-muted);
+  font-size: 0.8rem;
+  text-align: center;
+  font-weight: 700;
+}
+
+.admin-pos-product-body-next {
+  min-width: 0;
+  padding: 0.75rem 0.75rem 0.75rem 0;
+}
+
+.admin-pos-product-body-next h4 {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  color: var(--admin-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-pos-product-sku-next {
+  margin: 0.2rem 0 0.5rem;
+  font-size: 0.78rem;
+  color: var(--admin-muted);
+}
+
+.admin-pos-product-badges-next {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.admin-pos-badge-next {
+  padding: 0.22rem 0.45rem;
+  border-radius: 6px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  border: 1px solid color-mix(in oklab, currentColor 20%, transparent);
+}
+
+.admin-pos-badge-price-next {
+  background: color-mix(in oklab, var(--admin-primary-strong) 12%, var(--admin-surface));
+  color: var(--admin-primary-strong);
+}
+
+.admin-pos-badge-stock-next {
+  background: color-mix(in oklab, #16a34a 12%, var(--admin-surface));
+  color: color-mix(in oklab, #16a34a 84%, var(--admin-text));
+}
+
+.admin-pos-cart-next {
+  background: var(--admin-surface);
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--admin-border);
+  box-shadow: -8px 0 28px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+}
+
+.admin-pos-cart-head-next {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-pos-cart-head-next h2 {
+  margin: 0;
+  color: var(--admin-text);
+  font-size: 1.12rem;
+}
+
+.admin-pos-cart-head-actions-next {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-pos-close-mobile-cart-next {
+  display: none;
+}
+
+.admin-pos-danger-btn-next {
+  border: 0;
+  border-radius: 8px;
+  background: color-mix(in oklab, #ef4444 20%, var(--admin-surface));
+  color: #b91c1c;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 800;
+  padding: 0.4rem 0.65rem;
+}
+
+.admin-pos-danger-btn-next:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.admin-pos-empty-cart-next {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--admin-muted);
+  text-align: center;
+  padding: 2rem;
+}
+
+.admin-pos-cart-items-next {
+  flex: 1;
+  overflow-y: auto;
+  border-bottom: 1px solid var(--admin-border);
+  padding: 0.75rem 0;
+}
+
+.admin-pos-cart-item-next {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--admin-border);
+  align-items: center;
+}
+
+.admin-pos-cart-item-image-next {
+  position: relative;
+  width: 50px;
+  height: 50px;
+  border-radius: 6px;
+  background: var(--admin-surface-soft);
+  overflow: hidden;
+}
+
+.admin-pos-cart-item-image-next img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.admin-pos-cart-item-image-next span {
+  color: var(--admin-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.admin-pos-cart-item-main-next {
+  min-width: 0;
+}
+
+.admin-pos-cart-item-main-next h5 {
+  margin: 0 0 0.25rem;
+  font-size: 0.84rem;
+  color: var(--admin-text);
+  font-weight: 700;
+}
+
+.admin-pos-item-variant-next {
+  margin: 0.1rem 0;
+  font-size: 0.74rem;
+  color: var(--admin-muted);
+}
+
+.admin-pos-item-store-next {
+  margin: 0.1rem 0;
+  width: max-content;
+  max-width: 100%;
+  border: 1px solid color-mix(in oklab, var(--admin-primary) 46%, var(--admin-border));
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--admin-primary) 11%, var(--admin-surface));
+  color: color-mix(in oklab, var(--admin-primary) 78%, var(--admin-text));
+  padding: 0.14rem 0.44rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.admin-pos-item-price-next {
+  margin: 0.25rem 0 0;
+  font-size: 0.84rem;
+  color: color-mix(in oklab, #16a34a 86%, var(--admin-text));
+  font-weight: 700;
+}
+
+.admin-pos-item-quantity-next {
+  display: flex;
+  gap: 0.25rem;
+  grid-column: 2 / 3;
+}
+
+.admin-pos-qty-next {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.admin-pos-qty-next button,
+.admin-pos-qty-next input {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--admin-border);
+  border-radius: 4px;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  font-size: 0.8rem;
+}
+
+.admin-pos-qty-next button {
+  cursor: pointer;
+}
+
+.admin-pos-qty-next input {
+  text-align: center;
+}
+
+.admin-pos-item-subtotal-next {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+  grid-column: 3 / 4;
+  grid-row: 1 / span 2;
+}
+
+.admin-pos-item-subtotal-next span {
+  color: color-mix(in oklab, #16a34a 86%, var(--admin-text));
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.admin-pos-remove-btn-next {
+  border: none;
+  border-radius: 999px;
+  width: 22px;
+  height: 22px;
+  background: color-mix(in oklab, #ef4444 24%, var(--admin-surface));
+  color: #b91c1c;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-pos-remove-btn-next:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.admin-pos-cart-summary-next {
+  padding: 1rem;
+  background: var(--admin-surface);
+  border-top: 1px solid var(--admin-border);
+  display: grid;
+  gap: 0.45rem;
+}
+
+.admin-pos-checkout-btn-next,
+.admin-pos-review-btn-next,
+.admin-pos-cart-summary-next .admin-pos-danger-btn-next {
+  width: 100%;
+  min-height: 42px;
+  border-radius: 7px;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+.admin-pos-checkout-btn-next {
+  justify-content: center;
+  gap: 0.6rem;
+}
+
+.admin-pos-checkout-btn-next kbd {
+  border-radius: 4px;
+  background: color-mix(in oklab, white 20%, transparent);
+  padding: 0.1rem 0.35rem;
+  font-size: 0.7rem;
+}
+
+.admin-pos-review-btn-next {
+  border: 1px solid var(--admin-primary-strong);
+  background: var(--admin-surface);
+  color: var(--admin-primary-strong);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-pos-mobile-trigger-next {
+  display: none;
+  border: 1px solid var(--admin-border);
+  border-radius: 14px;
+  background: var(--admin-surface-soft);
+  color: var(--admin-text);
+  padding: 0.8rem 0.95rem;
+  cursor: pointer;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.admin-pos-mobile-trigger-meta-next {
+  display: grid;
+  gap: 0.06rem;
+  text-align: left;
+}
+
+.admin-pos-mobile-trigger-meta-next strong {
+  font-size: 0.86rem;
+}
+
+.admin-pos-mobile-trigger-meta-next small {
+  color: var(--admin-muted);
+  font-size: 0.74rem;
+}
+
+.admin-pos-mobile-trigger-action-next {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--admin-primary-strong);
+}
+
+.admin-pos-mobile-backdrop-next {
+  position: fixed;
+  inset: 0;
+  z-index: 1800;
+  background: color-mix(in oklab, black 56%, transparent);
+}
+
+.admin-pos-variant-drawer-next,
+.admin-pos-payment-drawer-next {
+  position: fixed;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: min(96vw, 420px);
+  max-width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  min-width: 0;
+  border-left: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  box-shadow: -16px 0 34px rgba(16, 36, 63, 0.2);
+  z-index: 3330;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+}
+
+.admin-pos-drawer-head-next {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 1.1rem 1.2rem;
+  border-bottom: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+}
+
+.admin-pos-drawer-head-next h3 {
+  margin: 0;
+  color: var(--admin-text);
+  font-size: 1.22rem;
+}
+
+.admin-pos-drawer-head-next p {
+  margin: 0.3rem 0 0;
+  font-size: 0.82rem;
+  color: var(--admin-muted);
+}
+
+.admin-pos-drawer-close-next {
+  border: 0;
+  background: transparent;
+  color: var(--admin-muted);
+  cursor: pointer;
+  font-size: 1.38rem;
+  line-height: 1;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+}
+
+.admin-pos-drawer-close-next:hover {
+  color: var(--admin-text);
+  background: color-mix(in oklab, var(--admin-surface-soft) 70%, var(--admin-surface));
+}
+
+.admin-pos-drawer-body-next {
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding: 1.2rem;
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+}
+
+.admin-pos-drawer-body-next > * {
+  min-width: 0;
+}
+
+.admin-pos-drawer-product-head-next {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.admin-pos-drawer-product-head-next h4 {
+  margin: 0 0 0.2rem;
+  color: var(--admin-text);
+  font-size: 1rem;
+}
+
+.admin-pos-drawer-sku-next {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--admin-muted);
+}
+
+.admin-pos-drawer-price-next {
+  text-align: right;
+}
+
+.admin-pos-drawer-price-next span {
+  display: block;
+  color: var(--admin-muted);
+  font-size: 0.72rem;
+}
+
+.admin-pos-drawer-price-next strong {
+  color: var(--admin-text);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.admin-pos-variant-image-next {
+  position: relative;
+  width: 92px;
+  height: 92px;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface-soft);
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-pos-variant-image-next img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.admin-pos-variant-image-next span {
+  color: var(--admin-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.admin-pos-variant-section-next {
+  margin-bottom: 0.1rem;
+}
+
+.admin-pos-variant-section-next label {
+  display: block;
+  margin-bottom: 0.72rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--admin-text);
+}
+
+.admin-pos-color-selector-next {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+.admin-pos-color-btn-next {
+  min-width: 72px;
+  height: 72px;
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  background: var(--admin-surface);
+  box-shadow: none;
+  padding: 0.45rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.admin-pos-color-btn-next:hover {
+  border-color: var(--admin-primary-strong);
+  transform: scale(1.08);
+}
+
+.admin-pos-color-btn-next.active {
+  border-color: color-mix(in oklab, var(--admin-primary-strong) 85%, var(--admin-border));
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--admin-primary-strong) 22%, transparent);
+  background: color-mix(in oklab, var(--admin-primary-strong) 8%, var(--admin-surface));
+}
+
+.admin-pos-color-btn-next i {
+  display: block;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: 2px solid color-mix(in oklab, var(--admin-text) 18%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, white 28%, transparent);
+}
+
+.admin-pos-color-btn-next span {
+  display: block;
+  max-width: 62px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--admin-text);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.admin-pos-size-selector-next {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.admin-pos-size-btn-next {
+  border: 2px solid var(--admin-border);
+  border-radius: 6px;
+  background: var(--admin-surface);
+  padding: 0.75rem 0.45rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--admin-text);
+  transition: all 0.2s;
+}
+
+.admin-pos-size-btn-next:hover {
+  border-color: var(--admin-primary-strong);
+  color: var(--admin-primary-strong);
+}
+
+.admin-pos-size-btn-next.active {
+  border-color: var(--admin-primary-strong);
+  background: color-mix(in oklab, var(--admin-primary-strong) 10%, var(--admin-surface));
+  color: var(--admin-primary-strong);
+}
+
+.admin-pos-size-btn-next.no-stock {
+  border-style: dashed;
+  border-color: color-mix(in oklab, #ef4444 34%, var(--admin-border));
+  color: color-mix(in oklab, #b91c1c 75%, var(--admin-text));
+  background: color-mix(in oklab, #ef4444 8%, var(--admin-surface));
+}
+
+.admin-pos-size-btn-next small {
+  display: block;
+  margin-top: 0.24rem;
+  color: var(--admin-muted);
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.admin-pos-stock-info-next {
+  border-left: 3px solid color-mix(in oklab, #16a34a 85%, var(--admin-border));
+  border-radius: 4px;
+  background: color-mix(in oklab, #16a34a 10%, var(--admin-surface));
+  padding: 0.72rem;
+}
+
+.admin-pos-stock-info-next p {
+  margin: 0;
+  color: color-mix(in oklab, #16a34a 86%, var(--admin-text));
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.admin-pos-stock-info-next p + p {
+  margin-top: 0.26rem;
+}
+
+.admin-pos-remote-stock-next {
+  border: 1px solid color-mix(in oklab, var(--admin-primary) 42%, var(--admin-border));
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--admin-primary) 8%, var(--admin-surface));
+  padding: 0.78rem;
+  display: grid;
+  gap: 0.62rem;
+}
+
+.admin-pos-remote-stock-head-next {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.admin-pos-remote-stock-head-next strong {
+  color: var(--admin-text);
+  font-size: 0.88rem;
+}
+
+.admin-pos-remote-stock-head-next span {
+  color: var(--admin-muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.admin-pos-remote-store-list-next {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.admin-pos-remote-store-btn-next {
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--admin-surface) 80%, var(--admin-surface-soft));
+  color: var(--admin-text);
+  padding: 0.58rem 0.64rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.7rem;
+  align-items: center;
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-pos-remote-store-btn-next:hover,
+.admin-pos-remote-store-btn-next.active {
+  border-color: color-mix(in oklab, var(--admin-primary) 72%, var(--admin-border));
+  background: color-mix(in oklab, var(--admin-primary) 14%, var(--admin-surface));
+}
+
+.admin-pos-remote-store-btn-next span {
+  min-width: 0;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-pos-remote-store-btn-next strong {
+  flex: 0 0 auto;
+  color: color-mix(in oklab, #16a34a 86%, var(--admin-text));
+  font-size: 0.78rem;
+}
+
+.admin-pos-remote-stock-note-next {
+  margin: 0;
+  color: var(--admin-muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  font-weight: 700;
+}
+
+.admin-pos-quantity-selector-next {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.admin-pos-quantity-selector-next button,
+.admin-pos-quantity-selector-next input {
+  flex: 1;
+  padding: 0.62rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 6px;
+  background: var(--admin-surface-soft);
+  color: var(--admin-text);
+  font-size: 0.95rem;
+}
+
+.admin-pos-quantity-selector-next button {
+  cursor: pointer;
+}
+
+.admin-pos-quantity-selector-next input {
+  text-align: center;
+  font-weight: 700;
+}
+
+.admin-pos-drawer-footer-next {
+  margin-top: auto;
+  padding: 1.15rem 1.2rem;
+  border-top: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  box-shadow: 0 -12px 24px rgba(2, 8, 23, 0.08);
+}
+
+.admin-pos-drawer-primary-btn-next,
+.admin-pos-drawer-secondary-btn-next {
+  width: 100%;
+  border: none;
+  border-radius: 6px;
+  padding: 0.74rem;
+  font-size: 0.94rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-pos-drawer-primary-btn-next {
+  background: color-mix(in oklab, #16a34a 88%, var(--admin-text));
+  color: #ffffff;
+}
+
+.admin-pos-drawer-primary-btn-next:disabled {
+  background: color-mix(in oklab, var(--admin-muted) 32%, var(--admin-surface));
+  color: var(--admin-muted);
+  cursor: not-allowed;
+}
+
+.admin-pos-drawer-secondary-btn-next {
+  background: color-mix(in oklab, var(--admin-muted) 26%, var(--admin-surface));
+  color: var(--admin-text);
+}
+
+.admin-pos-payment-grid-next {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.admin-pos-form-group-next {
+  margin: 0;
+}
+
+.admin-pos-form-group-next span {
+  display: block;
+  margin-bottom: 0.48rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--admin-text);
+}
+
+.admin-pos-form-input-next {
+  width: 100%;
+  padding: 0.62rem 0.72rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 6px;
+  background: var(--admin-surface-soft);
+  color: var(--admin-text);
+  font-size: 0.92rem;
+}
+
+.admin-pos-form-input-next:focus {
+  outline: none;
+  border-color: var(--admin-primary-strong);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--admin-primary-strong) 18%, transparent);
+}
+
+.admin-pos-doc-type-next {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.admin-pos-doc-type-label-next {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--admin-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.admin-pos-doc-type-hint-next {
+  color: var(--admin-muted);
+  font-size: 0.76rem;
+}
+
+.admin-pos-print-prompt-next {
+  width: min(420px, 92vw);
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: 14px;
+  padding: 1.4rem;
+  display: grid;
+  gap: 0.6rem;
+  box-shadow: 0 24px 60px rgba(2, 8, 23, 0.4);
+}
+
+.admin-pos-print-prompt-next h3 {
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 900;
+  color: var(--admin-text);
+}
+
+.admin-pos-print-prompt-next p {
+  margin: 0;
+  color: var(--admin-muted);
+  font-size: 0.88rem;
+}
+
+.admin-pos-print-prompt-actions-next {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+}
+
+.admin-pos-print-prompt-actions-next button {
+  flex: 1 1 auto;
+}
+
+.admin-pos-payment-methods-next {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.72rem;
+}
+
+.admin-pos-payment-methods-next button {
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 0.78rem 0.7rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.admin-pos-payment-methods-next button:hover {
+  border-color: var(--admin-primary-strong);
+  color: var(--admin-primary-strong);
+}
+
+.admin-pos-payment-methods-next button.active {
+  border-color: var(--admin-primary-strong);
+  background: color-mix(in oklab, var(--admin-primary-strong) 14%, var(--admin-surface));
+  color: var(--admin-primary-strong);
+}
+
+.admin-pos-payment-summary-next {
+  display: grid;
+  gap: 0.92rem;
+}
+
+.admin-pos-igv-toggle-group-next {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  font-size: 0.88rem;
+  color: var(--admin-text);
+}
+
+.admin-pos-igv-toggle-group-next span {
+  font-weight: 700;
+}
+
+.admin-pos-igv-toggle-group-next input[type='checkbox'] {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--admin-primary-strong);
+  cursor: pointer;
+}
+
+.admin-pos-payment-amount-next,
+.admin-pos-payment-change-next {
+  padding: 0.85rem;
+  border-radius: 6px;
+  background: var(--admin-surface-soft);
+  text-align: right;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: color-mix(in oklab, #16a34a 82%, var(--admin-text));
+}
+
+.admin-pos-history-modal-next {
+  width: min(980px, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
+  border: 1px solid var(--admin-border);
+  border-radius: 14px;
+  background: var(--admin-surface);
+  box-shadow: 0 18px 44px rgba(16, 36, 63, 0.28);
+  padding: 0.95rem 1rem;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.admin-pos-history-head-next {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.admin-pos-history-head-next h3 {
+  margin: 0;
+}
+
+/* Tablet + movil: catalogo full-width con scroll de pagina, carrito deslizable y barra resumen sticky.
+   Desktop (>=1024px) conserva el layout de 2 paneles intacto. */
+@media (max-width: 1023px) {
+  .admin-pos-layout-next {
+    display: block;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+  }
+
+  .admin-pos-catalog-next,
+  .admin-pos-products-grid-next {
+    overflow: visible;
+  }
+
+  /* F1: catalogo denso tablet (3-4/fila), tarjeta vertical con tap target amplio */
+  .admin-pos-products-grid-next {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    padding-bottom: 6rem;
+  }
+
+  .admin-pos-product-card-next {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+    min-height: 64px;
+    gap: 0.55rem;
+    padding: 0.5rem;
+  }
+
+  .admin-pos-product-image-next {
+    width: 100%;
+    height: 116px;
+    margin-left: 0;
+    border-radius: 6px;
+  }
+
+  .admin-pos-product-body-next {
+    padding: 0 0.15rem 0.35rem;
+  }
+
+  /* F2: steppers de cantidad tamano touch */
+  .admin-pos-qty-next button,
+  .admin-pos-qty-next input {
+    width: 44px;
+    height: 44px;
+    font-size: 0.95rem;
+  }
+
+  .admin-pos-remove-btn-next {
+    width: 30px;
+    height: 30px;
+    font-size: 0.85rem;
+  }
+
+  /* Toolbar: busqueda + scan en fila 1, selector de tienda full en fila 2 */
+  .admin-pos-toolbar-next {
+    grid-template-columns: minmax(0, 1fr) 44px;
+  }
+
+  .admin-pos-store-selector-next {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  /* Barra resumen sticky: siempre al alcance del pulgar (items + total + Cobrar) */
+  .admin-pos-mobile-trigger-next {
+    position: fixed;
+    left: 0.75rem;
+    right: 0.75rem;
+    bottom: calc(0.75rem + env(safe-area-inset-bottom));
+    z-index: 1700;
+    display: flex;
+  }
+
+  /* Carrito como panel deslizable (reusa el estado .mobile-open) */
+  .admin-pos-cart-next {
+    position: fixed;
+    left: auto;
+    right: 0.75rem;
+    bottom: calc(0.75rem + env(safe-area-inset-bottom));
+    width: min(420px, calc(100vw - 1.5rem));
+    z-index: 1900;
+    max-height: min(82vh, 42rem);
+    border: 1px solid var(--admin-border);
+    border-radius: 16px;
+    box-shadow: 0 30px 50px color-mix(in oklab, black 34%, transparent);
+    overflow: hidden;
+    transform: translateY(calc(100% + 1rem));
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.24s ease, opacity 0.24s ease;
+  }
+
+  .admin-pos-cart-next.mobile-open {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .admin-pos-close-mobile-cart-next {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .admin-pos-cart-summary-next {
+    padding-bottom: calc(0.95rem + env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 900px) {
+  .admin-pos-payment-grid-next {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .admin-pos-variant-drawer-next,
+  .admin-pos-payment-drawer-next {
+    left: 0;
+    width: 100vw;
+    border-left: 0;
+  }
+
+  .admin-pos-drawer-head-next,
+  .admin-pos-drawer-body-next,
+  .admin-pos-drawer-footer-next {
+    padding-left: 0.9rem;
+    padding-right: 0.9rem;
+  }
+
+  .admin-pos-products-grid-next {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+    padding-bottom: 6.5rem;
+  }
+
+  .admin-pos-product-card-next {
+    grid-template-columns: 1fr;
+    gap: 0.45rem;
+    padding: 0.5rem;
+  }
+
+  .admin-pos-product-image-next {
+    width: 100%;
+    height: 104px;
+    margin-left: 0;
+  }
+
+  /* Movil: carrito casi a pantalla completa (en tablet queda como panel derecho) */
+  .admin-pos-cart-next {
+    left: 0.75rem;
+    right: 0.75rem;
+    width: auto;
+  }
+
+  .admin-pos-checkout-btn-next kbd {
+    display: none;
+  }
+
+  .admin-pos-variant-drawer-next,
+  .admin-pos-payment-drawer-next {
+    width: 100vw;
+  }
+
+  .admin-pos-history-modal-next {
+    width: calc(100vw - 1rem);
+    max-height: calc(100vh - 1rem);
+    max-height: calc(100dvh - 1rem);
+    padding: 0.82rem;
+  }
+}
+
+.admin-workspace select,
+.admin-modal-overlay select {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid color-mix(in oklab, var(--admin-border) 88%, var(--admin-text));
+  border-radius: 10px;
+  background-color: color-mix(in oklab, var(--admin-surface) 88%, var(--admin-surface-soft));
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--admin-muted) 50%),
+    linear-gradient(135deg, var(--admin-muted) 50%, transparent 50%),
+    linear-gradient(to right, color-mix(in oklab, var(--admin-border) 72%, transparent), color-mix(in oklab, var(--admin-border) 72%, transparent));
+  background-position:
+    calc(100% - 17px) 50%,
+    calc(100% - 12px) 50%,
+    calc(100% - 2.35rem) 50%;
+  background-size:
+    5px 5px,
+    5px 5px,
+    1px 1.45rem;
+  background-repeat: no-repeat;
+  color: var(--admin-text);
+  padding-right: 2.7rem;
+  box-shadow: inset 0 1px 0 color-mix(in oklab, white 6%, transparent);
+  cursor: pointer;
+  line-height: 1.25;
+}
+
+.admin-workspace select:hover,
+.admin-modal-overlay select:hover {
+  border-color: color-mix(in oklab, var(--admin-primary) 42%, var(--admin-border));
+  background-color: color-mix(in oklab, var(--admin-surface) 94%, var(--admin-primary) 4%);
+}
+
+.admin-workspace select:focus,
+.admin-modal-overlay select:focus {
+  outline: none;
+  border-color: var(--admin-primary-strong);
+  box-shadow:
+    0 0 0 3px color-mix(in oklab, var(--admin-primary-strong) 18%, transparent),
+    inset 0 1px 0 color-mix(in oklab, white 7%, transparent);
+}
+
+.admin-workspace select:disabled,
+.admin-modal-overlay select:disabled {
+  cursor: not-allowed;
+  opacity: 0.66;
+  background-color: color-mix(in oklab, var(--admin-surface-soft) 82%, var(--admin-surface));
+}
+
+.admin-workspace select option,
+.admin-modal-overlay select option {
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  font: inherit;
+}
+
+.admin-workspace select option:checked,
+.admin-modal-overlay select option:checked {
+  background: color-mix(in oklab, var(--admin-primary) 24%, var(--admin-surface));
+  color: var(--admin-text);
+}
+
+.admin-select-next {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.admin-select-next.open {
+  z-index: 160;
+}
+
+.admin-select-trigger-next {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid color-mix(in oklab, var(--admin-border) 88%, var(--admin-text));
+  border-radius: 10px;
+  background:
+    linear-gradient(135deg, color-mix(in oklab, var(--admin-surface) 94%, white 4%), color-mix(in oklab, var(--admin-surface) 86%, var(--admin-surface-soft))),
+    var(--admin-surface);
+  color: var(--admin-text);
+  padding: 0.56rem 2.7rem 0.56rem 0.72rem;
+  font: inherit;
+  font-size: 0.86rem;
+  line-height: 1.25;
+  text-align: left;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, white 7%, transparent),
+    0 10px 22px color-mix(in oklab, var(--admin-text) 4%, transparent);
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.admin-select-trigger-next::before,
+.admin-select-trigger-next::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 6px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--admin-muted);
+  transition: transform 0.18s ease;
+}
+
+.admin-select-trigger-next::before {
+  right: 1.1rem;
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.admin-select-trigger-next::after {
+  right: 0.86rem;
+  transform: translateY(-50%) rotate(-45deg);
+}
+
+.admin-select-next.open .admin-select-trigger-next::before {
+  transform: translateY(-50%) rotate(-45deg);
+}
+
+.admin-select-next.open .admin-select-trigger-next::after {
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.admin-select-trigger-next span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-select-trigger-next:hover {
+  border-color: color-mix(in oklab, var(--admin-primary) 42%, var(--admin-border));
+  background:
+    linear-gradient(135deg, color-mix(in oklab, var(--admin-surface) 96%, var(--admin-primary) 5%), color-mix(in oklab, var(--admin-surface) 88%, var(--admin-surface-soft))),
+    var(--admin-surface);
+}
+
+.admin-select-trigger-next:focus-visible,
+.admin-select-next.open .admin-select-trigger-next {
+  outline: none;
+  border-color: var(--admin-primary-strong);
+  box-shadow:
+    0 0 0 3px color-mix(in oklab, var(--admin-primary-strong) 18%, transparent),
+    inset 0 1px 0 color-mix(in oklab, white 7%, transparent);
+}
+
+.admin-select-list-next {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 0.38rem);
+  z-index: 170;
+  max-height: min(280px, 52vh);
+  overflow-y: auto;
+  border: 1px solid color-mix(in oklab, var(--admin-primary) 28%, var(--admin-border));
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--admin-surface) 98%, white 2%), var(--admin-surface)),
+    var(--admin-surface);
+  padding: 0.28rem;
+  box-shadow:
+    0 18px 42px color-mix(in oklab, var(--admin-text) 18%, transparent),
+    0 0 0 1px color-mix(in oklab, white 4%, transparent);
+}
+
+.admin-select-list-next::-webkit-scrollbar {
+  width: 8px;
+}
+
+.admin-select-list-next::-webkit-scrollbar-track {
+  background: color-mix(in oklab, var(--admin-surface-soft) 72%, transparent);
+  border-radius: 999px;
+}
+
+.admin-select-list-next::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--admin-primary) 38%, var(--admin-border));
+  border-radius: 999px;
+}
+
+.admin-select-option-next {
+  width: 100%;
+  min-height: 34px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--admin-text);
+  padding: 0.5rem 0.62rem;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 750;
+  line-height: 1.22;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.admin-select-option-next:hover,
+.admin-select-option-next:focus-visible {
+  outline: none;
+  background: color-mix(in oklab, var(--admin-primary) 12%, var(--admin-surface));
+}
+
+.admin-select-option-next.selected {
+  background: color-mix(in oklab, var(--admin-primary) 18%, var(--admin-surface));
+  color: color-mix(in oklab, var(--admin-primary-strong) 88%, var(--admin-text));
+  font-weight: 900;
+}
+
+.admin-select-option-next:disabled {
+  cursor: not-allowed;
+  color: color-mix(in oklab, var(--admin-muted) 72%, transparent);
+  opacity: 0.75;
+}
+
