@@ -252,6 +252,25 @@ function withStockApplied(baseProducts: PosProduct[], stockMap: Map<number, { st
   });
 }
 
+// Un atributo es "real" si no es el centinela de dimension ausente.
+function isRealAttr(value?: string | null): boolean {
+  const v = (value || '').trim();
+  return Boolean(v) && v !== 'Sin color' && v !== 'Sin talla' && !v.startsWith('__SIN_');
+}
+
+// Deriva que dimensiones tiene un producto para adaptar la UI a los 3 tipos:
+// SIMPLE (ninguna), una-dimension (solo talla o solo color) y MATRIX (ambas).
+function getProductAxes(product: PosProduct): { hasColor: boolean; hasSize: boolean } {
+  let hasColor = false;
+  let hasSize = false;
+  for (const variant of product.variants) {
+    if (isRealAttr(variant.colorName)) hasColor = true;
+    if (isRealAttr(variant.sizeName)) hasSize = true;
+    if (hasColor && hasSize) break;
+  }
+  return { hasColor, hasSize };
+}
+
 function formatCurrency(value: number): string {
   return `S/ ${Number(value || 0).toFixed(2)}`;
 }
@@ -305,6 +324,9 @@ export function AdminPosPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  // Idempotencia: clave estable por intento de cobro; se reusa en reintentos
+  // (red/doble-clic) para que el backend no duplique la venta, y se limpia al exito.
+  const idempotencyKeyRef = useRef<string | null>(null);
 
   const [cart, setCart] = useState<PosCartItem[]>([]);
   const [applyIgv, setApplyIgv] = useState(false);
@@ -399,6 +421,12 @@ export function AdminPosPage() {
     }
     return byColor[0];
   }, [selectedProduct, selectedColor, selectedSize]);
+
+  // Dimensiones del producto abierto en el selector: oculta Color/Talla vacios.
+  const selectedProductAxes = useMemo(
+    () => (selectedProduct ? getProductAxes(selectedProduct) : { hasColor: false, hasSize: false }),
+    [selectedProduct],
+  );
 
   const selectedStoreName = useMemo(() => (
     stores.find((store) => store.id === selectedStoreId)?.name || 'Tienda seleccionada'
@@ -784,6 +812,97 @@ export function AdminPosPage() {
     }));
   }
 
+  // Quita cantidad de una fila del carrito (usado por el "Deshacer" del toast).
+  function removeCartQuantity(variantId: number, storeId: number, qty: number) {
+    setCart((current) => current.flatMap((row) => {
+      if (row.variantId !== variantId || row.fulfillmentStoreId !== storeId) return [row];
+      const nextQty = row.quantity - qty;
+      if (nextQty <= 0) return [];
+      return [{ ...row, quantity: nextQty, subtotal: nextQty * row.unitPrice }];
+    }));
+  }
+
+  // Agregado rapido de 1 unidad usando el stock de la tienda actual (para
+  // productos SIMPLE o de una sola variante). Si no hay stock local, deriva al
+  // selector para revisar otras tiendas.
+  function addVariantDirect(product: PosProduct, variant: PosVariant) {
+    if (!canSell) {
+      showAlert('No tienes permiso para agregar productos al carrito POS.', 'error');
+      return;
+    }
+    if (!selectedStoreId) {
+      showAlert('Selecciona una tienda para vender.', 'warning');
+      return;
+    }
+
+    const localStock = Math.max(0, Number(variant.availableStock || 0));
+    if (localStock <= 0) {
+      showAlert('Sin stock en esta tienda. Revisa disponibilidad en otras tiendas.', 'warning');
+      openVariantSelector(product);
+      return;
+    }
+
+    const storeId = selectedStoreId;
+    const storeName = selectedStoreName;
+    const existing = cart.find((row) => row.variantId === variant.id && row.fulfillmentStoreId === storeId);
+    if (existing && existing.quantity >= localStock) {
+      showAlert('No hay mas stock disponible de este producto en la tienda.', 'warning');
+      return;
+    }
+
+    setCart((current) => {
+      const next = [...current];
+      const idx = next.findIndex((row) => row.variantId === variant.id && row.fulfillmentStoreId === storeId);
+      if (idx === -1) {
+        next.push({
+          variantId: variant.id,
+          fulfillmentStoreId: storeId,
+          fulfillmentStoreName: storeName,
+          productId: product.id,
+          productName: product.name,
+          colorName: variant.colorName,
+          sizeName: variant.sizeName,
+          sku: variant.sku,
+          imageUrl: variant.imageUrl || product.imageUrl,
+          unitPrice: variant.price,
+          quantity: 1,
+          availableStock: localStock,
+          subtotal: variant.price,
+        });
+      } else {
+        const row = next[idx];
+        const nextQty = Math.min(localStock, row.quantity + 1);
+        next[idx] = { ...row, quantity: nextQty, subtotal: nextQty * row.unitPrice, availableStock: localStock };
+      }
+      return next;
+    });
+
+    showAlert(`${product.name} agregado`, 'success', 4000, {
+      label: 'Deshacer',
+      onClick: () => removeCartQuantity(variant.id, storeId, 1),
+    });
+  }
+
+  // Punto de entrada al tocar un card: SIMPLE / variante unica -> directo;
+  // con variantes reales -> abre el selector adaptativo.
+  function handleProductTap(product: PosProduct) {
+    if (!canSell) {
+      showAlert('No tienes permiso para agregar productos al carrito POS.', 'error');
+      return;
+    }
+    const first = product.variants[0];
+    if (!first) {
+      showAlert('Este producto no tiene variantes activas.', 'warning');
+      return;
+    }
+    const axes = getProductAxes(product);
+    if (product.variants.length === 1 || (!axes.hasColor && !axes.hasSize)) {
+      addVariantDirect(product, first);
+    } else {
+      openVariantSelector(product);
+    }
+  }
+
   function addSelectedVariantToCart() {
     if (!canSell) {
       showAlert('No tienes permiso para agregar productos al carrito POS.', 'error');
@@ -1120,6 +1239,12 @@ export function AdminPosPage() {
         return;
       }
 
+      // Genera la clave solo la primera vez; los reintentos del mismo cobro la reusan.
+      if (!idempotencyKeyRef.current) {
+        idempotencyKeyRef.current = (typeof crypto !== 'undefined' && crypto.randomUUID)
+          ? crypto.randomUUID()
+          : `pos-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      }
       const paymentReference = `POS-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
       const remoteFulfillmentStores = Array.from(new Map(
         cart
@@ -1136,6 +1261,7 @@ export function AdminPosPage() {
         },
         body: JSON.stringify({
           sourceStoreId: selectedStoreId,
+          idempotencyKey: idempotencyKeyRef.current,
           applyIgv,
           clientName: asText(clientName, 'Cliente POS'),
           clientEmail: asText(clientEmail) || undefined,
@@ -1176,6 +1302,8 @@ export function AdminPosPage() {
       if (createdId > 0) {
         setPendingPrint({ id: createdId, code });
       }
+      // Venta confirmada: la proxima venta usara una clave nueva.
+      idempotencyKeyRef.current = null;
       setCart([]);
       setShowPaymentDrawer(false);
       setClientName('');
@@ -1222,7 +1350,7 @@ export function AdminPosPage() {
               onKeyDown={(event) => {
                 if (event.key === 'Enter' && filteredProducts.length === 1) {
                   event.preventDefault();
-                  openVariantSelector(filteredProducts[0]);
+                  handleProductTap(filteredProducts[0]);
                 } else if (event.key === 'Escape') {
                   event.currentTarget.blur();
                 }
@@ -1289,7 +1417,7 @@ export function AdminPosPage() {
                   type="button"
                   className="admin-pos-product-card-next"
                   disabled={!canSell}
-                  onClick={() => openVariantSelector(product)}
+                  onClick={() => handleProductTap(product)}
                 >
                   <div className="admin-pos-product-image-next">
                     {product.imageUrl ? (
@@ -1304,6 +1432,9 @@ export function AdminPosPage() {
                     <div className="admin-pos-product-badges-next">
                       <span className="admin-pos-badge-next admin-pos-badge-price-next">{formatCurrency(product.minPrice)}</span>
                       <span className="admin-pos-badge-next admin-pos-badge-stock-next">{getStockChip(product)}</span>
+                      <span className="admin-pos-badge-next admin-pos-badge-type-next">
+                        {product.variants.length <= 1 ? 'Único' : `${product.variants.length} var.`}
+                      </span>
                     </div>
                   </div>
                 </button>
@@ -1480,6 +1611,7 @@ export function AdminPosPage() {
                 )}
               </div>
 
+              {selectedProductAxes.hasColor ? (
               <div className="admin-pos-variant-section-next">
                 <label>Color</label>
                 <div className="admin-pos-color-selector-next">
@@ -1500,7 +1632,9 @@ export function AdminPosPage() {
                   ))}
                 </div>
               </div>
+              ) : null}
 
+              {selectedProductAxes.hasSize ? (
               <div className="admin-pos-variant-section-next">
                 <label>Talla</label>
                 <div className="admin-pos-size-selector-next">
@@ -1520,6 +1654,7 @@ export function AdminPosPage() {
                   ))}
                 </div>
               </div>
+              ) : null}
 
               <div className="admin-pos-stock-info-next">
                 <p>
@@ -1639,97 +1774,7 @@ export function AdminPosPage() {
             </div>
 
             <div className="admin-pos-drawer-body-next">
-              <div className="admin-pos-payment-grid-next">
-                <label className="admin-pos-form-group-next">
-                  <span>Cliente</span>
-                  <input
-                    className="admin-pos-form-input-next"
-                    type="text"
-                    value={clientName}
-                    onChange={(event) => setClientName(event.target.value)}
-                    placeholder="Cliente POS"
-                  />
-                </label>
-                <label className="admin-pos-form-group-next">
-                  <span>Telefono</span>
-                  <input
-                    className="admin-pos-form-input-next"
-                    type="text"
-                    value={clientPhone}
-                    onChange={(event) => setClientPhone(event.target.value)}
-                    placeholder="Opcional"
-                  />
-                </label>
-                <label className="admin-pos-form-group-next">
-                  <span>Email</span>
-                  <input
-                    className="admin-pos-form-input-next"
-                    type="email"
-                    value={clientEmail}
-                    onChange={(event) => setClientEmail(event.target.value)}
-                    placeholder="Opcional"
-                  />
-                </label>
-                <label className="admin-pos-form-group-next">
-                  <span>Tipo doc.</span>
-                  <select
-                    className="admin-pos-form-input-next"
-                    value={clienteTipoDoc}
-                    onChange={(event) => setClienteTipoDoc(event.target.value)}
-                  >
-                    <option value="1">DNI</option>
-                    <option value="6">RUC</option>
-                  </select>
-                </label>
-                <label className="admin-pos-form-group-next">
-                  <span>N° documento</span>
-                  <input
-                    className="admin-pos-form-input-next"
-                    type="text"
-                    inputMode="numeric"
-                    value={clienteNumDoc}
-                    onChange={(event) => setClienteNumDoc(event.target.value.replace(/\D/g, ''))}
-                    placeholder={clienteTipoDoc === '6' ? 'RUC (11 digitos)' : 'DNI (8 digitos)'}
-                    maxLength={clienteTipoDoc === '6' ? 11 : 8}
-                  />
-                </label>
-                <label className="admin-pos-form-group-next">
-                  <span>Direccion</span>
-                  <input
-                    className="admin-pos-form-input-next"
-                    type="text"
-                    value={clientAddress}
-                    onChange={(event) => setClientAddress(event.target.value)}
-                    placeholder="Opcional"
-                  />
-                </label>
-                <label className="admin-pos-form-group-next">
-                  <span>Nota</span>
-                  <input
-                    className="admin-pos-form-input-next"
-                    type="text"
-                    value={orderNote}
-                    onChange={(event) => setOrderNote(event.target.value)}
-                    placeholder="Referencia interna"
-                  />
-                </label>
-              </div>
-
-              <div className="admin-pos-doc-type-next">
-                <span className="admin-pos-doc-type-label-next">Comprobante</span>
-                <AdminSelect
-                  ariaLabel="Tipo de comprobante"
-                  value={docType}
-                  options={docTypeOptions}
-                  onChange={updateDocType}
-                />
-                {!boletaEnabled && !facturaEnabled ? (
-                  <small className="admin-pos-doc-type-hint-next">
-                    Habilita Boleta y Factura en Configuracion.
-                  </small>
-                ) : null}
-              </div>
-
+              {/* Pago al frente: lo unico imprescindible para cerrar la venta. */}
               <div className="admin-pos-payment-methods-next">
                 {paymentMethods.map((method) => (
                   <button
@@ -1777,6 +1822,104 @@ export function AdminPosPage() {
                   <div className="admin-pos-payment-change-next">{formatCurrency(change)}</div>
                 </div>
               </div>
+
+              {/* Comprobante: la mayoria de ventas mostrador usan el default. */}
+              <details className="admin-pos-collapse-next">
+                <summary>Comprobante <span className="admin-pos-collapse-value-next">{POS_DOC_TYPE_LABELS[docType]}</span></summary>
+                <div className="admin-pos-doc-type-next">
+                  <AdminSelect
+                    ariaLabel="Tipo de comprobante"
+                    value={docType}
+                    options={docTypeOptions}
+                    onChange={updateDocType}
+                  />
+                  {!boletaEnabled && !facturaEnabled ? (
+                    <small className="admin-pos-doc-type-hint-next">
+                      Habilita Boleta y Factura en Configuracion.
+                    </small>
+                  ) : null}
+                </div>
+              </details>
+
+              {/* Datos del cliente: opcionales, colapsados por defecto. */}
+              <details className="admin-pos-collapse-next">
+                <summary>Datos del cliente <span className="admin-pos-collapse-value-next">opcional</span></summary>
+                <div className="admin-pos-payment-grid-next">
+                  <label className="admin-pos-form-group-next">
+                    <span>Cliente</span>
+                    <input
+                      className="admin-pos-form-input-next"
+                      type="text"
+                      value={clientName}
+                      onChange={(event) => setClientName(event.target.value)}
+                      placeholder="Cliente POS"
+                    />
+                  </label>
+                  <label className="admin-pos-form-group-next">
+                    <span>Telefono</span>
+                    <input
+                      className="admin-pos-form-input-next"
+                      type="text"
+                      value={clientPhone}
+                      onChange={(event) => setClientPhone(event.target.value)}
+                      placeholder="Opcional"
+                    />
+                  </label>
+                  <label className="admin-pos-form-group-next">
+                    <span>Email</span>
+                    <input
+                      className="admin-pos-form-input-next"
+                      type="email"
+                      value={clientEmail}
+                      onChange={(event) => setClientEmail(event.target.value)}
+                      placeholder="Opcional"
+                    />
+                  </label>
+                  <label className="admin-pos-form-group-next">
+                    <span>Tipo doc.</span>
+                    <select
+                      className="admin-pos-form-input-next"
+                      value={clienteTipoDoc}
+                      onChange={(event) => setClienteTipoDoc(event.target.value)}
+                    >
+                      <option value="1">DNI</option>
+                      <option value="6">RUC</option>
+                    </select>
+                  </label>
+                  <label className="admin-pos-form-group-next">
+                    <span>N° documento</span>
+                    <input
+                      className="admin-pos-form-input-next"
+                      type="text"
+                      inputMode="numeric"
+                      value={clienteNumDoc}
+                      onChange={(event) => setClienteNumDoc(event.target.value.replace(/\D/g, ''))}
+                      placeholder={clienteTipoDoc === '6' ? 'RUC (11 digitos)' : 'DNI (8 digitos)'}
+                      maxLength={clienteTipoDoc === '6' ? 11 : 8}
+                    />
+                  </label>
+                  <label className="admin-pos-form-group-next">
+                    <span>Direccion</span>
+                    <input
+                      className="admin-pos-form-input-next"
+                      type="text"
+                      value={clientAddress}
+                      onChange={(event) => setClientAddress(event.target.value)}
+                      placeholder="Opcional"
+                    />
+                  </label>
+                  <label className="admin-pos-form-group-next">
+                    <span>Nota</span>
+                    <input
+                      className="admin-pos-form-input-next"
+                      type="text"
+                      value={orderNote}
+                      onChange={(event) => setOrderNote(event.target.value)}
+                      placeholder="Referencia interna"
+                    />
+                  </label>
+                </div>
+              </details>
             </div>
 
             <div className="admin-pos-drawer-footer-next">

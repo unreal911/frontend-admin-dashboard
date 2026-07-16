@@ -38,6 +38,55 @@ export function fileToBase64(file: File): Promise<string> {
   });
 }
 
+// Forma minima de variante para construir el payload de guardado.
+// Compatible con ProductVariantForm del modal y con el manager de variantes.
+export interface VariantPayloadInput {
+  colorId?: number;
+  sizeId?: number;
+  price: number;
+  isActive?: boolean;
+  imageUrl?: string;
+  imageFile?: File;
+}
+
+// Construye el arreglo `variants` que espera el backend segun el modo.
+// Extraido de admin-product-modal.tsx para compartirlo con el manager de variantes.
+export async function buildVariantPayload(
+  currentVariants: VariantPayloadInput[],
+  mode: ProductVariantMode,
+): Promise<Array<Record<string, unknown>>> {
+  const result: Array<Record<string, unknown>> = [];
+
+  for (const variant of currentVariants) {
+    const payload: Record<string, unknown> = {
+      price: toNumber(variant.price),
+      isActive: variant.isActive !== false,
+    };
+
+    if (mode === 'MATRIX') {
+      payload.colorId = toPositiveNumber(variant.colorId);
+      payload.sizeId = toPositiveNumber(variant.sizeId);
+    } else if (mode === 'SIZE_ONLY') {
+      payload.sizeId = toPositiveNumber(variant.sizeId);
+    }
+
+    if (variant.imageUrl) {
+      payload.imageUrl = variant.imageUrl;
+    }
+
+    if (variant.imageFile) {
+      payload.imageFile = {
+        filename: variant.imageFile.name,
+        data: await fileToBase64(variant.imageFile),
+      };
+    }
+
+    result.push(payload);
+  }
+
+  return result;
+}
+
 export function extractPublicIdFromUrl(url: string): string {
   try {
     const parsed = new URL(url);

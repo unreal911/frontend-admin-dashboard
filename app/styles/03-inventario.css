@@ -1967,3 +1967,460 @@
   }
 }
 
+/* ============================================================
+   Fila resumen de producto con variantes (lista de inventario)
+   ============================================================ */
+.inventory-group-row-next {
+  background: color-mix(in oklab, var(--admin-primary) 5%, transparent);
+}
+
+.inventory-group-actions-next {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.inventory-manage-btn-next {
+  white-space: nowrap;
+}
+
+/* ============================================================
+   Pagina: matriz de inventario por color x talla
+   ============================================================ */
+.inventory-matrix-section {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.inventory-matrix-head {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.inventory-matrix-title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.inventory-matrix-title h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.inventory-matrix-store {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.inventory-matrix-store span {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--admin-muted);
+}
+
+.inventory-matrix-store select {
+  min-height: 38px;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--admin-surface) 84%, var(--admin-surface-soft));
+  color: var(--admin-text);
+  padding: 0.4rem 0.6rem;
+  font: inherit;
+}
+
+.inventory-matrix-store-static {
+  font-weight: 700;
+  color: var(--admin-text);
+}
+
+/* Barra de cantidad global (paso que aplican los botones de cada celda) */
+.inventory-matrix-qty-card {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+}
+
+.inventory-matrix-qty-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--admin-muted);
+}
+
+/* Stepper + presets normalizados para esta barra (no dependen del media movil
+   donde se definio el stepper original de InventoryQuickMove). */
+.inventory-matrix-qty-card .inventory-qty-stepper-next {
+  display: inline-flex;
+  align-items: stretch;
+  flex: 0 0 auto;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--admin-surface);
+}
+
+.inventory-matrix-qty-card .inventory-qty-stepper-next button {
+  width: 42px;
+  min-height: 40px;
+  border: 0;
+  background: color-mix(in oklab, var(--admin-primary) 8%, var(--admin-surface));
+  color: var(--admin-text);
+  font-size: 1.25rem;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.inventory-matrix-qty-card .inventory-qty-stepper-next button:disabled {
+  opacity: 0.4;
+}
+
+.inventory-matrix-qty-card .inventory-qty-stepper-next input {
+  width: 56px;
+  border: 0;
+  border-inline: 1px solid var(--admin-border);
+  background: transparent;
+  color: var(--admin-text);
+  text-align: center;
+  font: inherit;
+  font-weight: 800;
+  -moz-appearance: textfield;
+}
+
+.inventory-matrix-qty-card .inventory-qty-stepper-next input::-webkit-outer-spin-button,
+.inventory-matrix-qty-card .inventory-qty-stepper-next input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.inventory-matrix-qty-card .inventory-qty-presets-next {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.inventory-matrix-qty-card .inventory-qty-preset-next {
+  min-width: 48px;
+  min-height: 40px;
+  padding-inline: 0.6rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: var(--admin-surface);
+  color: var(--admin-muted);
+  font: inherit;
+  font-weight: 800;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.inventory-matrix-qty-card .inventory-qty-preset-next.is-active {
+  border-color: var(--admin-primary);
+  background: color-mix(in oklab, var(--admin-primary) 16%, var(--admin-surface));
+  color: var(--admin-text);
+}
+
+/* Grilla */
+/* Selector segmentado: agrupar tarjetas por color o por talla. */
+.inv-mtx-groupby {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.inv-mtx-groupby-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--admin-muted);
+  margin-inline-end: 0.15rem;
+}
+
+.inv-mtx-groupby-btn {
+  min-height: 36px;
+  padding-inline: 0.85rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 999px;
+  background: var(--admin-surface);
+  color: var(--admin-muted);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.inv-mtx-groupby-btn.is-active {
+  border-color: var(--admin-primary);
+  background: color-mix(in oklab, var(--admin-primary) 16%, var(--admin-surface));
+  color: var(--admin-text);
+}
+
+/* Layout: tarjetas por color/talla (acordeon). Sin tabla ancha ni scroll
+   horizontal; en desktop las tarjetas se acomodan en varias columnas. */
+.inv-mtx-colors {
+  display: grid;
+  gap: 0.7rem;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  align-items: start;
+}
+
+.inv-mtx-color-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.inv-mtx-color-head {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  padding: 0.7rem 0.85rem;
+  border: 0;
+  background: transparent;
+  color: var(--admin-text);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.inv-mtx-chevron {
+  color: var(--admin-muted);
+  font-size: 0.85rem;
+}
+
+.inv-mtx-color-name {
+  font-weight: 800;
+  font-size: 1rem;
+}
+
+.inv-mtx-color-meta {
+  margin-inline-start: auto;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--admin-muted);
+}
+
+.inv-mtx-sizes {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0 0.85rem 0.75rem;
+}
+
+.inv-mtx-size-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--admin-surface) 84%, var(--admin-surface-soft));
+}
+
+/* Variante existente del producto pero aun sin stock en esta tienda */
+.inv-mtx-size-row.is-new {
+  border-style: dashed;
+  border-color: color-mix(in oklab, var(--admin-primary) 45%, var(--admin-border));
+  background: color-mix(in oklab, var(--admin-primary) 5%, transparent);
+}
+
+.inv-mtx-size-label {
+  flex: 0 0 auto;
+  min-width: 2.4rem;
+  font-weight: 800;
+  font-size: 0.9rem;
+}
+
+.inv-mtx-size-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-inline-start: auto;
+}
+
+.inventory-matrix-new-tag {
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--admin-muted);
+  white-space: nowrap;
+}
+
+.inventory-matrix-btn-wide {
+  white-space: nowrap;
+}
+
+.inventory-matrix-pending {
+  color: var(--admin-primary);
+  font-weight: 700;
+}
+
+.inventory-matrix-stock {
+  flex: 0 0 auto;
+  min-width: 2.2rem;
+  text-align: center;
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.inventory-matrix-stock.is-out {
+  color: #f87171;
+}
+
+.inventory-matrix-stock.is-low {
+  color: #f59e0b;
+}
+
+.inventory-matrix-stock.is-ok {
+  color: #22c55e;
+}
+
+/* Ajuste inline dentro de la fila de talla */
+.inv-mtx-size-row .inventory-matrix-adjust {
+  margin-inline-start: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.inv-mtx-size-row .inventory-matrix-adjust input {
+  width: 64px;
+}
+
+.inventory-matrix-btn {
+  flex: 1 1 0;
+  min-height: 34px;
+  min-width: 34px;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+  padding-inline: 0.3rem;
+}
+
+.inventory-matrix-btn:disabled {
+  opacity: 0.6;
+}
+
+.inventory-matrix-btn.income {
+  border: 1px solid color-mix(in oklab, #22c55e 72%, var(--admin-border));
+  background: color-mix(in oklab, #22c55e 16%, var(--admin-surface));
+  color: color-mix(in oklab, #22c55e 40%, var(--admin-text));
+}
+
+.inventory-matrix-btn.outcome {
+  border: 1px solid color-mix(in oklab, #f97316 72%, var(--admin-border));
+  background: color-mix(in oklab, #f97316 16%, var(--admin-surface));
+  color: color-mix(in oklab, #f97316 44%, var(--admin-text));
+}
+
+.inventory-matrix-btn.adjust {
+  border: 1px solid var(--admin-border);
+  background: color-mix(in oklab, var(--admin-surface) 70%, var(--admin-surface-soft));
+  color: var(--admin-text);
+}
+
+/* Ajuste inline por celda */
+.inventory-matrix-adjust {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.inventory-matrix-adjust input {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid var(--admin-primary);
+  border-radius: 8px;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  padding: 0.3rem 0.4rem;
+  font: inherit;
+  text-align: center;
+}
+
+.inventory-matrix-adjust-btns {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.inventory-matrix-adjust-btns button {
+  flex: 1 1 0;
+  min-height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--admin-border);
+  background: color-mix(in oklab, var(--admin-surface) 70%, var(--admin-surface-soft));
+  color: var(--admin-text);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.inventory-matrix-adjust-btns button.is-ok {
+  border-color: color-mix(in oklab, #22c55e 72%, var(--admin-border));
+  background: color-mix(in oklab, #22c55e 16%, var(--admin-surface));
+  color: color-mix(in oklab, #22c55e 40%, var(--admin-text));
+}
+
+/* --- Matriz de inventario en movil --- */
+@media (max-width: 768px) {
+  .inventory-matrix-head {
+    gap: 0.6rem;
+  }
+
+  .inventory-matrix-title {
+    flex: 1 1 100%;
+    order: 2;
+  }
+
+  .inventory-matrix-title h2 {
+    font-size: 1.05rem;
+  }
+
+  .inventory-matrix-store,
+  .inventory-matrix-store-static {
+    flex: 1 1 100%;
+    order: 3;
+  }
+
+  .inventory-matrix-qty-card {
+    gap: 0.6rem;
+  }
+
+  .inventory-matrix-qty-label {
+    flex: 1 1 100%;
+  }
+
+  /* Una tarjeta de color por fila en movil (acordeon para colapsar). */
+  .inv-mtx-colors {
+    grid-template-columns: 1fr;
+    gap: 0.55rem;
+  }
+
+  .inv-mtx-size-row {
+    padding: 0.35rem 0.45rem;
+    gap: 0.4rem;
+  }
+
+  .inventory-matrix-stock {
+    font-size: 1.05rem;
+    min-width: 1.9rem;
+  }
+
+  .inv-mtx-size-actions {
+    gap: 0.25rem;
+  }
+
+  .inventory-matrix-btn {
+    min-height: 32px;
+    min-width: 30px;
+    font-size: 0.76rem;
+    padding-inline: 0.28rem;
+  }
+
+  /* Barra de cantidad sticky: sigue visible al desplazar la lista. */
+  .inventory-matrix-qty-card {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+  }
+}
+

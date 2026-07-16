@@ -167,9 +167,9 @@
 .admin-pos-products-grid-next {
   flex: 1;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
   align-content: start;
-  gap: 0.9rem;
+  gap: 0.8rem;
   padding: 1rem 1.25rem;
   overflow-y: auto;
   background: var(--admin-surface);
@@ -232,8 +232,10 @@
   font-size: 0.9rem;
   color: var(--admin-text);
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  white-space: normal;
 }
 
 .admin-pos-product-sku-next {
@@ -264,6 +266,57 @@
 .admin-pos-badge-stock-next {
   background: color-mix(in oklab, #16a34a 12%, var(--admin-surface));
   color: color-mix(in oklab, #16a34a 84%, var(--admin-text));
+}
+
+.admin-pos-badge-type-next {
+  background: color-mix(in oklab, var(--admin-muted) 12%, var(--admin-surface));
+  color: var(--admin-muted);
+}
+
+/* Secciones colapsables del cobro (cliente / comprobante). */
+.admin-pos-collapse-next {
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: var(--admin-surface);
+}
+
+.admin-pos-collapse-next > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0.55rem 0.8rem;
+  font-weight: 700;
+  color: var(--admin-text);
+  cursor: pointer;
+  list-style: none;
+}
+
+.admin-pos-collapse-next > summary::-webkit-details-marker {
+  display: none;
+}
+
+.admin-pos-collapse-next > summary::after {
+  content: '▾';
+  color: var(--admin-muted);
+  font-size: 0.85rem;
+  transition: transform 0.15s ease;
+}
+
+.admin-pos-collapse-next[open] > summary::after {
+  transform: rotate(180deg);
+}
+
+.admin-pos-collapse-value-next {
+  margin-inline-start: auto;
+  font-weight: 600;
+  font-size: 0.82rem;
+  color: var(--admin-muted);
+}
+
+.admin-pos-collapse-next > summary + * {
+  padding: 0 0.8rem 0.75rem;
 }
 
 .admin-pos-cart-next {

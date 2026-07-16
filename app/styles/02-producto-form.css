@@ -935,6 +935,73 @@
   box-shadow: 0 0 0 3px color-mix(in oklab, var(--admin-primary-strong) 18%, transparent);
 }
 
+/* Selector de variante por chips (Color -> Talla), evita dropdown gigante */
+.variant-matrix-picker {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.variant-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.variant-chip-row-sizes {
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--admin-border);
+}
+
+.variant-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 36px;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--admin-surface) 84%, var(--admin-surface-soft));
+  color: var(--admin-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.variant-chip.is-size {
+  min-width: 44px;
+  justify-content: center;
+}
+
+.variant-chip:hover {
+  border-color: var(--admin-primary-strong);
+}
+
+.variant-chip.is-active {
+  border-color: var(--admin-primary-strong);
+  background: color-mix(in oklab, var(--admin-primary-strong) 18%, transparent);
+  color: var(--admin-text);
+}
+
+.variant-chip-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--admin-muted) 22%, transparent);
+  color: var(--admin-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.variant-chip.is-active .variant-chip-count {
+  background: color-mix(in oklab, var(--admin-primary-strong) 30%, transparent);
+  color: var(--admin-text);
+}
+
 .inventory-advanced-grid {
   display: grid;
   gap: 0.62rem;
@@ -1145,5 +1212,276 @@
   color: #9a5804;
   font-size: 0.72rem;
   font-weight: 700;
+}
+
+/* ==== Detalle de producto + administrador de variantes ==================== */
+.admin-product-detail-head-next {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.admin-product-detail-meta-next {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.admin-product-detail-actions-next {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.admin-link-next {
+  color: var(--admin-primary);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.admin-link-next:hover {
+  text-decoration: underline;
+}
+
+.admin-btn-sm {
+  padding: 0.28rem 0.5rem;
+  font-size: 0.74rem;
+}
+
+.admin-variants-manager-head-next {
+  margin-bottom: 0.75rem;
+}
+
+/* Inputs normalizados del manager (mismo look que .inventory-field). */
+.admin-variants-manager-next input[type="text"],
+.admin-variants-manager-next input[type="number"] {
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--admin-surface) 84%, var(--admin-surface-soft));
+  color: var(--admin-text);
+  min-height: 34px;
+  padding: 0.42rem 0.55rem;
+  font: inherit;
+}
+
+.admin-variants-manager-next input[type="text"]:focus,
+.admin-variants-manager-next input[type="number"]:focus {
+  outline: none;
+  border-color: var(--admin-primary-strong);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--admin-primary-strong) 18%, transparent);
+}
+
+.admin-variants-simple-next {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 420px;
+}
+
+.admin-variants-bulk-next {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
+
+.admin-variants-bulk-next span {
+  color: var(--admin-muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.admin-variants-bulk-next input {
+  width: 6rem;
+  padding: 0.35rem 0.5rem;
+}
+
+.admin-variants-img-cell-next {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.admin-variants-img-cell-next img {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  object-fit: cover;
+  border: 1px solid var(--admin-border);
+}
+
+.admin-variants-color-image-next {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+  padding: 0.5rem;
+  border-top: 1px solid var(--admin-border);
+}
+
+.admin-variants-stock-row-next {
+  margin-top: 0.25rem;
+}
+
+.admin-variants-manager-foot-next {
+  margin-top: 1rem;
+}
+
+/* --- Grilla matriz talla x color --- */
+.admin-matrix-table-next th,
+.admin-matrix-table-next td {
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.admin-matrix-corner-next {
+  font-size: 0.68rem;
+  color: var(--admin-muted);
+  text-align: left;
+}
+
+.admin-matrix-rowhead-next {
+  text-align: left;
+  min-width: 160px;
+  background: color-mix(in oklab, var(--admin-surface) 85%, var(--admin-surface-soft));
+}
+
+.admin-matrix-rowhead-top-next {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.admin-matrix-color-name-next {
+  font-weight: 700;
+}
+
+.admin-matrix-remove-next {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: var(--admin-muted);
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.2rem;
+}
+
+.admin-matrix-remove-next:hover {
+  color: #b42318;
+}
+
+.admin-matrix-rowhead-tools-next {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.3rem;
+}
+
+.admin-matrix-rowhead-tools-next input[type="number"] {
+  width: 4.6rem;
+  padding: 0.3rem 0.4rem;
+}
+
+.admin-matrix-img-btn-next {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border: 1px solid var(--admin-border);
+  border-radius: 6px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  font-size: 0.58rem;
+  color: var(--admin-muted);
+}
+
+.admin-matrix-img-btn-next img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.admin-matrix-img-btn-next input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.admin-matrix-cell-next {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+}
+
+.admin-matrix-cell-next input[type="number"] {
+  width: 4.6rem;
+  padding: 0.3rem 0.4rem;
+}
+
+.admin-matrix-cell-off-next {
+  opacity: 0.5;
+}
+
+.admin-matrix-empty-next {
+  color: var(--admin-muted);
+}
+
+/* --- Carga inicial de stock --- */
+.admin-variants-stockload-next {
+  margin-top: 1rem;
+  border-top: 1px solid var(--admin-border);
+  padding-top: 0.75rem;
+}
+
+.admin-variants-stockload-next > summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--admin-text);
+}
+
+.admin-variants-stockload-body-next {
+  margin-top: 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.admin-variants-stockload-store-next {
+  max-width: 320px;
+}
+
+/* Gana sobre .admin-table.admin-table-sm input[type='number'] { width:100% } */
+.admin-variants-stockload-body-next .admin-table.admin-table-sm input[type="number"] {
+  width: 6.5rem;
+  min-width: 0;
+  padding: 0.3rem 0.45rem;
+}
+
+.admin-variants-stockload-body-next th:last-child,
+.admin-variants-stockload-body-next td:last-child {
+  width: 8rem;
+}
+
+.admin-variants-sku-next {
+  font-size: 0.76rem;
+  color: var(--admin-muted);
+}
+
+.admin-variants-stockload-foot-next {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 

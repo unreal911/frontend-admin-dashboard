@@ -275,7 +275,11 @@ export function AdminProductPage() {
                     <td data-label="#">{index + 1}</td>
                     <td data-label="Nombre" className="list-card-title-next">{item.name}</td>
                     <td data-label="Categoria">{resolveCategoryName(item)}</td>
-                    <td data-label="Variantes">{toNumber(item.variantCount) || 0}</td>
+                    <td data-label="Variantes">
+                      <Link href={`/admin/product/${item.id}`} className="admin-link-next">
+                        {toNumber(item.variantCount) || 0}
+                      </Link>
+                    </td>
                     <td data-label="Imagenes">{toNumber(item.imageCount) || 0}</td>
                     <td data-label="Estado">
                       <span className={`admin-pill ${item.isActive ? 'success' : 'error'}`}>
@@ -284,6 +288,13 @@ export function AdminProductPage() {
                     </td>
                     <td data-label="Accion">
                       <div className="admin-table-actions">
+                        <Link
+                          href={`/admin/product/${item.id}`}
+                          className={`admin-ghost-btn ${isMutating ? 'disabled' : ''}`}
+                          aria-disabled={isMutating}
+                        >
+                          Ver detalles
+                        </Link>
                         <Link
                           href={`/admin/product/${item.id}/edit`}
                           className={`admin-ghost-btn ${isMutating ? 'disabled' : ''}`}

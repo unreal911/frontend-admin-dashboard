@@ -197,12 +197,14 @@ function normalizeVariant(raw: unknown): InventoryVariant | null {
   const colorRaw = isObject(raw.color) ? raw.color : null;
   const sizeRaw = isObject(raw.size) ? raw.size : null;
   const productId = toPositiveInt(productRaw?.id);
-  const colorId = toPositiveInt(colorRaw?.id);
-  const sizeId = toPositiveInt(sizeRaw?.id);
+  // Modelo unificado: color/talla pueden ser null (producto unico / solo talla).
+  // id 0 + nombre vacio representa "sin dimension" (se muestra como "Unico"/"—").
+  const colorId = toPositiveInt(colorRaw?.id) ?? 0;
+  const sizeId = toPositiveInt(sizeRaw?.id) ?? 0;
   const productName = toText(productRaw?.name);
-  const colorName = toText(colorRaw?.name, 'Sin color');
-  const sizeName = toText(sizeRaw?.name, 'Sin talla');
-  if (!productId || !productName || !colorId || !sizeId) {
+  const colorName = colorId ? toText(colorRaw?.name, 'Sin color') : '';
+  const sizeName = sizeId ? toText(sizeRaw?.name, 'Sin talla') : '';
+  if (!productId || !productName) {
     return null;
   }
 
@@ -517,5 +519,37 @@ export function normalizeProductsForInventoryCatalog(payload: unknown): ProductF
   }
 
   return normalized;
+}
+
+// Saltos de cantidad frecuentes en mayorista (media docena, docena, 2 docenas).
+export const QUICK_QTY_PRESETS = [6, 12, 24];
+
+export function getAvailabilityClass(available: number): string {
+  if (available <= 0) return 'is-out';
+  if (available <= 10) return 'is-low';
+  return 'is-ok';
+}
+
+export function computeAvailableStock(item: Inventory): number {
+  const availableStock = Number(item.availableStock);
+  if (Number.isFinite(availableStock)) {
+    return availableStock;
+  }
+  return Number(item.stock || 0) - Number(item.reservedStock || 0);
+}
+
+export function normalizeInventoryAttribute(value?: string | null): string {
+  const normalized = String(value || '').trim();
+  if (!normalized || normalized.startsWith('__SIN_')) {
+    return '';
+  }
+  return normalized;
+}
+
+export function getInventoryVariantDisplay(item: Inventory): string {
+  const sizeName = normalizeInventoryAttribute(item.variant.size?.name);
+  const colorName = normalizeInventoryAttribute(item.variant.color?.name);
+  const parts = [colorName, sizeName].filter(Boolean);
+  return parts.length ? parts.join(' / ') : 'Unico';
 }
 

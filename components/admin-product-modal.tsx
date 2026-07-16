@@ -10,6 +10,7 @@ import {
   useState,
 } from 'react';
 import {
+  buildVariantPayload,
   extractPublicIdFromUrl,
   fileToBase64,
   parseVariantMode,
@@ -848,39 +849,6 @@ export function AdminProductModal({
         data: await fileToBase64(image.file),
       });
     }
-    return result;
-  }
-
-  async function buildVariantPayload(currentVariants: ProductVariantForm[], mode: ProductVariantMode) {
-    const result: Array<Record<string, unknown>> = [];
-
-    for (const variant of currentVariants) {
-      const payload: Record<string, unknown> = {
-        price: toNumber(variant.price),
-        isActive: variant.isActive !== false,
-      };
-
-      if (mode === 'MATRIX') {
-        payload.colorId = toPositiveNumber(variant.colorId);
-        payload.sizeId = toPositiveNumber(variant.sizeId);
-      } else if (mode === 'SIZE_ONLY') {
-        payload.sizeId = toPositiveNumber(variant.sizeId);
-      }
-
-      if (variant.imageUrl) {
-        payload.imageUrl = variant.imageUrl;
-      }
-
-      if (variant.imageFile) {
-        payload.imageFile = {
-          filename: variant.imageFile.name,
-          data: await fileToBase64(variant.imageFile),
-        };
-      }
-
-      result.push(payload);
-    }
-
     return result;
   }
 

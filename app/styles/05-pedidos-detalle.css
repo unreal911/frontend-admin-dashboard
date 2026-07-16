@@ -1686,3 +1686,160 @@
   }
 }
 
+
+/* Devolucion post-entrega (G4) */
+.order-return-card {
+  border-left: 3px solid #d35400;
+}
+
+.order-return-panel .orp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.order-return-panel .orp-head h3 {
+  margin: 0;
+}
+
+.order-return-panel .orp-hint {
+  margin: 8px 0 16px;
+  font-size: 0.82rem;
+  color: var(--admin-muted);
+  line-height: 1.4;
+}
+
+.order-return-panel .orp-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.order-return-panel .orp-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: var(--admin-surface);
+}
+
+.order-return-panel .orp-line.is-complete {
+  opacity: 0.55;
+}
+
+.order-return-panel .orp-line-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.order-return-panel .orp-line-info strong {
+  color: var(--admin-text);
+  font-size: 0.9rem;
+}
+
+.order-return-panel .orp-line-info span {
+  font-size: 0.8rem;
+  color: var(--admin-muted);
+}
+
+.order-return-panel .orp-line-info small {
+  font-size: 0.72rem;
+  color: var(--admin-muted);
+}
+
+.order-return-panel .orp-line input[type='number'] {
+  width: 76px;
+  padding: 8px;
+  text-align: center;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  font-size: 1rem;
+}
+
+.order-return-panel .orp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+  font-size: 0.8rem;
+  color: var(--admin-muted);
+}
+
+.order-return-panel .orp-field input {
+  padding: 9px 10px;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  font-size: 0.9rem;
+}
+
+.order-return-panel .orp-error {
+  color: #e74c3c;
+  font-size: 0.82rem;
+  margin: 0 0 10px;
+}
+
+.order-return-panel .orp-success {
+  color: #16a085;
+  font-size: 0.82rem;
+  margin: 0 0 10px;
+}
+
+.order-return-panel .orp-complete-msg {
+  padding: 12px;
+  border: 1px dashed var(--admin-border);
+  border-radius: 10px;
+  color: var(--admin-muted);
+  font-size: 0.85rem;
+}
+
+.order-return-panel .orp-history {
+  margin-top: 18px;
+  border-top: 1px solid var(--admin-border);
+  padding-top: 14px;
+}
+
+.order-return-panel .orp-history h4 {
+  margin: 0 0 10px;
+  font-size: 0.85rem;
+  color: var(--admin-text);
+}
+
+.order-return-panel .orp-muted {
+  color: var(--admin-muted);
+  font-size: 0.82rem;
+}
+
+.order-return-panel .orp-history-row {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.order-return-panel .orp-history-row:last-child {
+  border-bottom: none;
+}
+
+.order-return-panel .orp-history-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.82rem;
+  color: var(--admin-text);
+}
+
+.order-return-panel .orp-history-reason {
+  margin: 3px 0 0;
+  font-size: 0.8rem;
+  color: var(--admin-muted);
+}

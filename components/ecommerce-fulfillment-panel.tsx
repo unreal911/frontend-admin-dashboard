@@ -553,16 +553,32 @@ export function EcommerceFulfillmentPanel({ order, canEdit, onReload }: Ecommerc
     try {
       let ok = false;
       let errMsg = '';
+      // reservedActual = lo efectivamente reservado (puede ser < delta si otro
+      // usuario tomo stock entremedio: reserva parcial). partialMsg trae el aviso
+      // del backend ("Se reservaron X de Y…").
+      let reservedActual = delta;
+      let partialMsg = '';
       if (delta > 0) {
         const res = await fetch(`/api/admin/orders/${order.id}/reserve-remote`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ sourceStoreId: storeId, variantId: item.variantId, quantity: delta, orderItemId: item.id }),
+          body: JSON.stringify({ sourceStoreId: storeId, variantId: item.variantId, quantity: delta, orderItemId: item.id, allowPartial: true }),
         });
-        const payload = await res.json().catch(() => null) as { error?: unknown; message?: unknown } | null;
+        const payload = await res.json().catch(() => null) as {
+          error?: unknown; message?: unknown;
+          data?: { reservedQuantity?: unknown; partial?: unknown; message?: unknown };
+        } | null;
         ok = res.ok;
         if (!ok) {
           errMsg = String(payload?.error || payload?.message || 'No se pudo reservar el stock.');
+        } else {
+          const reserved = Number(payload?.data?.reservedQuantity);
+          if (Number.isFinite(reserved) && reserved >= 0) {
+            reservedActual = reserved;
+          }
+          if (payload?.data?.partial === true) {
+            partialMsg = String(payload?.data?.message || '');
+          }
         }
       } else {
         const res = await fetch(`/api/admin/orders/${order.id}/items/${item.id}/release-remote`, {
@@ -578,18 +594,20 @@ export function EcommerceFulfillmentPanel({ order, canEdit, onReload }: Ecommerc
       }
 
       if (ok) {
-        updateLedgerStore(item, storeId, target);
+        // En reserva parcial el ledger refleja lo realmente reservado, no lo pedido.
+        const appliedTarget = delta > 0 ? committed + reservedActual : target;
+        updateLedgerStore(item, storeId, appliedTarget);
         clearOverride(key);
         const storeName = getStoreName(suggestionsOf(item), storeId, item);
         showAlert(
           delta > 0
-            ? `Reservadas ${delta} unidad(es) en ${storeName}.`
+            ? (partialMsg || `Reservadas ${reservedActual} unidad(es) en ${storeName}.`)
             : `Liberadas ${-delta} unidad(es) de ${storeName}.`,
-          'success',
+          delta > 0 && partialMsg ? 'info' : 'success',
         );
         logActivity(
           delta > 0
-            ? `${currentUserName} reservo ${delta} und de ${item.variant.productName} en ${storeName}`
+            ? `${currentUserName} reservo ${reservedActual} und de ${item.variant.productName} en ${storeName}`
             : `${currentUserName} libero ${-delta} und de ${item.variant.productName} en ${storeName}`,
         );
         await onReload();

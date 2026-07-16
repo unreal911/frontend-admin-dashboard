@@ -15,16 +15,36 @@ import {
   normalizeInventoryList,
   normalizeProductsForInventoryCatalog,
   normalizeReservations,
+  QUICK_QTY_PRESETS,
+  getAvailabilityClass,
+  computeAvailableStock,
+  getInventoryVariantDisplay,
 } from '@/lib/admin-inventory-types';
 
 interface InventoryVariantOption {
   variantId: number;
+  productId: number;
   sku: string;
   productName: string;
   colorName: string;
   sizeName: string;
   label: string;
 }
+
+type InventoryRow =
+  | { kind: 'single'; key: string; item: Inventory }
+  | {
+      kind: 'group';
+      key: string;
+      productId: number;
+      storeId: number;
+      productName: string;
+      storeName: string;
+      variantCount: number;
+      totalAvailable: number;
+      totalReserved: number;
+      hasMismatch: boolean;
+    };
 
 type InventoryStockScope = 'ALL' | 'OUT' | 'CRITICAL' | 'LOW' | 'NORMAL';
 
@@ -52,44 +72,12 @@ function toInventoryStockScope(value: string | null): InventoryStockScope {
   return 'ALL';
 }
 
-// Saltos de cantidad frecuentes en mayorista (media docena, docena, 2 docenas).
-const QUICK_QTY_PRESETS = [6, 12, 24];
-
-function getAvailabilityClass(available: number): string {
-  if (available <= 0) return 'is-out';
-  if (available <= 10) return 'is-low';
-  return 'is-ok';
-}
-
 function toPositiveInt(value: string): number | null {
   const numeric = Number(value);
   if (!Number.isInteger(numeric) || numeric < 1) {
     return null;
   }
   return numeric;
-}
-
-function computeAvailableStock(item: Inventory): number {
-  const availableStock = Number(item.availableStock);
-  if (Number.isFinite(availableStock)) {
-    return availableStock;
-  }
-  return Number(item.stock || 0) - Number(item.reservedStock || 0);
-}
-
-function normalizeInventoryAttribute(value?: string | null): string {
-  const normalized = String(value || '').trim();
-  if (!normalized || normalized.startsWith('__SIN_')) {
-    return '';
-  }
-  return normalized;
-}
-
-function getInventoryVariantDisplay(item: Inventory): string {
-  const sizeName = normalizeInventoryAttribute(item.variant.size?.name);
-  const colorName = normalizeInventoryAttribute(item.variant.color?.name);
-  const parts = [colorName, sizeName].filter(Boolean);
-  return parts.length ? parts.join(' / ') : 'Unico';
 }
 
 interface InventoryQuickMoveProps {
@@ -245,8 +233,10 @@ export function AdminInventoryPage() {
   const [movementDrawerOpen, setMovementDrawerOpen] = useState(false);
   const [selectedInventory, setSelectedInventory] = useState<Inventory | null>(null);
   const [movementStoreId, setMovementStoreId] = useState<number | null>(null);
+  const [movementProductId, setMovementProductId] = useState<number | null>(null);
   const [movementVariantId, setMovementVariantId] = useState<number | null>(null);
   const [movementVariantSearch, setMovementVariantSearch] = useState('');
+  const [movementVariantColor, setMovementVariantColor] = useState<string | null>(null);
   const [movementQuantity, setMovementQuantity] = useState(0);
   const [movementType, setMovementType] = useState<InventoryMovementType>('IN');
   const [adjustmentCount, setAdjustmentCount] = useState(0);
@@ -261,13 +251,21 @@ export function AdminInventoryPage() {
 
   const sizeOptions = useMemo(() => {
     const map = new Map<number, string>();
-    inventoryData.forEach((item) => map.set(item.variant.size.id, item.variant.size.name));
+    inventoryData.forEach((item) => {
+      if (item.variant.size.id > 0) {
+        map.set(item.variant.size.id, item.variant.size.name);
+      }
+    });
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
   }, [inventoryData]);
 
   const colorOptions = useMemo(() => {
     const map = new Map<number, string>();
-    inventoryData.forEach((item) => map.set(item.variant.color.id, item.variant.color.name));
+    inventoryData.forEach((item) => {
+      if (item.variant.color.id > 0) {
+        map.set(item.variant.color.id, item.variant.color.name);
+      }
+    });
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
   }, [inventoryData]);
 
@@ -284,6 +282,7 @@ export function AdminInventoryPage() {
         const sku = variant.sku || `VAR-${variant.id}`;
         options.push({
           variantId: variant.id,
+          productId: product.id,
           sku,
           productName: product.name,
           colorName,
@@ -295,17 +294,25 @@ export function AdminInventoryPage() {
     return options.sort((a, b) => a.label.localeCompare(b.label));
   }, [productCatalog]);
 
+  // Productos disponibles para movimiento (del catalogo completo, no solo con stock).
+  const movementProductOptions = useMemo(() => {
+    return productCatalog
+      .map((product) => ({ id: product.id, name: product.name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [productCatalog]);
+
   const filteredVariantCatalog = useMemo(() => {
     const search = movementVariantSearch.trim().toLowerCase();
-    if (!search) {
-      return variantCatalog;
-    }
-    return variantCatalog.filter((variant) =>
-      variant.sku.toLowerCase().includes(search)
-      || variant.productName.toLowerCase().includes(search)
-      || variant.colorName.toLowerCase().includes(search)
-      || variant.sizeName.toLowerCase().includes(search));
-  }, [variantCatalog, movementVariantSearch]);
+    return variantCatalog.filter((variant) => {
+      const matchesProduct = !movementProductId || variant.productId === movementProductId;
+      const matchesSearch = !search
+        || variant.sku.toLowerCase().includes(search)
+        || variant.productName.toLowerCase().includes(search)
+        || variant.colorName.toLowerCase().includes(search)
+        || variant.sizeName.toLowerCase().includes(search);
+      return matchesProduct && matchesSearch;
+    });
+  }, [variantCatalog, movementVariantSearch, movementProductId]);
 
   const selectedMovementVariant = useMemo(() => {
     if (!movementVariantId) {
@@ -313,6 +320,48 @@ export function AdminInventoryPage() {
     }
     return variantCatalog.find((variant) => variant.variantId === movementVariantId) || null;
   }, [variantCatalog, movementVariantId]);
+
+  // Matriz Color -> Tallas para el selector por chips (evita dropdown gigante).
+  const variantMatrix = useMemo(() => {
+    const byColor = new Map<string, { colorName: string; sizes: { sizeName: string; variantId: number; sku: string }[] }>();
+    filteredVariantCatalog.forEach((variant) => {
+      if (!byColor.has(variant.colorName)) {
+        byColor.set(variant.colorName, { colorName: variant.colorName, sizes: [] });
+      }
+      byColor.get(variant.colorName)!.sizes.push({ sizeName: variant.sizeName, variantId: variant.variantId, sku: variant.sku });
+    });
+    const colors = Array.from(byColor.values());
+    colors.forEach((color) => color.sizes.sort((a, b) => a.sizeName.localeCompare(b.sizeName, undefined, { numeric: true })));
+    colors.sort((a, b) => a.colorName.localeCompare(b.colorName));
+    return colors;
+  }, [filteredVariantCatalog]);
+
+  const activeMovementColor = useMemo(() => {
+    if (selectedMovementVariant) {
+      return selectedMovementVariant.colorName;
+    }
+    if (movementVariantColor && variantMatrix.some((color) => color.colorName === movementVariantColor)) {
+      return movementVariantColor;
+    }
+    return variantMatrix.length === 1 ? variantMatrix[0].colorName : null;
+  }, [selectedMovementVariant, movementVariantColor, variantMatrix]);
+
+  const activeMovementSizes = useMemo(() => {
+    return variantMatrix.find((color) => color.colorName === activeMovementColor)?.sizes ?? [];
+  }, [variantMatrix, activeMovementColor]);
+
+  // Cambiar de variante reinicia la cantidad para que no arrastre el valor anterior.
+  function selectMovementVariant(variantId: number | null) {
+    setMovementVariantId(variantId);
+    setMovementQuantity(0);
+  }
+
+  function pickMovementColor(colorName: string) {
+    setMovementVariantColor(colorName);
+    const color = variantMatrix.find((item) => item.colorName === colorName);
+    // Si el color tiene una sola talla, resuelve variante directo.
+    selectMovementVariant(color && color.sizes.length === 1 ? color.sizes[0].variantId : null);
+  }
 
   const filteredInventories = useMemo(() => {
     const search = searchParam.trim().toLowerCase();
@@ -383,6 +432,46 @@ export function AdminInventoryPage() {
         .reduce((sum, reservation) => sum + Number(reservation.quantity || 0), 0);
       return Number(item.reservedStock || 0) !== tracked;
     }).length;
+  }, [filteredInventories, reservationsData]);
+
+  // Filas de la tabla: agrupa por producto+tienda. Si un grupo tiene >1 variante
+  // se colapsa en una fila resumen con boton "Administrar" (evita ruido de N
+  // filas casi identicas). Productos unicos = fila simple con controles inline.
+  const inventoryRows = useMemo<InventoryRow[]>(() => {
+    const trackedFor = (inventoryId: number) => reservationsData
+      .filter((reservation) => reservation.inventoryId === inventoryId && reservation.status === 'ACTIVE')
+      .reduce((sum, reservation) => sum + Number(reservation.quantity || 0), 0);
+
+    const groups = new Map<string, Inventory[]>();
+    const order: string[] = [];
+    filteredInventories.forEach((item) => {
+      const key = `${item.variant.product.id}-${item.store.id}`;
+      if (!groups.has(key)) {
+        groups.set(key, []);
+        order.push(key);
+      }
+      groups.get(key)!.push(item);
+    });
+
+    return order.map((key) => {
+      const items = groups.get(key)!;
+      if (items.length === 1) {
+        return { kind: 'single', key, item: items[0] };
+      }
+      const first = items[0];
+      return {
+        kind: 'group',
+        key,
+        productId: first.variant.product.id,
+        storeId: first.store.id,
+        productName: first.variant.product.name,
+        storeName: first.store.name,
+        variantCount: items.length,
+        totalAvailable: items.reduce((sum, item) => sum + computeAvailableStock(item), 0),
+        totalReserved: items.reduce((sum, item) => sum + Number(item.reservedStock || 0), 0),
+        hasMismatch: items.some((item) => Number(item.reservedStock || 0) !== trackedFor(item.id)),
+      };
+    });
   }, [filteredInventories, reservationsData]);
 
   const inventoryMetrics = useMemo(() => {
@@ -498,6 +587,10 @@ export function AdminInventoryPage() {
   }, [includeZero]);
 
   useEffect(() => {
+    const queryParam = String(searchParams.get('q') || '').trim();
+    if (queryParam) {
+      setSearchParam(queryParam);
+    }
     const normalizedScopeParam = searchParams.get('stockScope')?.toUpperCase().replace('-', '_');
     const nextScope = toInventoryStockScope(searchParams.get('stockScope'));
     setStockScope(nextScope);
@@ -530,6 +623,7 @@ export function AdminInventoryPage() {
   function openMovementDrawer(item: Inventory, type: InventoryMovementType) {
     setSelectedInventory(item);
     setMovementStoreId(item.store.id);
+    setMovementProductId(item.variant.product.id);
     setMovementVariantId(item.variant.id);
     setMovementVariantSearch('');
     setMovementType(type);
@@ -543,6 +637,7 @@ export function AdminInventoryPage() {
   function openManualMovementDrawer(type: InventoryMovementType = 'IN') {
     setSelectedInventory(null);
     setMovementStoreId(selectedStoreId || null);
+    setMovementProductId(selectedProductId || null);
     setMovementVariantId(null);
     setMovementVariantSearch('');
     setMovementType(type);
@@ -1017,7 +1112,7 @@ export function AdminInventoryPage() {
           ) : null}
 
           <div className="inventory-summary-card">
-            <p>Mostrando <strong>{filteredInventories.length}</strong> de <strong>{inventoryData.length}</strong> inventarios.</p>
+            <p>Mostrando <strong>{inventoryRows.length}</strong> filas (<strong>{filteredInventories.length}</strong> de <strong>{inventoryData.length}</strong> inventarios).</p>
             <p className="admin-muted-text">Usa busqueda y filtros para refinar el listado.</p>
           </div>
         </fieldset>
@@ -1055,12 +1150,56 @@ export function AdminInventoryPage() {
                 <tr>
                   <td colSpan={7} data-label="Estado">Cargando inventario...</td>
                 </tr>
-              ) : filteredInventories.length === 0 ? (
+              ) : inventoryRows.length === 0 ? (
                 <tr>
                   <td colSpan={7} data-label="Estado">No hay inventarios para los filtros actuales.</td>
                 </tr>
               ) : (
-                filteredInventories.map((item, index) => (
+                inventoryRows.map((row, index) => {
+                  if (row.kind === 'group') {
+                    return (
+                      <tr key={row.key} className="inventory-group-row-next">
+                        <td data-label="#">{index + 1}</td>
+                        <td data-label="Producto">
+                          <div className="inventory-mobile-product-next">
+                            <strong>{row.productName}</strong>
+                            <small>{row.variantCount} variantes</small>
+                          </div>
+                        </td>
+                        <td data-label="SKU" className="inventory-sku-cell-next">—</td>
+                        <td data-label="Tienda">{row.storeName}</td>
+                        <td data-label="Disponible">
+                          <span className={`inventory-avail-next ${getAvailabilityClass(row.totalAvailable)}`}>
+                            {row.totalAvailable}
+                          </span>
+                        </td>
+                        <td data-label="Reservado">
+                          <div>
+                            <strong>{row.totalReserved}</strong>
+                            {row.hasMismatch ? (
+                              <>
+                                <br />
+                                <span className="inventory-warning-text">Descuadre en alguna variante</span>
+                              </>
+                            ) : null}
+                          </div>
+                        </td>
+                        <td data-label="Accion">
+                          <div className="inventory-group-actions-next">
+                            <button
+                              type="button"
+                              className="admin-primary-btn inventory-manage-btn-next"
+                              onClick={() => router.push(`/admin/inventory/product/${row.productId}?storeId=${row.storeId}`)}
+                            >
+                              Administrar
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  }
+                  const item = row.item;
+                  return (
                   <tr
                     key={item.id}
                     id={`inv-row-${item.id}`}
@@ -1183,7 +1322,8 @@ export function AdminInventoryPage() {
                       ) : null}
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -1244,27 +1384,91 @@ export function AdminInventoryPage() {
                 />
               </div>
 
+              <div className="inventory-field">
+                <span>Producto</span>
+                <AdminSelect
+                  value={String(movementProductId || '')}
+                  options={[
+                    { value: '', label: 'Todos los productos' },
+                    ...movementProductOptions.map((product) => ({ value: String(product.id), label: product.name })),
+                  ]}
+                  ariaLabel="Seleccionar producto"
+                  onChange={(nextValue) => {
+                    const nextProductId = toPositiveInt(nextValue);
+                    setMovementProductId(nextProductId);
+                    // Auto-selecciona si el producto tiene una sola variante; limpia si ya no aplica.
+                    const variantsOfProduct = variantCatalog.filter((variant) => !nextProductId || variant.productId === nextProductId);
+                    if (nextProductId && variantsOfProduct.length === 1) {
+                      setMovementVariantId(variantsOfProduct[0].variantId);
+                    } else if (movementVariantId && !variantsOfProduct.some((variant) => variant.variantId === movementVariantId)) {
+                      setMovementVariantId(null);
+                    }
+                  }}
+                />
+              </div>
+
               <label className="inventory-field">
                 <span>Buscar variante</span>
                 <input
                   type="text"
                   value={movementVariantSearch}
                   onChange={(event) => setMovementVariantSearch(event.target.value)}
-                  placeholder="SKU, producto, color o talla"
+                  placeholder="SKU, color o talla"
                 />
               </label>
 
               <div className="inventory-field">
-                <span>Variante</span>
-                <AdminSelect
-                  value={String(movementVariantId || '')}
-                  options={[
-                    { value: '', label: 'Selecciona una variante' },
-                    ...filteredVariantCatalog.map((variant) => ({ value: String(variant.variantId), label: variant.productName })),
-                  ]}
-                  ariaLabel="Seleccionar variante"
-                  onChange={(nextValue) => setMovementVariantId(toPositiveInt(nextValue))}
-                />
+                <span>Variante {movementProductId ? `(${filteredVariantCatalog.length})` : ''}</span>
+                {movementProductId ? (
+                  variantMatrix.length === 0 ? (
+                    <p className="admin-muted-text">Sin variantes que coincidan.</p>
+                  ) : (
+                    <div className="variant-matrix-picker">
+                      {(variantMatrix.length > 1 || variantMatrix[0].colorName !== 'Sin color') ? (
+                        <div className="variant-chip-row" role="group" aria-label="Color">
+                          {variantMatrix.map((color) => (
+                            <button
+                              key={color.colorName}
+                              type="button"
+                              className={`variant-chip${color.colorName === activeMovementColor ? ' is-active' : ''}`}
+                              onClick={() => pickMovementColor(color.colorName)}
+                            >
+                              {color.colorName}
+                              <span className="variant-chip-count">{color.sizes.length}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                      {activeMovementColor && !(activeMovementSizes.length === 1 && activeMovementSizes[0].sizeName === 'Sin talla') ? (
+                        <div className="variant-chip-row variant-chip-row-sizes" role="group" aria-label="Talla">
+                          {activeMovementSizes.map((size) => (
+                            <button
+                              key={size.variantId}
+                              type="button"
+                              className={`variant-chip is-size${size.variantId === movementVariantId ? ' is-active' : ''}`}
+                              onClick={() => selectMovementVariant(size.variantId)}
+                            >
+                              {size.sizeName}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  )
+                ) : (
+                  <AdminSelect
+                    value={String(movementVariantId || '')}
+                    options={[
+                      { value: '', label: 'Selecciona una variante' },
+                      ...filteredVariantCatalog.map((variant) => ({
+                        value: String(variant.variantId),
+                        label: variant.label,
+                      })),
+                    ]}
+                    ariaLabel="Seleccionar variante"
+                    onChange={(nextValue) => setMovementVariantId(toPositiveInt(nextValue))}
+                  />
+                )}
               </div>
 
               {selectedMovementVariant ? (

@@ -7,6 +7,7 @@ import { useAdminAuth } from '@/components/admin-auth-provider';
 import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
 import { useAdminUi } from '@/components/admin-ui-provider';
 import { EcommerceFulfillmentPanel } from '@/components/ecommerce-fulfillment-panel';
+import { AdminOrderReturnPanel } from '@/components/admin-order-return-panel';
 import { PickingScanPanel } from '@/components/picking-scan-panel';
 import {
   AdminOrder,
@@ -2477,6 +2478,16 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
           </header>
           <div className="order-detail-drawer-body">
         <section className="order-detail-grid-next">
+        {order.status === 'DELIVERED' ? (
+          <article className="admin-card order-return-card">
+            <AdminOrderReturnPanel
+              orderId={order.id}
+              orderCode={order.code}
+              items={order.items}
+              onChange={loadOrder}
+            />
+          </article>
+        ) : null}
         <article className="admin-card">
           <h3>Informacion del Pedido</h3>
           <div className="order-detail-info-list-next">
