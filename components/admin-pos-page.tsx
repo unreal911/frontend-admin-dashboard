@@ -1294,11 +1294,21 @@ export function AdminPosPage() {
       const createdOrder = (payload as { data?: { code?: unknown; id?: unknown } }).data || {};
       const code = asText(createdOrder.code, 'VENTA');
       const createdId = Number(createdOrder.id) || 0;
-      const comprobanteInfo = (payload as { data?: { comprobante?: { serie?: unknown; numero?: unknown; tipo?: unknown; estado?: unknown } } }).data?.comprobante;
+      const orderData = (payload as { data?: { comprobante?: { serie?: unknown; numero?: unknown; tipo?: unknown; estado?: unknown }; comprobanteError?: unknown } }).data;
+      const comprobanteInfo = orderData?.comprobante;
       showAlert(`Venta creada: ${code}`, 'success', 4200);
       if (comprobanteInfo?.serie) {
         const label = `${asText(comprobanteInfo.serie)}-${asText(comprobanteInfo.numero)}`;
         showAlert(`${asText(comprobanteInfo.tipo) === 'FACTURA' ? 'Factura' : 'Boleta'} ${label} generada.`, 'success', 5000);
+      } else if (docType !== 'NOTA') {
+        // Se pidio comprobante pero no se emitio: la venta quedo registrada. Avisar para
+        // que el operador lo reintente desde Comprobantes (no es un fallo silencioso).
+        const motivo = asText(orderData?.comprobanteError);
+        showAlert(
+          `Venta OK, pero el comprobante (${POS_DOC_TYPE_LABELS[docType]}) NO se emitio${motivo ? `: ${motivo}` : ''}. Reintenta desde Comprobantes.`,
+          'error',
+          8000,
+        );
       }
       if (createdId > 0) {
         setPendingPrint({ id: createdId, code });
