@@ -148,6 +148,8 @@ export interface StockTransfer {
 export interface ProductForInventoryCatalog {
   id: number;
   name: string;
+  hasColor: boolean;
+  hasSize: boolean;
   variants?: Array<{
     id: number;
     sku: string;
@@ -511,9 +513,20 @@ export function normalizeProductsForInventoryCatalog(payload: unknown): ProductF
       });
     }
 
+    // Ejes reales del producto: prioriza los flags null-based del backend; fallback a
+    // detectar por variantes con color/talla presentes (sin centinelas de nombre).
+    const hasColor = typeof item.hasColor === 'boolean'
+      ? item.hasColor
+      : variants.some((variant) => variant.color != null);
+    const hasSize = typeof item.hasSize === 'boolean'
+      ? item.hasSize
+      : variants.some((variant) => variant.size != null);
+
     normalized.push({
       id: productId,
       name: productName,
+      hasColor,
+      hasSize,
       variants,
     });
   }

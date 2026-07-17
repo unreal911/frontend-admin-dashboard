@@ -59,6 +59,8 @@ interface PosProduct {
   minPrice: number;
   totalAvailableStock: number;
   totalReservedStock: number;
+  hasColor: boolean;
+  hasSize: boolean;
 }
 
 interface PosCartItem {
@@ -206,6 +208,15 @@ function normalizeProducts(payload: unknown): PosProduct[] {
 
       const minPrice = variants.reduce((acc, variant) => Math.min(acc, variant.price), Number.POSITIVE_INFINITY);
 
+      // Ejes reales del producto: prioriza los flags del backend (null-based, sin
+      // centinelas); fallback a detectar por variantes con color/talla presentes.
+      const hasColor = typeof raw.hasColor === 'boolean'
+        ? raw.hasColor
+        : variantsRaw.some((v) => (v as { color?: unknown }).color != null);
+      const hasSize = typeof raw.hasSize === 'boolean'
+        ? raw.hasSize
+        : variantsRaw.some((v) => (v as { size?: unknown }).size != null);
+
       return {
         id,
         name: asText(raw.name, `Producto #${id}`),
@@ -215,6 +226,8 @@ function normalizeProducts(payload: unknown): PosProduct[] {
         minPrice: Number.isFinite(minPrice) ? minPrice : 0,
         totalAvailableStock: 0,
         totalReservedStock: 0,
+        hasColor,
+        hasSize,
       } satisfies PosProduct;
     })
     .filter(Boolean) as PosProduct[];
@@ -252,23 +265,11 @@ function withStockApplied(baseProducts: PosProduct[], stockMap: Map<number, { st
   });
 }
 
-// Un atributo es "real" si no es el centinela de dimension ausente.
-function isRealAttr(value?: string | null): boolean {
-  const v = (value || '').trim();
-  return Boolean(v) && v !== 'Sin color' && v !== 'Sin talla' && !v.startsWith('__SIN_');
-}
-
-// Deriva que dimensiones tiene un producto para adaptar la UI a los 3 tipos:
-// SIMPLE (ninguna), una-dimension (solo talla o solo color) y MATRIX (ambas).
+// Ejes del producto (color/talla) para adaptar la UI a los 3 tipos: SIMPLE (ninguna),
+// una-dimension (solo talla o solo color) y MATRIX (ambas). Provienen del backend
+// (flags null-based hasColor/hasSize), ya sin centinelas de nombre.
 function getProductAxes(product: PosProduct): { hasColor: boolean; hasSize: boolean } {
-  let hasColor = false;
-  let hasSize = false;
-  for (const variant of product.variants) {
-    if (isRealAttr(variant.colorName)) hasColor = true;
-    if (isRealAttr(variant.sizeName)) hasSize = true;
-    if (hasColor && hasSize) break;
-  }
-  return { hasColor, hasSize };
+  return { hasColor: product.hasColor, hasSize: product.hasSize };
 }
 
 function formatCurrency(value: number): string {

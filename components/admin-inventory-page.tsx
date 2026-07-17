@@ -336,6 +336,13 @@ export function AdminInventoryPage() {
     return colors;
   }, [filteredVariantCatalog]);
 
+  // Ejes del producto seleccionado (color/talla) según los flags del backend, para
+  // decidir qué selectores mostrar sin comparar contra centinelas de nombre.
+  const selectedMovementProduct = useMemo(
+    () => productCatalog.find((product) => product.id === movementProductId) || null,
+    [productCatalog, movementProductId],
+  );
+
   const activeMovementColor = useMemo(() => {
     if (selectedMovementVariant) {
       return selectedMovementVariant.colorName;
@@ -1424,7 +1431,7 @@ export function AdminInventoryPage() {
                     <p className="admin-muted-text">Sin variantes que coincidan.</p>
                   ) : (
                     <div className="variant-matrix-picker">
-                      {(variantMatrix.length > 1 || variantMatrix[0].colorName !== 'Sin color') ? (
+                      {(selectedMovementProduct?.hasColor ?? (variantMatrix.length > 1 || variantMatrix[0].colorName !== 'Sin color')) ? (
                         <div className="variant-chip-row" role="group" aria-label="Color">
                           {variantMatrix.map((color) => (
                             <button
@@ -1439,7 +1446,7 @@ export function AdminInventoryPage() {
                           ))}
                         </div>
                       ) : null}
-                      {activeMovementColor && !(activeMovementSizes.length === 1 && activeMovementSizes[0].sizeName === 'Sin talla') ? (
+                      {activeMovementColor && (selectedMovementProduct?.hasSize ?? !(activeMovementSizes.length === 1 && activeMovementSizes[0].sizeName === 'Sin talla')) ? (
                         <div className="variant-chip-row variant-chip-row-sizes" role="group" aria-label="Talla">
                           {activeMovementSizes.map((size) => (
                             <button
