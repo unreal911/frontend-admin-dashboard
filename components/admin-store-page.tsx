@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useAdminUi } from '@/components/admin-ui-provider';
+import { AdminSelect } from '@/components/admin-select';
 
 type StoreType = 'STORE' | 'WAREHOUSE';
 
@@ -315,19 +316,20 @@ export function AdminStorePage() {
               </button>
             </div>
             <div className="stores-inline-filters-next">
-              <select
+              <AdminSelect<'' | StoreType>
                 value={filterType}
-                onChange={(event) => {
-                  const nextType = normalizeStoreType(event.target.value);
-                  const nextValue = event.target.value ? nextType : '';
+                ariaLabel="Tipo de tienda"
+                onChange={(value) => {
+                  const nextValue = value ? normalizeStoreType(value) : '';
                   setFilterType(nextValue);
                   loadStores({ type: nextValue });
                 }}
-              >
-                <option value="">Todos los tipos</option>
-                <option value="STORE">Tienda</option>
-                <option value="WAREHOUSE">Almacen</option>
-              </select>
+                options={[
+                  { value: '', label: 'Todos los tipos' },
+                  { value: 'STORE', label: 'Tienda' },
+                  { value: 'WAREHOUSE', label: 'Almacen' },
+                ]}
+              />
               <label className="admin-checkbox">
                 <input
                   type="checkbox"
@@ -465,13 +467,15 @@ export function AdminStorePage() {
 
               <label>
                 <span>Tipo</span>
-                <select
+                <AdminSelect<StoreType>
                   value={form.type}
-                  onChange={(event) => setForm((current) => ({ ...current, type: normalizeStoreType(event.target.value) }))}
-                >
-                  <option value="STORE">Tienda</option>
-                  <option value="WAREHOUSE">Almacen</option>
-                </select>
+                  ariaLabel="Tipo"
+                  onChange={(value) => setForm((current) => ({ ...current, type: normalizeStoreType(value) }))}
+                  options={[
+                    { value: 'STORE', label: 'Tienda' },
+                    { value: 'WAREHOUSE', label: 'Almacen' },
+                  ]}
+                />
               </label>
 
               <label>

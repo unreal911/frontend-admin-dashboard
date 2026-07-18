@@ -15,6 +15,7 @@ import {
   computeAvailableStock,
   normalizeInventoryAttribute,
 } from '@/lib/admin-inventory-types';
+import { AdminSelect } from '@/components/admin-select';
 
 type CatalogVariant = NonNullable<ProductForInventoryCatalog['variants']>[number];
 
@@ -304,11 +305,12 @@ export function AdminInventoryProductPage() {
         {storeOptions.length > 1 ? (
           <label className="inventory-matrix-store">
             <span>Tienda</span>
-            <select value={activeStoreId} onChange={(event) => changeStore(Number(event.target.value))}>
-              {storeOptions.map((store) => (
-                <option key={store.id} value={store.id}>{store.label}</option>
-              ))}
-            </select>
+            <AdminSelect
+              value={String(activeStoreId)}
+              ariaLabel="Tienda"
+              onChange={(value) => changeStore(Number(value))}
+              options={storeOptions.map((store) => ({ value: String(store.id), label: store.label }))}
+            />
           </label>
         ) : (
           <span className="inventory-matrix-store-static">{storeOptions[0]?.label}</span>

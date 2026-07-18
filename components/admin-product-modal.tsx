@@ -19,6 +19,7 @@ import {
   uniqueNumbers,
 } from '@/lib/product-form-utils';
 import { ProductDescriptionEditor } from '@/components/product-description-editor';
+import { AdminSelect } from '@/components/admin-select';
 
 export type ProductVariantMode = 'MATRIX' | 'SIMPLE' | 'SIZE_ONLY';
 
@@ -179,7 +180,7 @@ export function AdminProductModal({
   const [collapsedColorGroups, setCollapsedColorGroups] = useState<number[]>([]);
   const formRef = useRef<HTMLFormElement | null>(null);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
-  const categorySelectRef = useRef<HTMLSelectElement | null>(null);
+  const categorySelectRef = useRef<HTMLButtonElement | null>(null);
   const generateVariantsButtonRef = useRef<HTMLButtonElement | null>(null);
   const marketplaceGenerateButtonRef = useRef<HTMLButtonElement | null>(null);
 
@@ -1133,7 +1134,7 @@ export function AdminProductModal({
           {rows.map((row) => {
             const hex = kind === 'color' ? (row as { hex?: string | null }).hex : null;
             return (
-              <label key={row.id} className={`admin-chip${row.checked ? ' is-on' : ''}`}>
+              <label key={row.id} className={`admin-chip${kind === 'color' ? ' admin-chip--color' : ''}${row.checked ? ' is-on' : ''}`}>
                 <input
                   type="checkbox"
                   checked={row.checked}
@@ -1465,26 +1466,23 @@ export function AdminProductModal({
 
             <label>
               <span>Categoria</span>
-              <select
-                ref={categorySelectRef}
-                value={categoryId ?? ''}
-                className={fieldErrors.category ? 'admin-field-invalid' : undefined}
-                aria-invalid={Boolean(fieldErrors.category)}
-                aria-describedby={fieldErrors.category ? 'product-category-error' : undefined}
+              <AdminSelect
+                buttonRef={categorySelectRef}
+                value={categoryId != null ? String(categoryId) : ''}
+                ariaLabel="Categoria"
+                invalid={Boolean(fieldErrors.category)}
+                describedBy={fieldErrors.category ? 'product-category-error' : undefined}
                 disabled={isSubmitting}
-                onChange={(event) => {
-                  setCategoryId(toPositiveNumber(event.target.value) || null);
+                onChange={(value) => {
+                  setCategoryId(toPositiveNumber(value) || null);
                   clearFieldError('category');
                   setFormError('');
                 }}
-              >
-                <option value="">Selecciona una categoria</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
+                options={[
+                  { value: '', label: 'Selecciona una categoria' },
+                  ...categories.map((category) => ({ value: String(category.id), label: category.name })),
+                ]}
+              />
               {fieldErrors.category ? (
                 <small id="product-category-error" className="admin-field-error-text">
                   {fieldErrors.category}
@@ -1494,18 +1492,20 @@ export function AdminProductModal({
 
             <label>
               <span>Afectacion IGV</span>
-              <select
+              <AdminSelect
                 value={afectacionIgv}
+                ariaLabel="Afectacion IGV"
                 disabled={isSubmitting}
-                onChange={(event) => {
-                  setAfectacionIgv(event.target.value);
+                onChange={(value) => {
+                  setAfectacionIgv(value);
                   setFormError('');
                 }}
-              >
-                <option value="10">Gravado (18%)</option>
-                <option value="20">Exonerado</option>
-                <option value="30">Inafecto</option>
-              </select>
+                options={[
+                  { value: '10', label: 'Gravado (18%)' },
+                  { value: '20', label: 'Exonerado' },
+                  { value: '30', label: 'Inafecto' },
+                ]}
+              />
               <small className="admin-field-hint">Determina el IGV en la facturacion electronica.</small>
             </label>
           </div>

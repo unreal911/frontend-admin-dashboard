@@ -672,7 +672,7 @@ export function AdminProductVariantsManager({
                   const checked = selectedColorIds.includes(color.id);
                   const hex = color.hex || null;
                   return (
-                    <label key={color.id} className={`admin-chip${checked ? ' is-on' : ''}`}>
+                    <label key={color.id} className={`admin-chip admin-chip--color${checked ? ' is-on' : ''}`}>
                       <input type="checkbox" checked={checked} onChange={(event) => toggleMatrixColor(color.id, event.target.checked)} />
                       {hex ? <span className="admin-chip-swatch" style={{ background: hex }} /> : null}
                       <span>{color.name}</span>

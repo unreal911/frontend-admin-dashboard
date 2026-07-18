@@ -21,6 +21,7 @@ interface OrderReturnRecord {
   id: number;
   reason: string;
   note?: string | null;
+  restock?: boolean;
   totalQuantity: number;
   totalAmount: number;
   createdAt: string;
@@ -51,6 +52,7 @@ export function AdminOrderReturnPanel({ orderId, orderCode, items, onChange }: A
   const [loading, setLoading] = useState(true);
   const [reason, setReason] = useState('');
   const [note, setNote] = useState('');
+  const [restock, setRestock] = useState(true); // false = merma (no repone stock)
   const [quantities, setQuantities] = useState<Record<number, number>>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -136,17 +138,20 @@ export function AdminOrderReturnPanel({ orderId, orderCode, items, onChange }: A
       const res = await fetch(`/api/admin/orders/${orderId}/returns`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ reason: reason.trim(), note: note.trim() || null, items: payloadItems }),
+        body: JSON.stringify({ reason: reason.trim(), note: note.trim() || null, restock, items: payloadItems }),
       }).catch(() => null);
       const payload = res ? await res.json().catch(() => null) : null;
       if (!res || !res.ok) {
         setError(String(payload?.error || payload?.message || 'No se pudo registrar la devolucion.'));
         return;
       }
-      setSuccess('Devolucion registrada. Stock repuesto en la tienda de despacho.');
+      setSuccess(restock
+        ? 'Devolucion registrada. Stock repuesto en la tienda de despacho.'
+        : 'Devolucion registrada como merma. No se repuso stock.');
       setQuantities({});
       setReason('');
       setNote('');
+      setRestock(true);
       await loadReturns();
       onChange?.();
     } finally {
@@ -158,13 +163,17 @@ export function AdminOrderReturnPanel({ orderId, orderCode, items, onChange }: A
     <section className="order-return-panel">
       <header className="orp-head">
         <h3>Devoluciones</h3>
-        <Link className="admin-ghost-btn" href="/admin/sunat/comprobantes">
+        <Link
+          className="admin-ghost-btn"
+          href={`/admin/sunat/comprobantes?orderId=${orderId}&codigo=${encodeURIComponent(orderCode)}`}
+        >
           Emitir Nota de Credito
         </Link>
       </header>
       <p className="orp-hint">
-        Al registrar una devolucion se repone el stock a la tienda de despacho. La Nota de Credito SUNAT se
-        emite aparte: busca el pedido <strong>{orderCode}</strong> en Comprobantes (motivo 06 total / 07 por item).
+        Al registrar una devolucion se repone el stock a la tienda de despacho, salvo que la marques como
+        merma. La Nota de Credito SUNAT se emite aparte: el boton abre Comprobantes ya filtrado por el
+        pedido <strong>{orderCode}</strong> (motivo 06 total / 07 por item).
       </p>
 
       {!allReturned ? (
@@ -210,6 +219,18 @@ export function AdminOrderReturnPanel({ orderId, orderCode, items, onChange }: A
             <input type="text" value={note} onChange={(event) => setNote(event.target.value)} />
           </label>
 
+          <label className="orp-restock">
+            <input
+              type="checkbox"
+              checked={restock}
+              onChange={(event) => setRestock(event.target.checked)}
+            />
+            <span>
+              Reponer al stock
+              <small>Desmarca si es <strong>merma</strong> (mercaderia inservible): no se repone.</small>
+            </span>
+          </label>
+
           {error ? <p className="orp-error">{error}</p> : null}
           {success ? <p className="orp-success">{success}</p> : null}
 
@@ -235,6 +256,7 @@ export function AdminOrderReturnPanel({ orderId, orderCode, items, onChange }: A
             <div className="orp-history-head">
               <strong>{new Date(record.createdAt).toLocaleString('es-PE')}</strong>
               <span>
+                {record.restock === false ? <em className="orp-merma-tag">Merma</em> : null}
                 {record.totalQuantity} und · {formatMoney(Number(record.totalAmount))}
               </span>
             </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { KeyboardEvent, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { KeyboardEvent, Ref, useEffect, useId, useMemo, useRef, useState } from 'react';
 
 export interface AdminSelectOption<TValue extends string = string> {
   value: TValue;
@@ -14,6 +14,12 @@ interface AdminSelectProps<TValue extends string = string> {
   onChange: (value: TValue) => void;
   ariaLabel: string;
   disabled?: boolean;
+  /** Ref al botón disparador (para focus/scrollIntoView en validación). */
+  buttonRef?: Ref<HTMLButtonElement>;
+  /** Marca el control como inválido (borde de error + aria-invalid). */
+  invalid?: boolean;
+  /** id del elemento que describe el error (aria-describedby). */
+  describedBy?: string;
 }
 
 export function AdminSelect<TValue extends string = string>({
@@ -22,6 +28,9 @@ export function AdminSelect<TValue extends string = string>({
   onChange,
   ariaLabel,
   disabled = false,
+  buttonRef,
+  invalid = false,
+  describedBy,
 }: AdminSelectProps<TValue>) {
   const id = useId();
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -75,12 +84,15 @@ export function AdminSelect<TValue extends string = string>({
   return (
     <div ref={rootRef} className={`admin-select-next ${open ? 'open' : ''}`}>
       <button
+        ref={buttonRef}
         type="button"
-        className="admin-select-trigger-next"
+        className={`admin-select-trigger-next${invalid ? ' admin-field-invalid' : ''}`}
         aria-label={ariaLabel}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={`${id}-listbox`}
+        aria-invalid={invalid || undefined}
+        aria-describedby={describedBy}
         disabled={disabled}
         onClick={() => setOpen((current) => !current)}
         onKeyDown={onButtonKeyDown}

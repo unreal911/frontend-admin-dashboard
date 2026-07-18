@@ -1784,6 +1784,40 @@
   font-size: 0.9rem;
 }
 
+.order-return-panel .orp-restock {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 0.85rem;
+  color: var(--admin-text);
+  cursor: pointer;
+}
+
+.order-return-panel .orp-restock input {
+  margin-top: 2px;
+}
+
+.order-return-panel .orp-restock small {
+  display: block;
+  color: var(--admin-muted);
+  font-size: 0.76rem;
+}
+
+.order-return-panel .orp-merma-tag {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(231, 76, 60, 0.15);
+  color: #e74c3c;
+  font-size: 0.7rem;
+  font-style: normal;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
 .order-return-panel .orp-error {
   color: #e74c3c;
   font-size: 0.82rem;

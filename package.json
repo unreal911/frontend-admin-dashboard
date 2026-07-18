@@ -12,6 +12,19 @@
     "test:e2e:headed": "playwright test --headed"
   },
   "dependencies": {
+    "@tiptap/extension-color": "^3.28.0",
+    "@tiptap/extension-font-family": "^3.28.0",
+    "@tiptap/extension-placeholder": "^3.28.0",
+    "@tiptap/extension-table": "^3.28.0",
+    "@tiptap/extension-table-cell": "^3.28.0",
+    "@tiptap/extension-table-header": "^3.28.0",
+    "@tiptap/extension-table-row": "^3.28.0",
+    "@tiptap/extension-text-align": "^3.28.0",
+    "@tiptap/extension-text-style": "^3.28.0",
+    "@tiptap/extension-underline": "^3.28.0",
+    "@tiptap/pm": "^3.28.0",
+    "@tiptap/react": "^3.28.0",
+    "@tiptap/starter-kit": "^3.28.0",
     "next": "16.2.6",
     "react": "19.2.6",
     "react-dom": "19.2.6"

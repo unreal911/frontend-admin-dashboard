@@ -1133,13 +1133,56 @@ body.pk-fullscreen-active { overflow: hidden; }
 .pk-fs-target.is-fullscreen {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  /* Sobre el chrome admin (topbar 45, sidebar 60, panel notif 70) pero bajo
+     drawers/modales/toasts (2500+) para que esos sigan apareciendo encima. */
+  z-index: 2000;
   margin: 0;
   border-radius: 0;
   overflow: auto;
   -webkit-overflow-scrolling: touch;
   background: var(--admin-page-bg);
-  padding: 1rem 1rem calc(1rem + 96px);
+  padding: 0 clamp(1rem, 5vw, 3.5rem) 2rem;
+}
+
+/* Columna central: no estirar el contenido de borde a borde en monitores anchos. */
+.pk-fs-target.is-fullscreen > * {
+  max-width: 1180px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Cabecera fija dentro de la pantalla completa: "Salir" siempre a la vista. */
+.pk-fs-target.is-fullscreen .pk-fs-head {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  padding-block: 0.9rem;
+  margin-bottom: 1.1rem;
+  background: var(--admin-page-bg);
+  border-bottom: 1px solid var(--admin-border);
+}
+
+/* Botones de accion: sin estirado por flex ni salto de linea que los agranda. */
+.pk-fs-target.is-fullscreen .admin-table-actions {
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.pk-fs-target.is-fullscreen .order-detail-action-btn-next {
+  width: auto;
+  white-space: nowrap;
+}
+
+/* Movil: recupera el hueco para la barra sticky fija y usa ancho completo. */
+@media (max-width: 768px) {
+  .pk-fs-target.is-fullscreen {
+    padding-bottom: calc(2rem + 84px);
+  }
+  .pk-fs-target.is-fullscreen > * {
+    max-width: none;
+  }
 }
 
 /* Seleccion multiple + accion en lote (picking) */

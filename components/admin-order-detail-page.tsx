@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAdminAuth } from '@/components/admin-auth-provider';
+import { ADMIN_LIVE_UPDATE_EVENT } from '@/components/admin-shell-provider';
 import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
 import { useAdminUi } from '@/components/admin-ui-provider';
 import { EcommerceFulfillmentPanel } from '@/components/ecommerce-fulfillment-panel';
@@ -1048,6 +1049,51 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
     loadOrder();
   }, [loadOrder]);
 
+  // Refs de guarda: evitan que un refresh en vivo (SSE) pise ediciones en curso.
+  const statusNoteRef = useRef(statusNote);
+  const editingDuringPickingRef = useRef(editingDuringPicking);
+  useEffect(() => {
+    statusNoteRef.current = statusNote;
+    editingDuringPickingRef.current = editingDuringPicking;
+  }, [statusNote, editingDuringPicking]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    let refreshTimer: number | null = null;
+    const refresh = (event: Event) => {
+      const detail = (event as CustomEvent<{ entity?: string; entityId?: number | null }>).detail;
+      if (detail?.entity && detail.entity !== 'ORDER') {
+        return;
+      }
+      const eventOrderId = Number(detail?.entityId || 0);
+      // Si el evento trae un pedido concreto y no es el nuestro, ignorar.
+      if (Number.isInteger(eventOrderId) && eventOrderId > 0 && eventOrderId !== orderId) {
+        return;
+      }
+      // No pisar edicion en curso (nota de estado escrita o edicion durante picking).
+      if (statusNoteRef.current.trim() || editingDuringPickingRef.current) {
+        return;
+      }
+      if (refreshTimer) {
+        window.clearTimeout(refreshTimer);
+      }
+      refreshTimer = window.setTimeout(() => {
+        void loadOrder();
+      }, 150);
+    };
+
+    window.addEventListener(ADMIN_LIVE_UPDATE_EVENT, refresh);
+    return () => {
+      if (refreshTimer) {
+        window.clearTimeout(refreshTimer);
+      }
+      window.removeEventListener(ADMIN_LIVE_UPDATE_EVENT, refresh);
+    };
+  }, [loadOrder, orderId]);
+
   const loadAssignableUsers = useCallback(async () => {
     setLoadingAssignUsers(true);
     setAssignUsersError('');
@@ -1708,6 +1754,9 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
         return;
       }
       showAlert('Picking finalizado. El pedido quedo en estado READY.', 'success');
+      // Sale de pantalla completa: al finalizar, el overlay ya no aplica y su
+      // boton "Salir" se ocultaria dejando al operador atrapado.
+      setFullscreenPicking(false);
       await loadOrder();
     } catch {
       showAlert('No se pudo finalizar picking.', 'error');
@@ -2647,7 +2696,7 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
       <article className={`admin-card pk-fs-target${fullscreenPicking ? ' is-fullscreen' : ''}`}>
         <div className="pk-fs-head">
           <h3>{currentPrepStep === 1 ? 'Continuar preparacion' : 'Separar (Picking)'}</h3>
-          {order.pickingSession && !isPickingFinalizedForDetail ? (
+          {order.pickingSession && (fullscreenPicking || !isPickingFinalizedForDetail) ? (
             <button
               type="button"
               className={`admin-ghost-btn order-detail-action-btn-next${fullscreenPicking ? ' is-active' : ''}`}

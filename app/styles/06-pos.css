@@ -1355,8 +1355,12 @@
   }
 }
 
-.admin-workspace select,
-.admin-modal-overlay select {
+/* Normalización de <select> nativo (flecha custom + appearance).
+   :not([multiple]):not([size]) sube la especificidad a (0,3,1) para ganar
+   a las reglas legacy `.contenedor select` (0,2,1) que fijan `background`/`padding`
+   shorthand y borraban la flecha. Fuente única de verdad del look de select. */
+.admin-workspace select:not([multiple]):not([size]),
+.admin-modal-overlay select:not([multiple]):not([size]) {
   appearance: none;
   -webkit-appearance: none;
   border: 1px solid color-mix(in oklab, var(--admin-border) 88%, var(--admin-text));
@@ -1382,14 +1386,14 @@
   line-height: 1.25;
 }
 
-.admin-workspace select:hover,
-.admin-modal-overlay select:hover {
+.admin-workspace select:not([multiple]):not([size]):hover,
+.admin-modal-overlay select:not([multiple]):not([size]):hover {
   border-color: color-mix(in oklab, var(--admin-primary) 42%, var(--admin-border));
   background-color: color-mix(in oklab, var(--admin-surface) 94%, var(--admin-primary) 4%);
 }
 
-.admin-workspace select:focus,
-.admin-modal-overlay select:focus {
+.admin-workspace select:not([multiple]):not([size]):focus,
+.admin-modal-overlay select:not([multiple]):not([size]):focus {
   outline: none;
   border-color: var(--admin-primary-strong);
   box-shadow:
@@ -1397,8 +1401,8 @@
     inset 0 1px 0 color-mix(in oklab, white 7%, transparent);
 }
 
-.admin-workspace select:disabled,
-.admin-modal-overlay select:disabled {
+.admin-workspace select:not([multiple]):not([size]):disabled,
+.admin-modal-overlay select:not([multiple]):not([size]):disabled {
   cursor: not-allowed;
   opacity: 0.66;
   background-color: color-mix(in oklab, var(--admin-surface-soft) 82%, var(--admin-surface));

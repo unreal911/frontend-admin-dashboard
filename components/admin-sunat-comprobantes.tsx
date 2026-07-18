@@ -1,7 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useAdminUi } from '@/components/admin-ui-provider';
+import { AdminSelect } from '@/components/admin-select';
 
 type ComprobanteTipo = 'FACTURA' | 'BOLETA' | 'NOTA_CREDITO' | 'NOTA_DEBITO';
 type ComprobanteEstado =
@@ -35,6 +37,7 @@ interface Filtros {
   desde: string;
   hasta: string;
   q: string;
+  orderId: string; // deep-link: filtra por pedido de origen (no editable en el form)
 }
 
 const soles = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' });
@@ -91,7 +94,13 @@ function esAceptado(estado: ComprobanteEstado): boolean {
 
 export function AdminSunatComprobantesPage() {
   const { showAlert, confirm } = useAdminUi();
-  const [filtros, setFiltros] = useState<Filtros>({ tipo: '', estado: '', desde: '', hasta: '', q: '' });
+  const searchParams = useSearchParams();
+  // Deep-link desde el panel de devolucion: ?orderId=&codigo= prefiltra por pedido.
+  const [filtros, setFiltros] = useState<Filtros>(() => ({
+    tipo: '', estado: '', desde: '', hasta: '', q: '',
+    orderId: searchParams.get('orderId')?.trim() || '',
+  }));
+  const [orderCodigo, setOrderCodigo] = useState<string>(() => searchParams.get('codigo')?.trim() || '');
   const [items, setItems] = useState<Comprobante[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -111,6 +120,7 @@ export function AdminSunatComprobantesPage() {
       if (f.desde) params.set('desde', f.desde);
       if (f.hasta) params.set('hasta', f.hasta);
       if (f.q.trim()) params.set('q', f.q.trim());
+      if (f.orderId.trim()) params.set('orderId', f.orderId.trim());
       params.set('take', '100');
       const response = await fetch(`/api/admin/sunat/comprobantes?${params.toString()}`, { cache: 'no-store' });
       const payload = await response.json().catch(() => null);
@@ -243,32 +253,62 @@ export function AdminSunatComprobantesPage() {
         </div>
       </article>
 
+      {filtros.orderId ? (
+        <article className="admin-card comprobantes-order-filter">
+          <span className="comprobantes-order-filter__label">
+            Mostrando comprobantes del pedido <strong>{orderCodigo || `#${filtros.orderId}`}</strong>
+          </span>
+          <button
+            type="button"
+            className="admin-ghost-btn"
+            onClick={() => {
+              const limpio: Filtros = { ...filtros, orderId: '' };
+              setOrderCodigo('');
+              setFiltros(limpio);
+              cargar(limpio);
+            }}
+          >
+            Ver todos
+          </button>
+        </article>
+      ) : null}
+
       <article className="admin-card admin-filters-card-next">
         <fieldset className="admin-filters-fieldset-next">
           <legend className="admin-filters-legend-next">Filtros</legend>
           <div className="admin-filters-layout-next">
             <label className="admin-field-block">
               <span>Tipo</span>
-              <select value={filtros.tipo} onChange={(e) => setFiltros({ ...filtros, tipo: e.target.value })}>
-                <option value="">Todos</option>
-                <option value="FACTURA">Factura</option>
-                <option value="BOLETA">Boleta</option>
-                <option value="NOTA_CREDITO">Nota de credito</option>
-                <option value="NOTA_DEBITO">Nota de debito</option>
-              </select>
+              <AdminSelect
+                value={filtros.tipo}
+                ariaLabel="Tipo"
+                onChange={(value) => setFiltros({ ...filtros, tipo: value })}
+                options={[
+                  { value: '', label: 'Todos' },
+                  { value: 'FACTURA', label: 'Factura' },
+                  { value: 'BOLETA', label: 'Boleta' },
+                  { value: 'NOTA_CREDITO', label: 'Nota de credito' },
+                  { value: 'NOTA_DEBITO', label: 'Nota de debito' },
+                ]}
+              />
             </label>
             <label className="admin-field-block">
               <span>Estado</span>
-              <select value={filtros.estado} onChange={(e) => setFiltros({ ...filtros, estado: e.target.value })}>
-                <option value="">Todos</option>
-                <option value="BORRADOR">Borrador</option>
-                <option value="ENVIADO">Enviado</option>
-                <option value="ACEPTADO">Aceptado</option>
-                <option value="ACEPTADO_CON_OBSERVACIONES">Aceptado c/ observaciones</option>
-                <option value="RECHAZADO">Rechazado</option>
-                <option value="ANULADO">Anulado</option>
-                <option value="ERROR">Error</option>
-              </select>
+              <AdminSelect
+                value={filtros.estado}
+                ariaLabel="Estado"
+                onChange={(value) => setFiltros({ ...filtros, estado: value })}
+                options={[
+                  { value: '', label: 'Todos' },
+                  { value: 'BORRADOR', label: 'Borrador' },
+                  { value: 'ENVIADO', label: 'Enviado' },
+                  { value: 'ACEPTADO', label: 'Aceptado' },
+                  { value: 'ACEPTADO_CON_OBSERVACIONES', label: 'Aceptado c/ observaciones' },
+                  { value: 'RECHAZADO', label: 'Rechazado' },
+                  { value: 'ANULADO', label: 'Anulado' },
+                  { value: 'ERROR', label: 'Error' },
+                ]}
+              />
             </label>
             <label className="admin-field-block">
               <span>Desde</span>
@@ -295,7 +335,7 @@ export function AdminSunatComprobantesPage() {
               <button
                 type="button"
                 className="admin-ghost-btn"
-                onClick={() => { const limpio = { tipo: '', estado: '', desde: '', hasta: '', q: '' }; setFiltros(limpio); cargar(limpio); }}
+                onClick={() => { const limpio: Filtros = { tipo: '', estado: '', desde: '', hasta: '', q: '', orderId: '' }; setOrderCodigo(''); setFiltros(limpio); cargar(limpio); }}
               >
                 Limpiar
               </button>
@@ -394,9 +434,12 @@ export function AdminSunatComprobantesPage() {
               {accion.tipo !== 'BAJA' ? (
                 <label>
                   <span>Motivo (catalogo {accion.tipo === 'NOTA_CREDITO' ? '09' : '10'})</span>
-                  <select value={codigoMotivo} onChange={(e) => setCodigoMotivo(e.target.value)}>
-                    {motivos.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
-                  </select>
+                  <AdminSelect
+                    value={codigoMotivo}
+                    ariaLabel="Motivo"
+                    onChange={(value) => setCodigoMotivo(value)}
+                    options={motivos.map((m) => ({ value: m.value, label: m.label }))}
+                  />
                 </label>
               ) : (
                 <p className="admin-muted-text">

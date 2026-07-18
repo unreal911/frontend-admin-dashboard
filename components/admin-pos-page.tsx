@@ -1380,20 +1380,19 @@ export function AdminPosPage() {
 
             <label className="admin-pos-store-selector-next">
               <span>Tienda</span>
-              <select
-                className="admin-pos-store-select-next"
-                value={selectedStoreId || ''}
-                onChange={(event) => {
-                  const nextStoreId = asPositiveInt(event.target.value);
+              <AdminSelect
+                value={selectedStoreId ? String(selectedStoreId) : ''}
+                ariaLabel="Tienda"
+                onChange={(value) => {
+                  const nextStoreId = asPositiveInt(value);
                   setSelectedStoreId(nextStoreId);
                   setCart([]);
                 }}
-              >
-                <option value="">Selecciona</option>
-                {stores.map((store) => (
-                  <option key={store.id} value={store.id}>{store.name}</option>
-                ))}
-              </select>
+                options={[
+                  { value: '', label: 'Selecciona' },
+                  ...stores.map((store) => ({ value: String(store.id), label: store.name })),
+                ]}
+              />
             </label>
           </div>
 
@@ -1888,14 +1887,15 @@ export function AdminPosPage() {
                   </label>
                   <label className="admin-pos-form-group-next">
                     <span>Tipo doc.</span>
-                    <select
-                      className="admin-pos-form-input-next"
+                    <AdminSelect
                       value={clienteTipoDoc}
-                      onChange={(event) => setClienteTipoDoc(event.target.value)}
-                    >
-                      <option value="1">DNI</option>
-                      <option value="6">RUC</option>
-                    </select>
+                      ariaLabel="Tipo de documento"
+                      onChange={(value) => setClienteTipoDoc(value)}
+                      options={[
+                        { value: '1', label: 'DNI' },
+                        { value: '6', label: 'RUC' },
+                      ]}
+                    />
                   </label>
                   <label className="admin-pos-form-group-next">
                     <span>N° documento</span>

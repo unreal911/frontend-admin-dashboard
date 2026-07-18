@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAdminUi } from '@/components/admin-ui-provider';
 import { useAdminAuth } from '@/components/admin-auth-provider';
+import { AdminSelect } from '@/components/admin-select';
 import { AdminOrder, AdminOrderItem, AdminOrderItemReservationSuggestion } from '@/lib/admin-order-types';
 import {
   LineInput,
@@ -1746,11 +1747,12 @@ export function EcommerceFulfillmentPanel({ order, canEdit, onReload }: Ecommerc
             </p>
             <label className="ff-field">
               <span>Motivo</span>
-              <select className="ff-select" value={deleteReason} onChange={(e) => setDeleteReason(e.target.value)}>
-                {REMOVE_REASONS.map((reason) => (
-                  <option key={`reason-${reason}`} value={reason}>{reason}</option>
-                ))}
-              </select>
+              <AdminSelect
+                value={deleteReason}
+                ariaLabel="Motivo"
+                onChange={(value) => setDeleteReason(value)}
+                options={REMOVE_REASONS.map((reason) => ({ value: reason, label: reason }))}
+              />
             </label>
             <label className="ff-field">
               <span>Observaciones</span>

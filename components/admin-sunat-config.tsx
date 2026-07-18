@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAdminUi } from '@/components/admin-ui-provider';
+import { AdminSelect } from '@/components/admin-select';
 
 type SunatEnvironment = 'BETA' | 'PRODUCCION';
 
@@ -434,14 +435,16 @@ export function AdminSunatConfig() {
               </label>
               <label className="admin-form-field">
                 <span>Entorno</span>
-                <select
+                <AdminSelect
                   value={form.environment}
                   disabled={saving}
-                  onChange={(e) => updateField('environment', e.target.value as SunatEnvironment)}
-                >
-                  <option value="BETA">BETA (pruebas)</option>
-                  <option value="PRODUCCION">PRODUCCION</option>
-                </select>
+                  ariaLabel="Entorno"
+                  onChange={(value) => updateField('environment', value as SunatEnvironment)}
+                  options={[
+                    { value: 'BETA', label: 'BETA (pruebas)' },
+                    { value: 'PRODUCCION', label: 'PRODUCCION' },
+                  ]}
+                />
                 <small className="admin-field-hint">Produccion exige RUC valido y certificado real cargado.</small>
               </label>
               <label className="admin-form-field">
