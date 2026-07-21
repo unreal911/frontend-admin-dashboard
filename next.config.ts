@@ -9,6 +9,11 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'res.cloudinary.com',
       },
+      {
+        // Imagenes placeholder de datos seed/demo.
+        protocol: 'https',
+        hostname: 'placehold.co',
+      },
     ],
   },
 };
