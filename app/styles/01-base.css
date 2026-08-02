@@ -5486,3 +5486,114 @@ a {
   grid-template-columns: minmax(0, 1fr);
 }
 
+/* EMP-005: identidad de empresa, registro e invitaciones */
+.admin-active-tenant-next {
+  display: grid;
+  gap: 0.1rem;
+  max-width: 260px;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid color-mix(in oklab, var(--admin-primary) 32%, transparent);
+  border-radius: 0.7rem;
+  background: color-mix(in oklab, var(--admin-primary) 8%, var(--admin-surface));
+}
+
+.admin-active-tenant-next span {
+  color: color-mix(in oklab, var(--admin-text) 58%, transparent);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.admin-active-tenant-next strong {
+  overflow: hidden;
+  font-size: 0.84rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tenant-invitation-form-next {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(170px, 0.4fr) auto;
+  gap: 0.85rem;
+  align-items: end;
+}
+
+.tenant-invitation-form-next label,
+.public-flow-form-next label {
+  display: grid;
+  gap: 0.38rem;
+  font-weight: 700;
+}
+
+.tenant-invitation-form-next input,
+.tenant-invitation-form-next select {
+  min-height: 42px;
+}
+
+.public-flow-card-next {
+  width: min(100%, 620px);
+}
+
+.public-flow-kicker-next,
+.public-flow-heading-next > p {
+  margin: 0 0 0.4rem;
+  color: var(--admin-primary);
+  font-size: 0.75rem;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.public-flow-form-next {
+  margin-top: 1.2rem;
+}
+
+.public-flow-name-grid-next {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.public-flow-check-next {
+  display: flex !important;
+  grid-template-columns: auto 1fr;
+  align-items: flex-start;
+  font-size: 0.86rem;
+}
+
+.public-flow-check-next input {
+  width: auto;
+  min-height: auto;
+  margin-top: 0.15rem;
+}
+
+.public-turnstile-next {
+  min-height: 65px;
+}
+
+.public-flow-success-next,
+.public-flow-status-next,
+.public-flow-heading-next {
+  display: grid;
+  gap: 0.75rem;
+  text-align: center;
+}
+
+.public-flow-success-next a,
+.public-flow-status-next a {
+  justify-self: center;
+  color: var(--admin-primary);
+  font-weight: 800;
+}
+
+@media (max-width: 780px) {
+  .tenant-invitation-form-next,
+  .public-flow-name-grid-next {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-active-tenant-next {
+    max-width: 150px;
+  }
+}

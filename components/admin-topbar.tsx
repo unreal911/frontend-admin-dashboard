@@ -75,6 +75,12 @@ export function AdminTopbar() {
         <div className="admin-navbar-title-next">Panel de Administracion</div>
       </div>
       <div className="admin-topbar-actions">
+        {user ? (
+          <div className="admin-active-tenant-next" title={`Empresa activa: ${user.tenant.name}`}>
+            <span>Empresa activa</span>
+            <strong>{user.tenant.name}</strong>
+          </div>
+        ) : null}
         <div className="admin-notifications-next">
           <button
             type="button"

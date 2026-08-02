@@ -45,6 +45,7 @@ export const ADMIN_ROUTE_ITEMS: AdminRouteItem[] = [
   { slug: 'sunat/comprobantes', label: 'Comprobantes', group: 'Pedidos', permission: 'orders.view', description: 'Comprobantes emitidos: notas de credito/debito y anulaciones.' },
 
   { slug: 'users', label: 'Usuarios', group: 'Accesos', permission: 'users.view', description: 'Gestion de usuarios.' },
+  { slug: 'invitations', label: 'Invitaciones', group: 'Accesos', permission: 'users.create', description: 'Invita colaboradores de forma segura.' },
   { slug: 'roles', label: 'Roles', group: 'Accesos', permission: 'roles.view', description: 'Gestion de roles y permisos.' },
 
   { slug: 'settings', label: 'Configuracion', group: 'Sistema', permission: 'settings.manage', description: 'Parametros globales del sistema.' },
@@ -72,4 +73,3 @@ export function resolveAdminRoute(slugParts: string[] | undefined): AdminRouteIt
 export function listAdminRoutesByGroup(group: AdminRouteGroup): AdminRouteItem[] {
   return ADMIN_ROUTE_ITEMS.filter((item) => item.group === group);
 }
-

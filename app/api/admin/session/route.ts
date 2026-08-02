@@ -12,7 +12,15 @@ interface AdminLoginResponse {
     lastName?: string;
     email?: string;
     role?: unknown;
+    tenant?: unknown;
+    membership?: unknown;
   };
+  tenants?: Array<{
+    id?: unknown;
+    slug?: unknown;
+    name?: unknown;
+    role?: unknown;
+  }>;
   message?: string;
 }
 
@@ -30,6 +38,7 @@ export async function POST(request: Request) {
   const payload = await request.json().catch(() => null);
   const email = String(payload?.email || '').trim();
   const password = String(payload?.password || '').trim();
+  const tenantSlug = String(payload?.tenantSlug || '').trim().toLowerCase();
 
   if (!email || !password) {
     return NextResponse.json(
@@ -44,7 +53,7 @@ export async function POST(request: Request) {
     headers: {
       'content-type': 'application/json',
     },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, ...(tenantSlug ? { tenantSlug } : {}) }),
     cache: 'no-store',
   }).catch(() => null);
 
@@ -57,6 +66,14 @@ export async function POST(request: Request) {
 
   const result = (await upstream.json().catch(() => null)) as AdminLoginResponse | null;
   if (!upstream.ok) {
+    if (upstream.status === 409 && Array.isArray(result?.tenants)) {
+      return NextResponse.json({
+        success: false,
+        selectionRequired: true,
+        message: mapErrorMessage(result, 'Selecciona una empresa.'),
+        tenants: result.tenants,
+      }, { status: 409 });
+    }
     return NextResponse.json(
       { success: false, message: mapErrorMessage(result, 'Credenciales invalidas.') },
       { status: upstream.status || 401 },
@@ -104,4 +121,3 @@ export async function DELETE() {
   cookieStore.delete(ADMIN_SESSION_COOKIE);
   return NextResponse.json({ success: true });
 }
-

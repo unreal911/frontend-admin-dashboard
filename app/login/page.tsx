@@ -22,7 +22,7 @@ export default function LoginPage() {
           <AdminLoginForm />
         </Suspense>
         <div className="auth-links-next">
-          <Link href="/admin/dashboard">Entrar al admin (atajo)</Link>
+          <Link href="/signup">Crear una prueba de 15 d&iacute;as</Link>
         </div>
       </article>
     </section>

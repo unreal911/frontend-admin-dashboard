@@ -3,11 +3,20 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FormEvent, useMemo, useState } from 'react';
 
+interface LoginTenant {
+  id: string;
+  slug: string;
+  name: string;
+  role: string;
+}
+
 export function AdminLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [tenantSlug, setTenantSlug] = useState('');
+  const [tenants, setTenants] = useState<LoginTenant[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -25,10 +34,24 @@ export function AdminLoginForm() {
       const response = await fetch('/api/admin/session', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, ...(tenantSlug ? { tenantSlug } : {}) }),
       });
 
       const result = await response.json().catch(() => null);
+      if (response.status === 409 && result?.selectionRequired && Array.isArray(result?.tenants)) {
+        const options = result.tenants
+          .map((tenant: Record<string, unknown>) => ({
+            id: String(tenant.id || ''),
+            slug: String(tenant.slug || ''),
+            name: String(tenant.name || ''),
+            role: String(tenant.role || ''),
+          }))
+          .filter((tenant: LoginTenant) => tenant.id && tenant.slug && tenant.name);
+        setTenants(options);
+        setTenantSlug(options[0]?.slug || '');
+        setErrorMessage('Selecciona la empresa a la que deseas ingresar.');
+        return;
+      }
       if (!response.ok || !result?.success) {
         setErrorMessage(String(result?.message || 'No se pudo iniciar sesion.'));
         return;
@@ -56,6 +79,22 @@ export function AdminLoginForm() {
           required
         />
       </label>
+      {tenants.length > 1 ? (
+        <label>
+          Empresa
+          <select
+            value={tenantSlug}
+            onChange={(event) => setTenantSlug(event.target.value)}
+            required
+          >
+            {tenants.map((tenant) => (
+              <option key={tenant.id} value={tenant.slug}>
+                {tenant.name} ({tenant.role})
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
       <label>
         Contrasena
         <input
@@ -69,9 +108,8 @@ export function AdminLoginForm() {
       </label>
       {errorMessage ? <p className="auth-error">{errorMessage}</p> : null}
       <button type="submit" disabled={isSubmitting}>
-        {isSubmitting ? 'Ingresando...' : 'Entrar'}
+        {isSubmitting ? 'Ingresando...' : tenants.length > 1 ? 'Entrar a la empresa' : 'Entrar'}
       </button>
     </form>
   );
 }
-

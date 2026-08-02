@@ -18,6 +18,17 @@ export interface AdminAuthUser {
   email: string;
   role: string;
   permissions: string[];
+  tenant: {
+    id: string;
+    slug: string;
+    name: string;
+    status: string;
+  };
+  membership: {
+    id: string;
+    role: string;
+    status: string;
+  };
 }
 
 interface AdminAuthContextValue {
@@ -54,6 +65,8 @@ function normalizeAuthUser(payload: unknown): AdminAuthUser | null {
     email?: unknown;
     role?: unknown;
     permissions?: unknown;
+    tenant?: unknown;
+    membership?: unknown;
   };
 
   const id = Number(user.id);
@@ -64,6 +77,11 @@ function normalizeAuthUser(payload: unknown): AdminAuthUser | null {
   const permissions = Array.isArray(user.permissions)
     ? normalizePermissionList(user.permissions)
     : [];
+  const tenant = user.tenant as Record<string, unknown> | null;
+  const membership = user.membership as Record<string, unknown> | null;
+  if (!tenant || !membership || !tenant.id || !tenant.slug || !tenant.name || !membership.id) {
+    return null;
+  }
 
   return {
     id,
@@ -72,6 +90,17 @@ function normalizeAuthUser(payload: unknown): AdminAuthUser | null {
     email: String(user.email || '').trim(),
     role: String(user.role || '').trim() || 'USER',
     permissions,
+    tenant: {
+      id: String(tenant.id),
+      slug: String(tenant.slug),
+      name: String(tenant.name),
+      status: String(tenant.status || ''),
+    },
+    membership: {
+      id: String(membership.id),
+      role: String(membership.role || ''),
+      status: String(membership.status || ''),
+    },
   };
 }
 

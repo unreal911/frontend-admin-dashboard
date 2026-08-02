@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
 import { useAdminUi } from '@/components/admin-ui-provider';
 
@@ -130,7 +131,7 @@ export function AdminUsersPage() {
   const [roles, setRoles] = useState<AdminRole[]>([]);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
-  const [isLoadingRoles, setIsLoadingRoles] = useState(true);
+  const [, setIsLoadingRoles] = useState(true);
   const [isMutating, setIsMutating] = useState(false);
   const [searchDraft, setSearchDraft] = useState('');
   const [searchText, setSearchText] = useState('');
@@ -247,17 +248,6 @@ export function AdminUsersPage() {
       window.removeEventListener('keydown', onEscape);
     };
   }, [modalOpen, isMutating]);
-
-  function openCreateModal() {
-    setEditingUser(null);
-    const firstRoleId = roles.find((role) => role.isActive !== false)?.id || roles[0]?.id || 0;
-    setForm({
-      ...DEFAULT_FORM,
-      roleId: firstRoleId,
-    });
-    setModalError('');
-    setModalOpen(true);
-  }
 
   function openEditModal(user: AdminUser) {
     setEditingUser(user);
@@ -445,9 +435,9 @@ export function AdminUsersPage() {
               <button type="button" className="admin-ghost-btn" onClick={loadUsers} disabled={isLoadingUsers}>
                 Actualizar
               </button>
-              <button type="button" className="admin-primary-btn" onClick={openCreateModal} disabled={isLoadingRoles}>
-                Agregar usuario
-              </button>
+              <Link className="admin-primary-btn" href="/admin/invitations">
+                Invitar usuario
+              </Link>
             </div>
           </form>
         </fieldset>
