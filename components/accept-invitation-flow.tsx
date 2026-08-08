@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { FormEvent, useEffect, useState } from 'react';
+import { validatePasswordConfirmation } from '@/lib/password-confirmation';
 
 interface InvitationInfo {
   email: string;
@@ -49,7 +50,18 @@ export function AcceptInvitationFlow({ token }: { token: string }) {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const password = String(form.get('password') || '');
     setError('');
+    if (!invitation?.existingAccount) {
+      const passwordConfirmationError = validatePasswordConfirmation(
+        password,
+        String(form.get('confirmPassword') || ''),
+      );
+      if (passwordConfirmationError) {
+        setError(passwordConfirmationError);
+        return;
+      }
+    }
     setSubmitting(true);
     try {
       const response = await fetch('/api/public/invitations/accept', {
@@ -57,7 +69,7 @@ export function AcceptInvitationFlow({ token }: { token: string }) {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           token,
-          password: form.get('password'),
+          password,
           ...(!invitation?.existingAccount ? {
             firstName: form.get('firstName'),
             lastName: form.get('lastName'),
@@ -123,7 +135,20 @@ export function AcceptInvitationFlow({ token }: { token: string }) {
           />
         </label>
         {!invitation.existingAccount ? (
-          <small>El enlace verifica tu correo. La contrase&ntilde;a debe incluir may&uacute;scula, min&uacute;scula, n&uacute;mero y s&iacute;mbolo.</small>
+          <>
+            <label>
+              Repetir contrase&ntilde;a
+              <input
+                name="confirmPassword"
+                type="password"
+                autoComplete="new-password"
+                minLength={12}
+                maxLength={72}
+                required
+              />
+            </label>
+            <small>El enlace verifica tu correo. La contrase&ntilde;a debe incluir may&uacute;scula, min&uacute;scula, n&uacute;mero y s&iacute;mbolo.</small>
+          </>
         ) : null}
         {error ? <p className="auth-error">{error}</p> : null}
         <button type="submit" disabled={submitting}>

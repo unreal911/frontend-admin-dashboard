@@ -29,6 +29,15 @@ interface Comprobante {
   dispatches?: Dispatch[];
 }
 
+interface SunatArtifact {
+  id: string;
+  type: string;
+  sha256: string;
+  sizeBytes: string;
+  mimeType: string;
+  createdAt: string;
+}
+
 type AccionTipo = 'NOTA_CREDITO' | 'NOTA_DEBITO' | 'BAJA';
 
 interface Filtros {
@@ -105,6 +114,7 @@ export function AdminSunatComprobantesPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [procesando, setProcesando] = useState<number | null>(null);
+  const [documentos, setDocumentos] = useState<{ comprobante: Comprobante; items: SunatArtifact[]; loading: boolean } | null>(null);
 
   // Modal de accion (NC / ND / Baja)
   const [accion, setAccion] = useState<{ tipo: AccionTipo; comprobante: Comprobante } | null>(null);
@@ -157,6 +167,30 @@ export function AdminSunatComprobantesPage() {
   function cerrarAccion() {
     setAccion(null);
     setDescripcionMotivo('');
+  }
+
+  async function abrirDocumentos(comprobante: Comprobante) {
+    setDocumentos({ comprobante, items: [], loading: true });
+    try {
+      const response = await fetch(`/api/admin/sunat/comprobantes/${comprobante.id}/artifacts`, { cache: 'no-store' });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(String(payload?.message || 'No se pudieron cargar los documentos.'));
+      setDocumentos({ comprobante, items: Array.isArray(payload?.artifacts) ? payload.artifacts : [], loading: false });
+    } catch (error) {
+      setDocumentos(null);
+      showAlert(error instanceof Error ? error.message : 'No se pudieron cargar los documentos.', 'error');
+    }
+  }
+
+  async function descargarDocumento(artifact: SunatArtifact) {
+    try {
+      const response = await fetch(`/api/admin/sunat/artifacts/${artifact.id}/download`, { cache: 'no-store' });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.url) throw new Error(String(payload?.message || 'No se pudo preparar la descarga.'));
+      window.open(String(payload.url), '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      showAlert(error instanceof Error ? error.message : 'No se pudo preparar la descarga.', 'error');
+    }
   }
 
   async function confirmarAccion() {
@@ -399,6 +433,7 @@ export function AdminSunatComprobantesPage() {
                             {puedeAnularBoleta ? (
                               <button type="button" className="admin-ghost-btn" disabled={busy} onClick={() => anularBoleta(c)}>Anular</button>
                             ) : null}
+                            <button type="button" className="admin-ghost-btn" disabled={busy} onClick={() => abrirDocumentos(c)}>Documentos</button>
                           </div>
                         </td>
                       </tr>
@@ -470,6 +505,37 @@ export function AdminSunatComprobantesPage() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {documentos ? (
+        <div className="admin-modal-overlay" role="presentation" onClick={() => setDocumentos(null)}>
+          <div className="admin-modal-dialog" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+            <div className="admin-modal-head-next">
+              <div>
+                <h3>Documentos {documentos.comprobante.serie}-{documentos.comprobante.numero}</h3>
+                <p>Enlaces privados de cinco minutos. El bucket y la clave interna no se exponen.</p>
+              </div>
+              <button type="button" className="admin-modal-close-next" onClick={() => setDocumentos(null)} aria-label="Cerrar modal">x</button>
+            </div>
+            {documentos.loading ? <p>Cargando documentos...</p> : documentos.items.length === 0 ? (
+              <p className="admin-muted-text">Todavía no hay artefactos verificados.</p>
+            ) : (
+              <div className="admin-table-wrap">
+                <table className="admin-table mobile-card-table">
+                  <thead><tr><th>Tipo</th><th>Tamaño</th><th>Hash</th><th></th></tr></thead>
+                  <tbody>{documentos.items.map((artifact) => (
+                    <tr key={artifact.id}>
+                      <td data-label="Tipo">{artifact.type.replaceAll('_', ' ')}</td>
+                      <td data-label="Tamaño">{Math.ceil(Number(artifact.sizeBytes) / 1024)} KB</td>
+                      <td data-label="Hash"><code title={artifact.sha256}>{artifact.sha256.slice(0, 12)}...</code></td>
+                      <td data-label="Acción"><button type="button" className="admin-primary-btn" onClick={() => descargarDocumento(artifact)}>Descargar</button></td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       ) : null}

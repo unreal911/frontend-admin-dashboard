@@ -1,10 +1,10 @@
 import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
-  testDir: './e2e',
+  testDir: './e2e-local',
   timeout: 120_000,
   expect: {
-    timeout: 15_000,
+    timeout: 20_000,
   },
   fullyParallel: false,
   workers: 1,
@@ -15,11 +15,5 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     video: 'off',
     headless: true,
-  },
-  webServer: {
-    command: 'npm run dev -- --hostname 127.0.0.1 --port 3001',
-    url: 'http://127.0.0.1:3001',
-    reuseExistingServer: true,
-    timeout: 120_000,
   },
 });

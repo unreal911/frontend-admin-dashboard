@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import Script from 'next/script';
 import { FormEvent, useEffect, useRef, useState } from 'react';
+import { validatePasswordConfirmation } from '@/lib/password-confirmation';
+import { signupRateLimitMessage } from '@/lib/public-request-metadata';
 
 declare global {
   interface Window {
@@ -54,7 +56,16 @@ export function OwnerSignupForm() {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const password = String(form.get('password') || '');
+    const passwordConfirmationError = validatePasswordConfirmation(
+      password,
+      String(form.get('confirmPassword') || ''),
+    );
     setError('');
+    if (passwordConfirmationError) {
+      setError(passwordConfirmationError);
+      return;
+    }
     if (!siteKey) {
       setError('El registro todav\u00eda no tiene CAPTCHA configurado.');
       return;
@@ -73,7 +84,7 @@ export function OwnerSignupForm() {
           lastName: form.get('lastName'),
           businessName: form.get('businessName'),
           email: form.get('email'),
-          password: form.get('password'),
+          password,
           termsAccepted: form.get('termsAccepted') === 'on',
           captchaToken,
           deviceId: deviceIdentifier(),
@@ -81,7 +92,9 @@ export function OwnerSignupForm() {
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
-        setError(String(payload?.message || 'No se pudo procesar el registro.'));
+        setError(response.status === 429
+          ? signupRateLimitMessage(response.headers.get('retry-after'))
+          : String(payload?.message || 'No se pudo procesar el registro.'));
         if (widgetIdRef.current && window.turnstile) {
           window.turnstile.reset(widgetIdRef.current);
           setCaptchaToken('');
@@ -136,6 +149,10 @@ export function OwnerSignupForm() {
           Contrase&ntilde;a
           <input name="password" type="password" autoComplete="new-password" minLength={12} maxLength={72} required />
           <small>12 caracteres como m&iacute;nimo; incluye may&uacute;scula, min&uacute;scula, n&uacute;mero y s&iacute;mbolo.</small>
+        </label>
+        <label>
+          Repetir contrase&ntilde;a
+          <input name="confirmPassword" type="password" autoComplete="new-password" minLength={12} maxLength={72} required />
         </label>
         <label className="public-flow-check-next">
           <input name="termsAccepted" type="checkbox" required />

@@ -11,7 +11,7 @@ async function setAdminSession(page: Page) {
     {
       name: 'admin_session',
       value: 'e2e-admin-session',
-      url: 'http://127.0.0.1:3000',
+      url: 'http://127.0.0.1:3001',
       httpOnly: true,
       sameSite: 'Lax',
     },
@@ -119,6 +119,17 @@ async function setupReturnMockApi(page: Page, state: MockState) {
           email: 'admin.qa@example.com',
           role: 'ADMIN',
           permissions: ['*'],
+          tenant: {
+            id: '00000000-0000-4000-8000-000000000001',
+            slug: 'legacy-main',
+            name: 'Empresa QA',
+            status: 'ACTIVE',
+          },
+          membership: {
+            id: '00000000-0000-4000-8000-000000000101',
+            role: 'OWNER',
+            status: 'ACTIVE',
+          },
         },
       });
     }

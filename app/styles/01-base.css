@@ -2450,25 +2450,97 @@ a {
 
 .admin-sidebar-groups {
   display: grid;
-  gap: 0.65rem;
+  gap: 0.55rem;
+}
+
+.admin-sidebar-mobile-head-next {
+  display: none;
 }
 
 .admin-sidebar-nav-next {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.24rem;
+}
+
+.admin-sidebar-nav-next[hidden] {
+  display: none;
 }
 
 .admin-sidebar-group {
   display: grid;
-  gap: 0.3rem;
+  gap: 0.25rem;
+  min-width: 0;
+  padding: 0.28rem 0.3rem 0.5rem;
+  border-bottom: 1px solid color-mix(in oklab, var(--admin-border) 72%, transparent);
+}
+
+.admin-sidebar-group:last-child {
+  border-bottom: 0;
 }
 
 .admin-sidebar-group h3 {
   margin: 0;
-  font-size: 0.74rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+}
+
+.admin-sidebar-group-toggle-next {
+  width: 100%;
+  min-width: 0;
+  min-height: 34px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
   color: var(--admin-muted);
+  padding: 0.18rem 0.3rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.38rem;
+  text-align: left;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.075em;
+  cursor: pointer;
+}
+
+.admin-sidebar-group-toggle-next span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-sidebar-group-toggle-next small {
+  min-width: 1.35rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--admin-primary) 10%, var(--admin-surface));
+  padding: 0.1rem 0.35rem;
+  color: var(--admin-muted);
+  font-size: 0.64rem;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.admin-sidebar-group-toggle-next i {
+  display: inline-block;
+  font-style: normal;
+  font-size: 0.9rem;
+  transition: transform 0.16s ease;
+}
+
+.admin-sidebar-group.has-active .admin-sidebar-group-toggle-next {
+  color: var(--admin-primary-strong);
+}
+
+.admin-sidebar-group-toggle-next:hover,
+.admin-sidebar-group-toggle-next:focus-visible {
+  outline: none;
+  background: color-mix(in oklab, var(--admin-primary) 10%, var(--admin-surface));
+}
+
+.admin-sidebar-group-toggle-next[aria-expanded='true'] i {
+  transform: rotate(180deg);
 }
 
 .admin-sidebar-nav-next a,
@@ -2508,9 +2580,22 @@ a {
 
 .admin-sidebar-nav-next a.active,
 .admin-sidebar-nav-next a[aria-current='page'] {
+  position: relative;
   border-color: color-mix(in oklab, var(--admin-primary) 60%, var(--admin-border));
   background: color-mix(in oklab, var(--admin-primary) 16%, var(--admin-surface));
   color: var(--admin-text);
+}
+
+.admin-sidebar-nav-next a.active::before,
+.admin-sidebar-nav-next a[aria-current='page']::before {
+  content: '';
+  position: absolute;
+  top: 0.42rem;
+  bottom: 0.42rem;
+  left: 0.18rem;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--admin-primary-strong);
 }
 
 .admin-sidebar-icon-next {
@@ -2553,8 +2638,17 @@ a {
 }
 
 .admin-workspace-sidebar-collapsed .admin-sidebar-user-next,
-.admin-workspace-sidebar-collapsed .admin-sidebar-label-next {
+.admin-workspace-sidebar-collapsed .admin-sidebar-label-next,
+.admin-workspace-sidebar-collapsed .admin-sidebar-group h3 {
   display: none;
+}
+
+.admin-workspace-sidebar-collapsed .admin-sidebar-groups {
+  gap: 0.2rem;
+}
+
+.admin-workspace-sidebar-collapsed .admin-sidebar-group {
+  padding: 0.24rem 0;
 }
 
 .admin-workspace-sidebar-collapsed .admin-sidebar-nav-next a {
@@ -2889,6 +2983,8 @@ a {
 }
 
 .admin-card {
+  min-width: 0;
+  max-width: 100%;
   border: 1px solid var(--admin-border);
   border-radius: 12px;
   background: var(--admin-surface);
@@ -3034,15 +3130,19 @@ a {
     z-index: 58;
   }
 
-  .admin-shell {
-    grid-template-columns: 1fr;
+  .admin-shell,
+  .admin-workspace-sidebar-collapsed .admin-shell {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .admin-content-inner-next {
     padding: 0.85rem;
   }
 
-  .admin-sidebar-mobile-next {
+  /* Se aplica al sidebar desde el primer render, antes de que React termine
+     de resolver isMobile. Asi no ocupa una columna ni cruza la pantalla al
+     hidratar luego del login. */
+  .admin-shell > .admin-sidebar {
     position: fixed;
     top: 0;
     left: 0;
@@ -3063,8 +3163,68 @@ a {
     box-shadow: 18px 0 42px rgba(2, 8, 23, 0.34);
   }
 
-  .admin-sidebar-mobile-next.open {
+  .admin-shell > .admin-sidebar.open {
     transform: translateX(0);
+  }
+
+  .admin-sidebar-mobile-head-next {
+    position: sticky;
+    top: -0.7rem;
+    z-index: 2;
+    margin: -0.7rem -0.6rem 0.25rem;
+    padding: calc(0.8rem + env(safe-area-inset-top)) 0.85rem 0.75rem;
+    border-bottom: 1px solid var(--admin-border);
+    background: color-mix(in oklab, var(--admin-surface) 94%, var(--admin-surface-soft));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .admin-sidebar-mobile-head-next > div {
+    display: grid;
+    gap: 0.12rem;
+  }
+
+  .admin-sidebar-mobile-head-next strong {
+    font-size: 0.95rem;
+  }
+
+  .admin-sidebar-mobile-head-next span {
+    color: var(--admin-muted);
+    font-size: 0.72rem;
+  }
+
+  .admin-sidebar-mobile-head-next button {
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+    border: 1px solid var(--admin-border);
+    border-radius: 10px;
+    background: var(--admin-surface-soft);
+    color: var(--admin-text);
+    font: inherit;
+    font-size: 1.4rem;
+    cursor: pointer;
+  }
+
+  .admin-sidebar-groups {
+    gap: 0.35rem;
+  }
+
+  .admin-sidebar-group {
+    padding: 0.2rem 0.25rem 0.45rem;
+  }
+
+  .admin-sidebar-group-toggle-next {
+    min-height: 44px;
+    padding: 0.55rem 0.45rem;
+    cursor: pointer;
+  }
+
+  .admin-sidebar-nav-next a {
+    min-height: 44px;
+    padding-block: 0.55rem;
   }
 }
 
@@ -3182,8 +3342,15 @@ a {
 }
 
 .admin-dashboard-grid {
+  min-width: 0;
+  max-width: 100%;
   display: grid;
   gap: 0.75rem;
+}
+
+.admin-dashboard-grid > * {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .admin-link-grid {
@@ -3736,7 +3903,7 @@ a {
 .admin-filters-fieldset-next input[type='date'],
 .admin-filters-fieldset-next select {
   width: 100%;
-  min-height: 38px;
+  min-height: 42px;
   border: 1px solid var(--admin-border);
   border-radius: 10px;
   background: color-mix(in oklab, var(--admin-surface) 82%, var(--admin-surface-soft));
@@ -3903,7 +4070,12 @@ a {
 }
 
 .admin-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   overflow: auto;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid var(--admin-border);
   border-radius: 8px;
   background: var(--admin-surface);
@@ -3924,6 +4096,7 @@ a {
   font-size: 0.84rem;
   color: var(--admin-text);
   vertical-align: middle;
+  overflow-wrap: anywhere;
 }
 
 .admin-table thead th {
@@ -5161,11 +5334,15 @@ a {
 }
 
 .admin-modal-form input:not([type='checkbox']):not([type='radio']) {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
   border: 1px solid var(--admin-border);
   border-radius: 10px;
   background: color-mix(in oklab, var(--admin-surface) 72%, var(--admin-surface-soft));
   color: var(--admin-text);
   padding: 0.55rem 0.65rem;
+  font: inherit;
 }
 
 .admin-modal-form input[type='checkbox'],
@@ -5487,6 +5664,68 @@ a {
 }
 
 /* EMP-005: identidad de empresa, registro e invitaciones */
+.admin-page-stack {
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.admin-page-stack > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.admin-page-stack > .admin-card {
+  margin: 0;
+  gap: 0.85rem;
+  padding: 1rem;
+}
+
+.admin-page-stack > .admin-card > h1,
+.admin-page-stack > .admin-card > h2,
+.admin-page-stack > .admin-card > h3,
+.admin-page-header h1,
+.admin-page-header h2,
+.admin-page-header p {
+  margin: 0;
+}
+
+.admin-page-header {
+  display: grid;
+  gap: 0.45rem;
+  padding-block: 0.15rem;
+}
+
+.admin-company-page-next {
+  gap: 1rem;
+}
+
+.admin-company-summary-card-next,
+.admin-company-trial-card-next,
+.admin-company-usage-card-next,
+.admin-company-legal-card-next {
+  box-shadow: 0 8px 24px color-mix(in oklab, var(--admin-text) 5%, transparent);
+}
+
+.admin-company-usage-grid-next {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.admin-company-quota-next {
+  display: grid;
+  align-content: start;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.admin-company-quota-next progress {
+  width: 100%;
+}
+
 .admin-active-tenant-next {
   display: grid;
   gap: 0.1rem;
@@ -5527,8 +5766,64 @@ a {
 }
 
 .tenant-invitation-form-next input,
-.tenant-invitation-form-next select {
+.tenant-invitation-form-next select,
+.tenant-invitation-form-next .admin-select-trigger-next {
   min-height: 42px;
+}
+
+.tenant-invitation-form-next input:not([type='checkbox']):not([type='radio']) {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid color-mix(in oklab, var(--admin-border) 88%, var(--admin-text));
+  border-radius: 10px;
+  background:
+    linear-gradient(135deg, color-mix(in oklab, var(--admin-surface) 94%, white 4%), color-mix(in oklab, var(--admin-surface) 86%, var(--admin-surface-soft))),
+    var(--admin-surface);
+  color: var(--admin-text);
+  padding: 0.56rem 0.72rem;
+  font: inherit;
+  font-size: 0.86rem;
+  line-height: 1.25;
+  outline: none;
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, white 7%, transparent),
+    0 10px 22px color-mix(in oklab, var(--admin-text) 4%, transparent);
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+}
+
+.tenant-invitation-form-next input:not([type='checkbox']):not([type='radio'])::placeholder {
+  color: color-mix(in oklab, var(--admin-muted) 78%, transparent);
+}
+
+.tenant-invitation-form-next input:not([type='checkbox']):not([type='radio']):hover {
+  border-color: color-mix(in oklab, var(--admin-primary) 42%, var(--admin-border));
+}
+
+.tenant-invitation-form-next input:not([type='checkbox']):not([type='radio']):focus {
+  border-color: var(--admin-primary-strong);
+  box-shadow:
+    0 0 0 3px color-mix(in oklab, var(--admin-primary-strong) 18%, transparent),
+    inset 0 1px 0 color-mix(in oklab, white 7%, transparent);
+}
+
+.tenant-legal-profile-form-next {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.tenant-legal-confirm-next {
+  display: flex !important;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.tenant-legal-confirm-next input {
+  flex: 0 0 auto;
+}
+
+.tenant-legal-profile-form-next > .admin-primary-btn {
+  grid-column: 1 / -1;
 }
 
 .public-flow-card-next {
@@ -5588,12 +5883,577 @@ a {
 }
 
 @media (max-width: 780px) {
+  .admin-page-stack,
+  .admin-company-page-next {
+    gap: 0.8rem;
+  }
+
+  .admin-page-stack > .admin-card {
+    gap: 0.7rem;
+    padding: 0.9rem;
+  }
+
+  .admin-company-usage-grid-next {
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+  }
+
   .tenant-invitation-form-next,
+  .tenant-legal-profile-form-next,
   .public-flow-name-grid-next {
     grid-template-columns: 1fr;
   }
 
+  .tenant-invitation-form-next input:not([type='checkbox']):not([type='radio']) {
+    min-height: 44px;
+    font-size: 1rem;
+  }
+
+  .tenant-legal-profile-form-next > .admin-primary-btn {
+    grid-column: auto;
+  }
+
   .admin-active-tenant-next {
     max-width: 150px;
+  }
+}
+
+.admin-customer-modal-next {
+  width: min(680px, calc(100vw - 2rem));
+}
+
+.admin-customer-form-next {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.admin-customer-wide-next {
+  grid-column: 1 / -1;
+}
+
+.admin-customer-form-next .admin-checkbox {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.55rem;
+}
+
+@media (max-width: 640px) {
+  .admin-customer-form-next {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-customer-wide-next {
+    grid-column: auto;
+  }
+}
+
+/* Constructor visual de reportes */
+.admin-report-page-next {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.admin-report-title-next,
+.admin-report-source-card-next,
+.admin-report-fields-next > header,
+.admin-report-columns-next > header,
+.admin-report-filters-next > header,
+.admin-report-preview-next > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.admin-report-title-next > div,
+.admin-report-source-copy-next,
+.admin-report-fields-next header > div,
+.admin-report-columns-next header > div,
+.admin-report-filters-next header > div,
+.admin-report-preview-next header > div {
+  min-width: 0;
+}
+
+.admin-report-title-next h1,
+.admin-report-title-next p,
+.admin-report-fields-next h2,
+.admin-report-fields-next p,
+.admin-report-columns-next h2,
+.admin-report-columns-next p,
+.admin-report-filters-next h2,
+.admin-report-filters-next p,
+.admin-report-preview-next h2,
+.admin-report-preview-next p {
+  margin: 0;
+}
+
+.admin-report-title-next > div > span {
+  color: var(--admin-primary);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.admin-report-title-next h1 {
+  margin-top: 0.2rem;
+  color: var(--admin-text);
+}
+
+.admin-report-title-next p,
+.admin-report-fields-next p,
+.admin-report-columns-next p,
+.admin-report-filters-next p,
+.admin-report-preview-next p,
+.admin-report-source-copy-next span {
+  color: var(--admin-muted);
+  font-size: 0.88rem;
+}
+
+.admin-report-title-next > .admin-primary-btn {
+  min-height: 44px;
+  flex: 0 0 auto;
+}
+
+.admin-report-source-card-next {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.75fr) minmax(260px, 1.35fr) minmax(320px, 1fr);
+  align-items: end;
+}
+
+.admin-report-source-copy-next {
+  display: grid;
+  align-self: center;
+  gap: 0.22rem;
+}
+
+.admin-report-saved-next {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 0.5rem;
+}
+
+.admin-report-builder-grid-next {
+  display: grid;
+  grid-template-columns: minmax(250px, 0.8fr) minmax(360px, 1.2fr);
+  gap: 1rem;
+  min-width: 0;
+}
+
+.admin-report-fields-next,
+.admin-report-columns-next,
+.admin-report-filters-next,
+.admin-report-preview-next {
+  min-width: 0;
+}
+
+.admin-report-fields-next > header > div,
+.admin-report-columns-next > header > div,
+.admin-report-filters-next > header > div,
+.admin-report-preview-next > header > div {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.admin-report-fields-next h2,
+.admin-report-columns-next h2,
+.admin-report-filters-next h2,
+.admin-report-preview-next h2 {
+  font-size: 1.05rem;
+}
+
+.admin-report-fields-next header > small,
+.admin-report-columns-next header > small {
+  color: var(--admin-muted);
+  white-space: nowrap;
+}
+
+.admin-report-step-next {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 2rem;
+  place-items: center;
+  border-radius: 0.65rem;
+  background: color-mix(in srgb, var(--admin-primary) 14%, var(--admin-card));
+  color: var(--admin-primary);
+  font-weight: 900;
+}
+
+.admin-report-field-palette-next,
+.admin-report-dropzone-next {
+  display: grid;
+  align-content: start;
+  gap: 0.5rem;
+  min-height: 12rem;
+  margin-top: 1rem;
+}
+
+.admin-report-field-chip-next,
+.admin-report-selected-field-next {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 48px;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 0.7rem;
+  background: var(--admin-card);
+  cursor: grab;
+}
+
+.admin-report-field-chip-next:active,
+.admin-report-selected-field-next:active {
+  cursor: grabbing;
+}
+
+.admin-report-field-chip-next > div {
+  display: grid;
+  min-width: 0;
+}
+
+.admin-report-field-chip-next strong,
+.admin-report-selected-field-next strong {
+  overflow: hidden;
+  font-size: 0.86rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-report-field-chip-next small {
+  color: var(--admin-muted);
+  font-size: 0.7rem;
+}
+
+.admin-report-field-chip-next > button,
+.admin-report-column-actions-next button,
+.admin-report-remove-filter-next {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid var(--admin-border);
+  border-radius: 0.55rem;
+  background: var(--admin-card);
+  color: var(--admin-text);
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.admin-report-field-chip-next > button {
+  border-color: color-mix(in srgb, var(--admin-primary) 42%, var(--admin-border));
+  color: var(--admin-primary);
+}
+
+.admin-report-drag-next {
+  color: var(--admin-muted);
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.admin-report-dropzone-next {
+  padding: 0.65rem;
+  border: 1px dashed color-mix(in srgb, var(--admin-primary) 48%, var(--admin-border));
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--admin-primary) 3%, var(--admin-card));
+}
+
+.admin-report-dropzone-next.empty {
+  place-items: center;
+}
+
+.admin-report-dropzone-next.empty > p {
+  max-width: 260px;
+  color: var(--admin-muted);
+  text-align: center;
+}
+
+.admin-report-selected-field-next {
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  background: var(--admin-card);
+}
+
+.admin-report-order-next,
+.admin-report-filter-index-next {
+  display: grid;
+  width: 1.55rem;
+  height: 1.55rem;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--admin-primary);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.admin-report-column-actions-next {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.admin-report-column-actions-next button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.admin-report-filter-list-next {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+.admin-report-filter-row-next {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 1fr) minmax(160px, 0.8fr) minmax(150px, 0.8fr) minmax(150px, 0.8fr) auto;
+  align-items: end;
+  gap: 0.65rem;
+  padding: 0.7rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, var(--admin-primary) 2%, var(--admin-card));
+}
+
+.admin-report-filter-row-next > label,
+.admin-report-sort-next > label,
+.admin-report-save-next > label {
+  display: grid;
+  min-width: 0;
+  gap: 0.35rem;
+}
+
+.admin-report-filter-row-next > label > span,
+.admin-report-sort-next > label > span,
+.admin-report-save-next > label > span {
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.admin-report-filter-row-next input,
+.admin-report-save-next input {
+  width: 100%;
+  min-width: 0;
+}
+
+.admin-report-filter-index-next {
+  align-self: center;
+}
+
+.admin-report-filter-note-next {
+  align-self: center;
+  color: var(--admin-muted);
+  font-size: 0.82rem;
+}
+
+.admin-report-remove-filter-next {
+  color: var(--admin-danger, #bd2535);
+}
+
+.admin-report-empty-filter-next,
+.admin-report-preview-empty-next {
+  display: grid;
+  place-items: center;
+  gap: 0.3rem;
+  min-height: 7rem;
+  margin-top: 0.8rem;
+  padding: 1rem;
+  border: 1px dashed var(--admin-border);
+  border-radius: 0.8rem;
+  color: var(--admin-muted);
+  text-align: center;
+}
+
+.admin-report-empty-filter-next span {
+  font-size: 0.84rem;
+}
+
+.admin-report-actions-card-next {
+  display: grid;
+  grid-template-columns: minmax(330px, 1fr) minmax(350px, 1fr) auto;
+  align-items: end;
+  gap: 1rem;
+}
+
+.admin-report-sort-next,
+.admin-report-save-next {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+  gap: 0.55rem;
+}
+
+.admin-report-save-next {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.admin-report-generate-next {
+  min-height: 44px;
+}
+
+.admin-report-preview-next {
+  overflow: hidden;
+}
+
+.admin-report-preview-next .admin-table-wrap {
+  margin-top: 1rem;
+}
+
+.admin-report-table-next th,
+.admin-report-table-next td {
+  white-space: nowrap;
+}
+
+.admin-report-preview-empty-next {
+  min-height: 12rem;
+}
+
+.admin-report-preview-empty-next > span {
+  color: var(--admin-primary);
+  font-size: 2.2rem;
+}
+
+.admin-report-preview-empty-next p {
+  max-width: 440px;
+}
+
+@media (max-width: 1180px) {
+  .admin-report-source-card-next {
+    grid-template-columns: minmax(220px, 0.8fr) minmax(280px, 1.2fr);
+  }
+
+  .admin-report-saved-next {
+    grid-column: 1 / -1;
+  }
+
+  .admin-report-filter-row-next {
+    grid-template-columns: auto repeat(2, minmax(180px, 1fr)) auto;
+  }
+
+  .admin-report-filter-row-next > label:nth-of-type(n + 3),
+  .admin-report-filter-note-next {
+    grid-column: 2 / -2;
+  }
+
+  .admin-report-actions-card-next {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-report-generate-next {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 780px) {
+  .admin-report-title-next {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-report-title-next > .admin-primary-btn {
+    width: 100%;
+  }
+
+  .admin-report-source-card-next,
+  .admin-report-builder-grid-next,
+  .admin-report-actions-card-next {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .admin-report-source-copy-next,
+  .admin-report-saved-next,
+  .admin-report-generate-next {
+    grid-column: auto;
+  }
+
+  .admin-report-filter-row-next {
+    position: relative;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    padding: 0.75rem;
+  }
+
+  .admin-report-filter-row-next > label,
+  .admin-report-filter-row-next > label:nth-of-type(n + 3),
+  .admin-report-filter-note-next {
+    grid-column: 2 / -1;
+  }
+
+  .admin-report-filter-index-next {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .admin-report-remove-filter-next {
+    position: absolute;
+    top: 0.7rem;
+    right: 0.7rem;
+  }
+
+  .admin-report-filters-next > header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-report-filters-next > header > .admin-ghost-btn {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .admin-report-sort-next,
+  .admin-report-save-next {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-report-save-next > .admin-ghost-btn,
+  .admin-report-actions-card-next > .admin-primary-btn {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .admin-report-field-chip-next,
+  .admin-report-selected-field-next {
+    min-height: 52px;
+  }
+
+  .admin-report-field-chip-next > button,
+  .admin-report-column-actions-next button,
+  .admin-report-remove-filter-next {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+@media (max-width: 430px) {
+  .admin-report-source-card-next,
+  .admin-report-fields-next,
+  .admin-report-columns-next,
+  .admin-report-filters-next,
+  .admin-report-actions-card-next,
+  .admin-report-preview-next {
+    padding: 0.8rem;
+  }
+
+  .admin-report-saved-next {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .admin-report-selected-field-next {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .admin-report-selected-field-next > .admin-report-drag-next {
+    display: none;
+  }
+
+  .admin-report-column-actions-next button {
+    width: 32px;
+    height: 36px;
   }
 }

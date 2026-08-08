@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
 import { useAdminUi } from '@/components/admin-ui-provider';
+import { validatePasswordConfirmation } from '@/lib/password-confirmation';
 
 interface AdminRole {
   id: number;
@@ -28,6 +29,7 @@ interface UserFormState {
   lastName: string;
   email: string;
   password: string;
+  confirmPassword: string;
   roleId: number;
   isActive: boolean;
 }
@@ -37,6 +39,7 @@ const DEFAULT_FORM: UserFormState = {
   lastName: '',
   email: '',
   password: '',
+  confirmPassword: '',
   roleId: 0,
   isActive: true,
 };
@@ -256,6 +259,7 @@ export function AdminUsersPage() {
       lastName: user.lastName,
       email: user.email,
       password: '',
+      confirmPassword: '',
       roleId: user.role.id,
       isActive: user.isActive,
     });
@@ -288,6 +292,15 @@ export function AdminUsersPage() {
     }
     if (!editingUser && form.password.trim().length < 6) {
       return 'La contrasena debe tener minimo 6 caracteres.';
+    }
+    if (!editingUser) {
+      const passwordConfirmationError = validatePasswordConfirmation(
+        form.password.trim(),
+        form.confirmPassword.trim(),
+      );
+      if (passwordConfirmationError) {
+        return passwordConfirmationError;
+      }
     }
     return null;
   }
@@ -559,15 +572,28 @@ export function AdminUsersPage() {
               </label>
 
               {!editingUser ? (
-                <label>
-                  <span>Contrasena</span>
-                  <input
-                    type="password"
-                    value={form.password}
-                    onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
-                    placeholder="Minimo 6 caracteres"
-                  />
-                </label>
+                <div className="admin-user-form-grid">
+                  <label>
+                    <span>Contrasena</span>
+                    <input
+                      type="password"
+                      autoComplete="new-password"
+                      value={form.password}
+                      onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
+                      placeholder="Minimo 6 caracteres"
+                    />
+                  </label>
+                  <label>
+                    <span>Repetir contrasena</span>
+                    <input
+                      type="password"
+                      autoComplete="new-password"
+                      value={form.confirmPassword}
+                      onChange={(event) => setForm((current) => ({ ...current, confirmPassword: event.target.value }))}
+                      placeholder="Repite la contrasena"
+                    />
+                  </label>
+                </div>
               ) : null}
 
               <div className="admin-user-form-grid">

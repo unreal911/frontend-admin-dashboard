@@ -19,5 +19,17 @@ export async function proxyPublicBackendRequest(
     return NextResponse.json({ message: 'No se pudo conectar con el backend.' }, { status: 502 });
   }
   const payload = await upstream.json().catch(() => null);
-  return NextResponse.json(payload, { status: upstream.status });
+  const responseHeaders = new Headers();
+  for (const headerName of [
+    'retry-after',
+    'ratelimit',
+    'ratelimit-policy',
+    'ratelimit-limit',
+    'ratelimit-remaining',
+    'ratelimit-reset',
+  ]) {
+    const value = upstream.headers.get(headerName);
+    if (value) responseHeaders.set(headerName, value);
+  }
+  return NextResponse.json(payload, { status: upstream.status, headers: responseHeaders });
 }

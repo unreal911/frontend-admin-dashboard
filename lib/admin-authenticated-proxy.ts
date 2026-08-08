@@ -6,7 +6,7 @@ const ADMIN_SESSION_COOKIE = 'admin_session';
 
 export async function proxyAuthenticatedAdminRequest(
   backendPath: string,
-  init: { method?: string; body?: unknown } = {},
+  init: { method?: string; body?: unknown; responseType?: 'json' | 'binary' } = {},
 ) {
   const cookieStore = await cookies();
   const token = String(cookieStore.get(ADMIN_SESSION_COOKIE)?.value || '').trim();
@@ -39,6 +39,14 @@ export async function proxyAuthenticatedAdminRequest(
   }
   if (upstream.status === 401) {
     cookieStore.delete(ADMIN_SESSION_COOKIE);
+  }
+  if (init.responseType === 'binary' && upstream.ok) {
+    const headers = new Headers();
+    for (const name of ['content-type', 'content-disposition', 'x-export-sha256', 'x-export-rows']) {
+      const value = upstream.headers.get(name);
+      if (value) headers.set(name, value);
+    }
+    return new NextResponse(upstream.body, { status: upstream.status, headers });
   }
   const payload = await upstream.json().catch(() => null);
   return NextResponse.json(payload, { status: upstream.status });

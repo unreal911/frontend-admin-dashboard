@@ -459,8 +459,10 @@
   }
 }
 
-/* Mantiene el mismo patron de cards mobile del frontend Angular original */
-@media (max-width: 768px) {
+/* Mantiene el mismo patron de cards en telefono y tablet vertical.
+   El corte en 900px evita que las tablets de 800-834px reciban tablas de
+   escritorio comprimidas o con scroll horizontal innecesario. */
+@media (max-width: 900px) {
   .dashboard-page-next,
   .dashboard-panel-next,
   .dashboard-shortcuts-next,
@@ -2423,4 +2425,3 @@
     z-index: 5;
   }
 }
-

@@ -1,9 +1,16 @@
 'use client';
 
 import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
 import { useAdminUi } from '@/components/admin-ui-provider';
 
 type InvitationRole = 'ADMIN' | 'SELLER' | 'VIEWER';
+
+const INVITATION_ROLE_OPTIONS: AdminSelectOption<InvitationRole>[] = [
+  { value: 'ADMIN', label: 'Administrador' },
+  { value: 'SELLER', label: 'Vendedor' },
+  { value: 'VIEWER', label: 'Consulta' },
+];
 
 interface TenantInvitation {
   id: string;
@@ -140,11 +147,12 @@ export function AdminInvitationsPage() {
           </label>
           <label>
             Rol
-            <select value={role} onChange={(event) => setRole(event.target.value as InvitationRole)}>
-              <option value="ADMIN">Administrador</option>
-              <option value="SELLER">Vendedor</option>
-              <option value="VIEWER">Consulta</option>
-            </select>
+            <AdminSelect
+              value={role}
+              options={INVITATION_ROLE_OPTIONS}
+              onChange={setRole}
+              ariaLabel="Rol de la invitacion"
+            />
           </label>
           <button type="submit" className="admin-primary-btn" disabled={submitting}>
             {submitting ? 'Enviando...' : 'Enviar invitaci\u00f3n'}

@@ -10,7 +10,7 @@ async function setAdminSession(page: Page) {
     {
       name: 'admin_session',
       value: 'e2e-admin-session',
-      url: 'http://127.0.0.1:3000',
+      url: 'http://127.0.0.1:3001',
       httpOnly: true,
       sameSite: 'Lax',
     },
@@ -120,6 +120,17 @@ async function setupAdminMockApi(page: Page, state: MockState) {
           email: 'admin.qa@example.com',
           role: 'ADMIN',
           permissions: ['*'],
+          tenant: {
+            id: '00000000-0000-4000-8000-000000000001',
+            slug: 'legacy-main',
+            name: 'Empresa QA',
+            status: 'ACTIVE',
+          },
+          membership: {
+            id: '00000000-0000-4000-8000-000000000101',
+            role: 'OWNER',
+            status: 'ACTIVE',
+          },
         },
       });
     }
@@ -189,45 +200,48 @@ async function setupAdminMockApi(page: Page, state: MockState) {
   });
 }
 
-test('actualiza picking desde detalle de pedido usando endpoint de picking-item', async ({ page }) => {
+test('actualiza picking desde detalle de pedido usando la linea de la orden', async ({ page }) => {
   const state: MockState = { pickedQuantity: 0, lastPatchPath: '' };
+  await page.setViewportSize({ width: 1280, height: 900 });
   await setAdminSession(page);
   await setupAdminMockApi(page, state);
 
   await page.goto('/admin/orders/1');
 
   await expect(page.getByRole('heading', { name: 'ORD-0001' })).toBeVisible();
-  await expect(page.getByText('Picking Operativo')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Separar (Picking)' })).toBeVisible();
 
-  const pickingCard = page.locator('article.admin-card').filter({ hasText: 'Picking Operativo' });
+  const pickingCard = page.locator('article.admin-card').filter({ hasText: 'Separar (Picking)' });
   const firstRow = pickingCard.locator('.order-detail-desktop-only-next tbody tr').first();
-  const pickedCell = firstRow.locator('td').nth(3);
+  const pickedInput = firstRow.getByRole('textbox', { name: 'Cantidad separada' });
 
-  await expect(pickedCell).toHaveText('0');
+  await expect(pickedInput).toHaveValue('0');
   await firstRow.locator('.order-detail-pick-step-next').nth(1).click();
 
-  await expect.poll(() => state.lastPatchPath).toBe('/api/admin/orders/picking/items/5001');
-  await expect(pickedCell).toHaveText('1');
+  await expect.poll(() => state.lastPatchPath).toBe('/api/admin/orders/1/picking/order-items/9001');
+  await expect(pickedInput).toHaveValue('1');
 });
-
-test.use({ viewport: { width: 390, height: 844 } });
 
 test('muestra cards moviles en productos, picking y reservas', async ({ page }) => {
   const state: MockState = { pickedQuantity: 1, lastPatchPath: '' };
+  await page.setViewportSize({ width: 390, height: 844 });
   await setAdminSession(page);
   await setupAdminMockApi(page, state);
 
   await page.goto('/admin/orders/1');
 
-  const productsCard = page.locator('article.admin-card').filter({ hasText: 'Productos de la Orden' });
-  const pickingCard = page.locator('article.admin-card').filter({ hasText: 'Picking Operativo' });
-  const reservationsCard = page.locator('article.admin-card').filter({ hasText: 'Reservas de Stock' });
-
-  await expect(productsCard.locator('.order-detail-mobile-only-next .order-detail-mobile-card-next')).toHaveCount(1);
   // Picking movil usa el layout compacto: una tarjeta por producto con sus
   // variantes en filas (.pk-row) y dos steppers (- / +) por fila.
+  const pickingCard = page.locator('article.admin-card').filter({ hasText: 'Separar (Picking)' });
   await expect(pickingCard.locator('.order-detail-mobile-only-next .pk-product')).toHaveCount(1);
   await expect(pickingCard.locator('.order-detail-mobile-only-next .pk-row')).toHaveCount(1);
-  await expect(reservationsCard.locator('.order-detail-mobile-only-next .order-detail-mobile-card-next')).toHaveCount(1);
   await expect(pickingCard.locator('.pk-row-actions .pk-step')).toHaveCount(2);
+
+  await page.getByRole('tab', { name: 'Productos' }).click();
+  const productsCard = page.locator('article.admin-card').filter({ hasText: 'Productos de la Orden' });
+  await expect(productsCard.locator('.order-detail-mobile-only-next .order-detail-mobile-card-next')).toHaveCount(1);
+
+  await page.getByRole('tab', { name: 'Reservas' }).click();
+  const reservationsCard = page.locator('article.admin-card').filter({ hasText: 'Reservas de Stock' });
+  await expect(reservationsCard.locator('.order-detail-mobile-only-next .order-detail-mobile-card-next')).toHaveCount(1);
 });

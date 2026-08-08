@@ -11,6 +11,12 @@ import {
   normalizeOrdersListResponse,
   normalizeVariantStockResponse,
 } from '@/lib/admin-order-types';
+import {
+  AdminCustomer,
+  customerDocumentLabel,
+  normalizeCustomer,
+  normalizeCustomersResponse,
+} from '@/lib/admin-customer-types';
 
 type PosDocType = 'NOTA' | 'BOLETA' | 'FACTURA';
 
@@ -351,6 +357,11 @@ export function AdminPosPage() {
   const [clienteTipoDoc, setClienteTipoDoc] = useState('1');
   const [clienteNumDoc, setClienteNumDoc] = useState('');
   const [clientAddress, setClientAddress] = useState('');
+  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
+  const [customerQuery, setCustomerQuery] = useState('');
+  const [customerResults, setCustomerResults] = useState<AdminCustomer[]>([]);
+  const [searchingCustomers, setSearchingCustomers] = useState(false);
+  const [saveNewCustomer, setSaveNewCustomer] = useState(false);
   const [orderNote, setOrderNote] = useState('');
   const [amountPaid, setAmountPaid] = useState(0);
 
@@ -364,6 +375,8 @@ export function AdminPosPage() {
   const canSell = hasPermission('pos.sell');
   const canCharge = hasPermission('pos.charge');
   const canCancelSale = hasPermission('pos.cancel_sale');
+  const canViewCustomers = hasPermission('customers.view');
+  const canManageCustomers = hasPermission('customers.manage');
 
   const selectedProduct = useMemo(() => (
     products.find((product) => product.id === selectedProductId) || null
@@ -674,6 +687,31 @@ export function AdminPosPage() {
     loadProducts();
     loadPaymentMethods();
   }, [loadStores, loadProducts, loadPaymentMethods]);
+
+  useEffect(() => {
+    const query = customerQuery.trim();
+    if (!showPaymentDrawer || !canViewCustomers || query.length < 2) {
+      setCustomerResults([]);
+      setSearchingCustomers(false);
+      return;
+    }
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setSearchingCustomers(true);
+      try {
+        const params = new URLSearchParams({ search: query, isActive: 'true', page: '1', limit: '8' });
+        const response = await fetch(`/api/admin/customers?${params}`, { cache: 'no-store', signal: controller.signal });
+        const payload = await response.json().catch(() => null);
+        if (response.ok) setCustomerResults(normalizeCustomersResponse(payload).data);
+        else setCustomerResults([]);
+      } catch (caught) {
+        if (!(caught instanceof DOMException && caught.name === 'AbortError')) setCustomerResults([]);
+      } finally {
+        if (!controller.signal.aborted) setSearchingCustomers(false);
+      }
+    }, 250);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [canViewCustomers, customerQuery, showPaymentDrawer]);
 
   // Restaura el ultimo tipo de comprobante elegido (solo etiqueta impresa)
   useEffect(() => {
@@ -1016,6 +1054,32 @@ export function AdminPosPage() {
     setShowPaymentDrawer(false);
   }
 
+  function selectCustomer(customer: AdminCustomer) {
+    setSelectedCustomerId(customer.id);
+    setClientName(customer.name);
+    setClientPhone(customer.phone);
+    setClientEmail(customer.email);
+    setClienteTipoDoc(customer.documentType || '1');
+    setClienteNumDoc(customer.documentNumber);
+    setClientAddress(customer.address);
+    setCustomerQuery('');
+    setCustomerResults([]);
+    setSaveNewCustomer(false);
+  }
+
+  function clearSelectedCustomer() {
+    setSelectedCustomerId(null);
+    setClientName('');
+    setClientPhone('');
+    setClientEmail('');
+    setClienteTipoDoc('1');
+    setClienteNumDoc('');
+    setClientAddress('');
+    setCustomerQuery('');
+    setCustomerResults([]);
+    setSaveNewCustomer(false);
+  }
+
   // F3: abre el selector de variante con la variante exacta del codigo escaneado (barcode o SKU)
   function selectByScannedCode(code: string) {
     if (!canSell) {
@@ -1232,12 +1296,42 @@ export function AdminPosPage() {
         return;
       }
     }
+    if (saveNewCustomer && !selectedCustomerId && asText(clientName).length < 2) {
+      showAlert('Ingresa el nombre del cliente que deseas guardar.', 'warning');
+      return;
+    }
 
     setSubmittingPayment(true);
     try {
       const hasCurrentStock = await validateCartStockSnapshot();
       if (!hasCurrentStock) {
         return;
+      }
+
+      let orderCustomerId = selectedCustomerId;
+      if (!orderCustomerId && saveNewCustomer) {
+        const customerResponse = await fetch('/api/admin/customers', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            name: asText(clientName),
+            documentType: asText(clienteNumDoc) ? clienteTipoDoc : undefined,
+            documentNumber: asText(clienteNumDoc) || undefined,
+            email: asText(clientEmail) || undefined,
+            phone: asText(clientPhone) || undefined,
+            address: asText(clientAddress) || undefined,
+          }),
+        });
+        const customerPayload = await customerResponse.json().catch(() => null);
+        if (!customerResponse.ok) {
+          showAlert(String((customerPayload as { message?: unknown } | null)?.message || 'No se pudo registrar el cliente.'), 'error');
+          return;
+        }
+        orderCustomerId = normalizeCustomer(customerPayload)?.id || null;
+        if (!orderCustomerId) {
+          showAlert('El cliente fue registrado, pero no se pudo vincular a la venta.', 'error');
+          return;
+        }
       }
 
       // Genera la clave solo la primera vez; los reintentos del mismo cobro la reusan.
@@ -1264,6 +1358,7 @@ export function AdminPosPage() {
           sourceStoreId: selectedStoreId,
           idempotencyKey: idempotencyKeyRef.current,
           applyIgv,
+          customerId: orderCustomerId || undefined,
           clientName: asText(clientName, 'Cliente POS'),
           clientEmail: asText(clientEmail) || undefined,
           clientPhone: asText(clientPhone) || undefined,
@@ -1323,6 +1418,10 @@ export function AdminPosPage() {
       setClienteNumDoc('');
       setClienteTipoDoc('1');
       setClientAddress('');
+      setSelectedCustomerId(null);
+      setCustomerQuery('');
+      setCustomerResults([]);
+      setSaveNewCustomer(false);
       setOrderNote('');
       setAmountPaid(0);
       loadSalesHistory(selectedStoreId);
@@ -1853,7 +1952,37 @@ export function AdminPosPage() {
 
               {/* Datos del cliente: opcionales, colapsados por defecto. */}
               <details className="admin-pos-collapse-next">
-                <summary>Datos del cliente <span className="admin-pos-collapse-value-next">opcional</span></summary>
+                <summary>Datos del cliente <span className="admin-pos-collapse-value-next">{selectedCustomerId ? clientName : 'opcional'}</span></summary>
+                {canViewCustomers ? (
+                  <div className="admin-pos-customer-search-next">
+                    {selectedCustomerId ? (
+                      <div className="admin-pos-customer-selected-next">
+                        <div><strong>{clientName}</strong><small>Cliente registrado vinculado a esta venta</small></div>
+                        <button type="button" className="admin-ghost-btn" onClick={clearSelectedCustomer}>Cambiar</button>
+                      </div>
+                    ) : (
+                      <label className="admin-pos-form-group-next admin-pos-customer-query-next">
+                        <span>Buscar cliente existente</span>
+                        <input
+                          className="admin-pos-form-input-next" type="search" autoComplete="off"
+                          value={customerQuery} onChange={(event) => setCustomerQuery(event.target.value)}
+                          placeholder="Escribe nombre o DNI"
+                        />
+                        {searchingCustomers ? <small>Buscando...</small> : null}
+                        {customerQuery.trim().length >= 2 && !searchingCustomers ? (
+                          <div className="admin-pos-customer-results-next" role="listbox">
+                            {customerResults.length > 0 ? customerResults.map((customer) => (
+                              <button type="button" role="option" aria-selected="false" key={customer.id} onClick={() => selectCustomer(customer)}>
+                                <strong>{customer.name}</strong>
+                                <span>{customerDocumentLabel(customer)}{customer.phone ? ` · ${customer.phone}` : ''}</span>
+                              </button>
+                            )) : <p>No se encontraron clientes. Puedes completar los datos y guardarlo.</p>}
+                          </div>
+                        ) : null}
+                      </label>
+                    )}
+                  </div>
+                ) : null}
                 <div className="admin-pos-payment-grid-next">
                   <label className="admin-pos-form-group-next">
                     <span>Cliente</span>
@@ -1929,6 +2058,12 @@ export function AdminPosPage() {
                       placeholder="Referencia interna"
                     />
                   </label>
+                  {!selectedCustomerId && canManageCustomers ? (
+                    <label className="admin-checkbox admin-pos-save-customer-next">
+                      <input type="checkbox" checked={saveNewCustomer} onChange={(event) => setSaveNewCustomer(event.target.checked)} />
+                      Guardar este cliente en el registro al confirmar la venta
+                    </label>
+                  ) : null}
                 </div>
               </details>
             </div>
