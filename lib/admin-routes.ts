@@ -55,8 +55,8 @@ export const ADMIN_ROUTE_ITEMS: AdminRouteItem[] = [
   { slug: 'customers', label: 'Clientes', group: 'Ventas', permission: 'customers.view', description: 'Registro y busqueda de clientes.' },
   { slug: 'orders/picking', label: 'Picking y despacho', group: 'Ventas', permission: 'picking.view', description: 'Tablero de picking.' },
 
-  { slug: 'sunat/comprobantes', label: 'Comprobantes', group: 'Facturacion', permission: 'orders.view', description: 'Comprobantes emitidos: notas de credito/debito y anulaciones.' },
-  { slug: 'sunat', label: 'Gestion SUNAT', group: 'Facturacion', permission: 'orders.view', description: 'Facturacion electronica: declaracion de boletas y comprobantes.' },
+  { slug: 'sunat/comprobantes', label: 'Comprobantes', group: 'Facturacion', permission: 'sunat.documents.view', description: 'Comprobantes emitidos: notas de credito/debito y anulaciones.' },
+  { slug: 'sunat', label: 'Gestion SUNAT', group: 'Facturacion', permission: 'sunat.documents.view', description: 'Facturacion electronica: declaracion de boletas y comprobantes.' },
 
   { slug: 'users', label: 'Usuarios', group: 'Accesos', permission: 'users.view', description: 'Gestion de usuarios.' },
   { slug: 'invitations', label: 'Invitaciones', group: 'Accesos', permission: 'users.create', description: 'Invita colaboradores de forma segura.' },

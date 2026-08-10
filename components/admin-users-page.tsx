@@ -322,13 +322,15 @@ export function AdminUsersPage() {
       const isEditing = Boolean(editingUser);
       const endpoint = isEditing ? `/api/admin/users/${editingUser?.id}` : '/api/admin/users';
       const method = isEditing ? 'PUT' : 'POST';
-      const payload: Record<string, unknown> = {
-        firstName: form.firstName.trim(),
-        lastName: form.lastName.trim(),
-        email: form.email.trim(),
-        roleId: form.roleId,
-        isActive: form.isActive,
-      };
+      const payload: Record<string, unknown> = isEditing
+        ? { roleId: form.roleId, isActive: form.isActive }
+        : {
+            firstName: form.firstName.trim(),
+            lastName: form.lastName.trim(),
+            email: form.email.trim(),
+            roleId: form.roleId,
+            isActive: form.isActive,
+          };
       if (!isEditing) {
         payload.password = form.password.trim();
       }
@@ -518,8 +520,8 @@ export function AdminUsersPage() {
           <article className="admin-modal-dialog admin-user-modal-dialog" onClick={(event) => event.stopPropagation()}>
             <header className="admin-modal-head-next">
               <div>
-                <h3>{editingUser ? 'Editar usuario' : 'Crear nuevo usuario'}</h3>
-                <p>{editingUser ? 'Actualiza los datos del usuario.' : 'Agrega un nuevo usuario al sistema.'}</p>
+                <h3>{editingUser ? 'Editar membresia' : 'Crear nuevo usuario'}</h3>
+                <p>{editingUser ? 'Actualiza el rol y acceso del usuario en esta empresa.' : 'Agrega un nuevo usuario al sistema.'}</p>
               </div>
               <button
                 type="button"
@@ -545,6 +547,7 @@ export function AdminUsersPage() {
                   <input
                     type="text"
                     value={form.firstName}
+                    disabled={Boolean(editingUser)}
                     onChange={(event) => setForm((current) => ({ ...current, firstName: event.target.value }))}
                     placeholder="Ingresa el nombre"
                   />
@@ -555,6 +558,7 @@ export function AdminUsersPage() {
                   <input
                     type="text"
                     value={form.lastName}
+                    disabled={Boolean(editingUser)}
                     onChange={(event) => setForm((current) => ({ ...current, lastName: event.target.value }))}
                     placeholder="Ingresa el apellido"
                   />
@@ -566,6 +570,7 @@ export function AdminUsersPage() {
                 <input
                   type="email"
                   value={form.email}
+                  disabled={Boolean(editingUser)}
                   onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
                   placeholder="usuario@ejemplo.com"
                 />

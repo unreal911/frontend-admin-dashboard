@@ -4,11 +4,14 @@ import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
 import { useAdminUi } from '@/components/admin-ui-provider';
 
-type InvitationRole = 'ADMIN' | 'SELLER' | 'VIEWER';
+type InvitationRole = 'ADMIN' | 'MANAGER' | 'SELLER' | 'WAREHOUSE' | 'PICKER' | 'VIEWER';
 
 const INVITATION_ROLE_OPTIONS: AdminSelectOption<InvitationRole>[] = [
   { value: 'ADMIN', label: 'Administrador' },
+  { value: 'MANAGER', label: 'Gerente' },
   { value: 'SELLER', label: 'Vendedor' },
+  { value: 'WAREHOUSE', label: 'Almacen' },
+  { value: 'PICKER', label: 'Picking' },
   { value: 'VIEWER', label: 'Consulta' },
 ];
 
