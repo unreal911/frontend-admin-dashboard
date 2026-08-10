@@ -197,6 +197,14 @@ export function AdminInventoryTraceabilityPage() {
         </div>
       </article>
 
+      <nav className="admin-card inventory-mobile-actions-next" aria-label="Acciones de trazabilidad">
+        <Link href="/admin/inventory" className="admin-ghost-btn">Volver a inventario</Link>
+        <Link href="/admin/inventory/movements" className="admin-ghost-btn">Ir a movimientos</Link>
+        <button type="button" className="admin-ghost-btn" onClick={() => loadReservations(inventoryIdFilter)}>
+          Actualizar
+        </button>
+      </nav>
+
       <article className="admin-card admin-filters-card-next inventory-filters-card">
         <fieldset className="admin-filters-fieldset-next">
           <legend className="admin-filters-legend-next">Filtros</legend>

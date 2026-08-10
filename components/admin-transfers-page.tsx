@@ -159,6 +159,7 @@ export function AdminTransfersPage() {
   const [selectedTransferDetails, setSelectedTransferDetails] = useState<StockTransfer | null>(null);
   const [creatingTransfer, setCreatingTransfer] = useState(false);
   const [receivingTransferIds, setReceivingTransferIds] = useState<number[]>([]);
+  const [dispatchingTransferIds, setDispatchingTransferIds] = useState<number[]>([]);
 
   const [fromStoreId, setFromStoreId] = useState<number | null>(null);
   const [toStoreId, setToStoreId] = useState<number | null>(null);
@@ -536,15 +537,10 @@ export function AdminTransfersPage() {
   }
 
   async function receiveTransfer(transfer: StockTransfer) {
-    if (transfer.status === 'RECEIVED') {
-      showAlert('Esta transferencia ya fue recibida.', 'info');
+    if (transfer.status !== 'IN_TRANSIT') {
+      showAlert('Solo una transferencia en transito puede recibirse.', 'warning');
       return;
     }
-    if (transfer.status === 'CANCELLED') {
-      showAlert('No se puede recibir una transferencia cancelada.', 'warning');
-      return;
-    }
-
     setReceivingTransferIds((current) => (current.includes(transfer.id) ? current : [...current, transfer.id]));
     try {
       const response = await fetch(`/api/admin/inventory/transfers/${transfer.id}/receive`, {
@@ -562,6 +558,29 @@ export function AdminTransfersPage() {
       showAlert('Error al recibir transferencia.', 'error');
     } finally {
       setReceivingTransferIds((current) => current.filter((id) => id !== transfer.id));
+    }
+  }
+
+  async function dispatchTransfer(transfer: StockTransfer) {
+    if (transfer.status !== 'PENDING') {
+      showAlert('Solo una transferencia pendiente puede despacharse.', 'warning');
+      return;
+    }
+
+    setDispatchingTransferIds((current) => current.includes(transfer.id) ? current : [...current, transfer.id]);
+    try {
+      const response = await fetch(`/api/admin/inventory/transfers/${transfer.id}/dispatch`, { method: 'PATCH' });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        showAlert(String((payload as { message?: unknown } | null)?.message || 'Error al despachar transferencia.'), 'error');
+        return;
+      }
+      showAlert(`Transferencia ${transfer.code} despachada.`, 'success');
+      loadTransfers();
+    } catch {
+      showAlert('Error al despachar transferencia.', 'error');
+    } finally {
+      setDispatchingTransferIds((current) => current.filter((id) => id !== transfer.id));
     }
   }
 
@@ -583,6 +602,12 @@ export function AdminTransfersPage() {
           <button type="button" className="admin-primary-btn" onClick={openCreateTransferDrawer}>Nueva transferencia</button>
         </div>
       </article>
+
+      <nav className="admin-card inventory-mobile-actions-next" aria-label="Acciones de transferencias">
+        <Link href="/admin/inventory" className="admin-ghost-btn">Volver a inventario</Link>
+        <button type="button" className="admin-ghost-btn" onClick={loadTransfers}>Actualizar</button>
+        <button type="button" className="admin-primary-btn" onClick={openCreateTransferDrawer}>Nueva transferencia</button>
+      </nav>
 
       <article className="admin-card inventory-filters-card">
         <div className="transfer-filter-grid">
@@ -686,7 +711,17 @@ export function AdminTransfersPage() {
                         >
                           Ver
                         </button>
-                        {transfer.status !== 'RECEIVED' && transfer.status !== 'CANCELLED' ? (
+                        {transfer.status === 'PENDING' ? (
+                          <button
+                            type="button"
+                            className="admin-primary-btn"
+                            disabled={dispatchingTransferIds.includes(transfer.id)}
+                            onClick={() => dispatchTransfer(transfer)}
+                          >
+                            {dispatchingTransferIds.includes(transfer.id) ? 'Despachando...' : 'Despachar'}
+                          </button>
+                        ) : null}
+                        {transfer.status === 'IN_TRANSIT' ? (
                           <button
                             type="button"
                             className="admin-primary-btn"

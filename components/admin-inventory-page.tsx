@@ -994,6 +994,20 @@ export function AdminInventoryPage() {
         </div>
       </article>
 
+      <nav className="admin-card inventory-mobile-actions-next" aria-label="Acciones de inventario">
+        <Link href="/admin/inventory/movements" className="admin-ghost-btn">Movimientos</Link>
+        <Link href="/admin/inventory/traceability" className="admin-ghost-btn">Trazabilidad</Link>
+        <Link href="/admin/transfers" className="admin-ghost-btn">Transferencias</Link>
+        <button
+          type="button"
+          className="admin-primary-btn"
+          disabled={mismatchedCount === 0 || reconcilingReserved}
+          onClick={() => reconcileReservedStock()}
+        >
+          {reconcilingReserved ? 'Reconciliando...' : `Reconciliar (${mismatchedCount})`}
+        </button>
+      </nav>
+
       <article className={`admin-card admin-filters-card-next inventory-filters-card${showAdvancedFilters ? ' is-open' : ''}`}>
         <fieldset className="admin-filters-fieldset-next">
           <legend className="admin-filters-legend-next">Filtros</legend>
@@ -1542,4 +1556,3 @@ export function AdminInventoryPage() {
     </section>
   );
 }
-

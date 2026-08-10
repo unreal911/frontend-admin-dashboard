@@ -213,6 +213,12 @@ export function AdminInventoryMovementsPage() {
         </div>
       </article>
 
+      <nav className="admin-card inventory-mobile-actions-next" aria-label="Acciones de movimientos">
+        <Link href="/admin/inventory" className="admin-ghost-btn">Volver a inventario</Link>
+        <Link href="/admin/inventory/traceability" className="admin-ghost-btn">Ir a trazabilidad</Link>
+        <button type="button" className="admin-ghost-btn" onClick={loadMovements}>Actualizar</button>
+      </nav>
+
       <article className="admin-card admin-filters-card-next inventory-filters-card">
         <fieldset className="admin-filters-fieldset-next">
           <legend className="admin-filters-legend-next">Filtros</legend>
