@@ -4,6 +4,7 @@ import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { useAdminAuth } from '@/components/admin-auth-provider';
 import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
 import { useAdminUi } from '@/components/admin-ui-provider';
+import { AdminButton, AdminPageHeader } from '@/components/admin-design-system';
 import {
   AdminCustomer,
   customerDocumentLabel,
@@ -175,9 +176,15 @@ export function AdminCustomersPage() {
 
   return (
     <section className="admin-dashboard-grid">
+      <AdminPageHeader
+        eyebrow="Ventas"
+        title="Clientes"
+        description="Consulta y administra los clientes de todos los canales."
+        actions={canManage ? <AdminButton type="button" onClick={openCreate}>Nuevo cliente</AdminButton> : undefined}
+      />
       <article className="admin-card admin-filters-card-next">
         <fieldset className="admin-filters-fieldset-next">
-          <legend className="admin-filters-legend-next">Clientes</legend>
+          <legend className="admin-filters-legend-next">Filtros</legend>
           <div className="admin-filters-layout-next">
             <div className="admin-toolbar-join-next">
               <input
@@ -203,7 +210,6 @@ export function AdminCustomersPage() {
             </div>
             <div className="admin-filters-actions-next">
               <span className="admin-muted-text">{total} registrados</span>
-              {canManage ? <button type="button" className="admin-primary-btn" onClick={openCreate}>Nuevo cliente</button> : null}
             </div>
           </div>
         </fieldset>

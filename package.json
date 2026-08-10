@@ -11,6 +11,7 @@
     "test:e2e": "playwright test",
     "test:e2e:local": "playwright test -c playwright.local.config.ts",
     "test:responsive": "playwright test -c playwright.local.config.ts e2e-local/admin-responsive-layout.e2e.spec.ts",
+    "test:design-system": "playwright test -c playwright.local.config.ts e2e-local/admin-design-system.e2e.spec.ts",
     "test:e2e:headed": "playwright test --headed"
   },
   "dependencies": {

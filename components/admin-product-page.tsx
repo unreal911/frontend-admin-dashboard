@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { AdminButtonLink, AdminPageHeader } from '@/components/admin-design-system';
 import { AdminCategoryOption } from '@/components/admin-product-modal';
 import { useAdminUi } from '@/components/admin-ui-provider';
 
@@ -201,9 +202,15 @@ export function AdminProductPage() {
 
   return (
     <section className="admin-dashboard-grid">
+      <AdminPageHeader
+        eyebrow="Catálogo"
+        title="Productos"
+        description="Administra productos, variantes, imágenes y disponibilidad."
+        actions={<AdminButtonLink href="/admin/product/create">Agregar</AdminButtonLink>}
+      />
       <article className="admin-card admin-filters-card-next">
         <fieldset className="admin-filters-fieldset-next">
-          <legend className="admin-filters-legend-next">Settings</legend>
+          <legend className="admin-filters-legend-next">Filtros</legend>
           <div className="admin-filters-layout-next">
             <div className="admin-toolbar-join-next">
               <input
@@ -230,15 +237,6 @@ export function AdminProductPage() {
                 />
                 Inactivos
               </label>
-            </div>
-            <div className="admin-filters-actions-next">
-              <Link
-                href="/admin/product/create"
-                className={`admin-primary-btn ${isMutating ? 'disabled' : ''}`}
-                aria-disabled={isMutating}
-              >
-                Agregar
-              </Link>
             </div>
           </div>
         </fieldset>

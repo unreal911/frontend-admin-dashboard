@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAdminAuth } from '@/components/admin-auth-provider';
 import { ADMIN_LIVE_UPDATE_EVENT } from '@/components/admin-shell-provider';
 import { AdminSelect } from '@/components/admin-select';
+import { AdminButton } from '@/components/admin-design-system';
 import {
   AdminOrder,
   AdminOrderStatus,
@@ -479,20 +480,24 @@ export function AdminOrdersListPage() {
             <h2>Filtros</h2>
             <p>Aplica filtros avanzados en un panel mas limpio.</p>
           </div>
-          <button type="button" className="orders-open-filters-btn-next" onClick={openFiltersModal}>
+          <AdminButton type="button" variant="secondary" className="orders-open-filters-btn-next" onClick={openFiltersModal}>
+            <svg className="orders-filter-icon-next" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 6h16M7 12h10M10 18h4" />
+            </svg>
             <span>Filtros</span>
             {activeFilterCount > 0 ? <span className="orders-open-filters-count-next">{activeFilterCount}</span> : null}
-          </button>
+          </AdminButton>
         </div>
 
         <div className="quick-status-section-next">
           <span className="quick-status-title-next">Filtros rapidos</span>
-          <div className="quick-status-list-next">
+          <div className="quick-status-list-next" role="group" aria-label="Filtrar rápidamente por estado">
             {QUICK_STATUS_OPTIONS.map((status) => (
               <button
                 key={status.value}
                 type="button"
                 className={`quick-status-badge-next ${isQuickStatusSelected(status.value) ? 'active' : ''}`}
+                aria-pressed={isQuickStatusSelected(status.value)}
                 onClick={() => applyQuickStatus(status.value)}
               >
                 <span>{status.label}</span>

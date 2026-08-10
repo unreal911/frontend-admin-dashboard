@@ -18,11 +18,13 @@ export function AdminTopbar() {
   } = useAdminShell();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
 
   useEffect(() => {
     function onEscape(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         setNotificationsOpen(false);
+        setAccountOpen(false);
       }
     }
 
@@ -30,6 +32,9 @@ export function AdminTopbar() {
       const target = event.target as HTMLElement | null;
       if (!target?.closest('.admin-notifications-next')) {
         setNotificationsOpen(false);
+      }
+      if (!target?.closest('.admin-account-next')) {
+        setAccountOpen(false);
       }
     }
 
@@ -136,27 +141,47 @@ export function AdminTopbar() {
           ) : null}
         </div>
 
-        {user ? (
-          <div className="admin-topbar-user-next">
-            <strong>{`${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email}</strong>
-            <span className="admin-topbar-role-badge-next">{user.role}</span>
-          </div>
-        ) : null}
+        <div className={`admin-account-next ${accountOpen ? 'open' : ''}`}>
+          <button
+            type="button"
+            className="admin-account-trigger-next"
+            aria-label="Abrir menú de cuenta"
+            aria-haspopup="menu"
+            aria-expanded={accountOpen}
+            onClick={(event) => {
+              event.stopPropagation();
+              setNotificationsOpen(false);
+              setAccountOpen((current) => !current);
+            }}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 12a4 4 0 1 0 0-8a4 4 0 0 0 0 8M4 21a8 8 0 0 1 16 0" />
+            </svg>
+          </button>
+          <div className="admin-account-panel-next" role={isMobile ? 'dialog' : undefined} aria-label={isMobile ? 'Cuenta y preferencias' : undefined}>
+            {user ? (
+              <div className="admin-topbar-user-next">
+                <strong>{`${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email}</strong>
+                <span className="admin-topbar-role-badge-next">{user.role}</span>
+              </div>
+            ) : null}
 
-        <button
-          type="button"
-          className="theme-toggle-next"
-          aria-label={theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
-          title={theme === 'dark' ? 'Tema oscuro' : 'Tema claro'}
-          onClick={toggleTheme}
-        >
-          <span className="theme-toggle-track-next">
-            <span className="theme-toggle-thumb-next">{theme === 'dark' ? 'Oscuro' : 'Claro'}</span>
-          </span>
-        </button>
-        <button type="button" className="admin-ghost-btn admin-navbar-logout-next" onClick={handleLogout} disabled={isLoggingOut}>
-          {isLoggingOut ? 'Cerrando...' : 'Cerrar Sesion'}
-        </button>
+            <button
+              type="button"
+              className="theme-toggle-next"
+              aria-label={theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+              title={theme === 'dark' ? 'Tema oscuro' : 'Tema claro'}
+              onClick={toggleTheme}
+            >
+              <span className="theme-toggle-track-next">
+                <span className="theme-toggle-thumb-next">{theme === 'dark' ? 'Oscuro' : 'Claro'}</span>
+              </span>
+            </button>
+            <button type="button" className="admin-ghost-btn admin-navbar-logout-next" onClick={handleLogout} disabled={isLoggingOut}>
+              {isLoggingOut ? 'Cerrando...' : 'Cerrar sesión'}
+            </button>
+          </div>
+        </div>
       </div>
     </header>
   );

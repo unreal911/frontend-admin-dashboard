@@ -15,6 +15,7 @@ import {
   normalizeInventoryList,
   normalizeTransfers,
 } from '@/lib/admin-inventory-types';
+import { AdminButton, AdminNotice, AdminPageHeader } from '@/components/admin-design-system';
 
 type SalesChannel = 'POS' | 'ECOMMERCE' | 'INTERNAL';
 type StockScope = 'OUT' | 'CRITICAL' | 'LOW' | 'NORMAL' | 'CRITICAL_TOTAL';
@@ -678,26 +679,24 @@ export function AdminDashboardPage() {
 
   return (
     <section className="dashboard-page-next">
-      <article className="admin-card dashboard-hero-next">
-        <div>
-          <p className="section-kicker">Panel operativo</p>
-          <h1 className="section-title">Dashboard principal</h1>
-          <p className="section-subtitle">Acciones pendientes, ventas, operacion y stock en tiempo real.</p>
-        </div>
-        <div className="dashboard-hero-actions-next">
+      <AdminPageHeader
+        eyebrow="Panel operativo"
+        title="Dashboard principal"
+        description="Acciones pendientes, ventas, operacion y stock en tiempo real."
+        actions={<div className="dashboard-hero-actions-next">
           {lastUpdated ? <span>Actualizado: {formatShortDateTime(lastUpdated)}</span> : null}
-          <button type="button" className="admin-primary-btn" disabled={loading} onClick={() => void loadDashboard()}>
+          <AdminButton type="button" loading={loading} onClick={() => void loadDashboard()}>
             {loading ? 'Actualizando...' : 'Actualizar'}
-          </button>
-        </div>
-      </article>
+          </AdminButton>
+        </div>}
+      />
 
       {loading ? (
-        <div className="admin-feedback info" role="status">{loadingMessage}</div>
+        <AdminNotice tone="info" title="Actualizando información">{loadingMessage}</AdminNotice>
       ) : null}
 
       {error ? (
-        <div className="admin-feedback error" role="alert">{error}</div>
+        <AdminNotice tone="error" title="No se pudo cargar el dashboard">{error}</AdminNotice>
       ) : null}
 
       <section className="dashboard-kpi-grid-next">

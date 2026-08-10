@@ -539,10 +539,10 @@ export function AdminRolesPage() {
         <div>
           <p className="section-kicker">Admin Dashboard</p>
           <h1 className="section-title">Gestion de roles</h1>
-          <p className="section-subtitle">Administra roles, estado y permisos por modulo.</p>
+          <p className="section-subtitle">Consulta los roles operativos predefinidos. Sus permisos se versionan en el backend.</p>
         </div>
-        <button type="button" className="admin-primary-btn" onClick={openCreateRoleModal}>
-          Crear rol
+        <button type="button" className="admin-primary-btn" onClick={openCreateRoleModal} disabled>
+          Roles predefinidos
         </button>
       </article>
 
@@ -614,13 +614,13 @@ export function AdminRolesPage() {
                     <td data-label="Creado">{formatRoleDate(role.createdAt)}</td>
                     <td data-label="Accion">
                       <div className="admin-table-actions">
-                        <button type="button" className="admin-ghost-btn" onClick={() => openEditRoleModal(role)}>
-                          Editar
+                        <button type="button" className="admin-ghost-btn" onClick={() => openEditRoleModal(role)} disabled>
+                          Consultar
                         </button>
-                        <button type="button" className="admin-ghost-btn" onClick={() => toggleRoleStatus(role)} disabled={isMutating}>
+                        <button type="button" className="admin-ghost-btn" onClick={() => toggleRoleStatus(role)} disabled>
                           {role.isActive === false ? 'Activar' : 'Desactivar'}
                         </button>
-                        <button type="button" className="admin-ghost-btn" onClick={() => openPermissionsModal(role)}>
+                        <button type="button" className="admin-ghost-btn" onClick={() => openPermissionsModal(role)} disabled title="Los permisos de roles predefinidos se administran desde el backend">
                           Permisos
                         </button>
                       </div>

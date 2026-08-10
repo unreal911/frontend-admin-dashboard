@@ -1355,6 +1355,7 @@ export function AdminPosPage() {
           'content-type': 'application/json',
         },
         body: JSON.stringify({
+          salesChannel: 'POS',
           sourceStoreId: selectedStoreId,
           idempotencyKey: idempotencyKeyRef.current,
           applyIgv,
@@ -1447,6 +1448,13 @@ export function AdminPosPage() {
           </button>
         </div>
       </article>
+
+      <nav className="admin-card admin-pos-mobile-actions-next" aria-label="Acciones del punto de venta">
+        <Link href="/admin/orders/list" className="admin-ghost-btn">Gestion de ordenes</Link>
+        <button type="button" className="admin-ghost-btn" onClick={() => setShowSalesHistory(true)}>
+          Historial ({salesHistory.length})
+        </button>
+      </nav>
 
       <section className="admin-pos-layout-next">
         <article className="admin-card admin-pos-catalog-next">

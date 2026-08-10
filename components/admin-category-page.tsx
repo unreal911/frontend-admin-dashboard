@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AdminNameModal } from '@/components/admin-name-modal';
 import { useAdminUi } from '@/components/admin-ui-provider';
+import { AdminButton, AdminPageHeader } from '@/components/admin-design-system';
 
 interface AdminCategory {
   id: number;
@@ -199,9 +200,15 @@ export function AdminCategoryPage() {
 
   return (
     <section className="admin-dashboard-grid">
+      <AdminPageHeader
+        eyebrow="Catálogo"
+        title="Categorías"
+        description="Organiza los productos por categorías comerciales."
+        actions={<AdminButton type="button" onClick={openCreateModal} disabled={isMutating}>Agregar</AdminButton>}
+      />
       <article className="admin-card admin-filters-card-next">
         <fieldset className="admin-filters-fieldset-next">
-          <legend className="admin-filters-legend-next">Settings</legend>
+          <legend className="admin-filters-legend-next">Filtros</legend>
           <div className="admin-filters-layout-next">
             <div className="admin-toolbar-join-next">
               <input
@@ -228,11 +235,6 @@ export function AdminCategoryPage() {
                 />
                 Inactivos
               </label>
-            </div>
-            <div className="admin-filters-actions-next">
-              <button type="button" className="admin-primary-btn" onClick={openCreateModal} disabled={isMutating}>
-                Agregar
-              </button>
             </div>
           </div>
         </fieldset>

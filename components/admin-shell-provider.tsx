@@ -54,7 +54,7 @@ interface AdminShellContextValue {
 const AdminShellContext = createContext<AdminShellContextValue | null>(null);
 
 function normalizeTheme(value: string | null | undefined): AdminTheme {
-  return value === 'light' ? 'light' : 'dark';
+  return value === 'dark' ? 'dark' : 'light';
 }
 
 function getPendingReturnUnits(order: Record<string, unknown>): number {
@@ -130,7 +130,7 @@ function mapPendingAssignments(payload: unknown, userId: number): PendingAssignm
 
 export function AdminShellProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAdminAuth();
-  const [theme, setTheme] = useState<AdminTheme>('dark');
+  const [theme, setTheme] = useState<AdminTheme>('light');
   const [isMobile, setIsMobile] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
