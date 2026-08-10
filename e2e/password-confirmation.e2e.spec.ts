@@ -64,6 +64,74 @@ test('registro exige repetir la contrasena antes de enviar', async ({ page }) =>
   });
 });
 
+test('Turnstile reaparece al volver al registro sin refrescar la pagina', async ({ page }) => {
+  await page.route('https://challenges.cloudflare.com/turnstile/v0/api.js**', async (route) => {
+    await route.fulfill({
+      contentType: 'application/javascript',
+      body: `window.turnstile = {
+        render: function (_element, options) {
+          var widget = document.createElement('div');
+          var token = document.createElement('input');
+          widget.dataset.testid = 'turnstile-rendered';
+          token.type = 'hidden';
+          token.name = 'cf-turnstile-response';
+          token.value = 'e2e-turnstile-token';
+          widget.appendChild(token);
+          setTimeout(function () { _element.appendChild(widget); }, 0);
+          return 'e2e-widget-' + Date.now();
+        },
+        reset: function () {},
+        remove: function () {}
+      };`,
+    });
+  });
+
+  await page.goto('/signup');
+  await expect(page.locator('[data-testid="turnstile-rendered"]')).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'Iniciar prueba de 15 días' })).toBeEnabled();
+
+  await page.getByRole('link', { name: 'Ya tengo una cuenta' }).click();
+  await page.getByRole('link', { name: 'Crear una prueba de 15 días' }).click();
+
+  await expect(page).toHaveURL(/\/signup$/);
+  await expect(page.locator('[data-testid="turnstile-rendered"]')).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'Iniciar prueba de 15 días' })).toBeEnabled();
+});
+
+test('login avisa cuenta pendiente y permite reenviar activacion', async ({ page }) => {
+  let resendCalls = 0;
+  await page.route('**/api/admin/session', async (route) => {
+    await route.fulfill({
+      status: 403,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: false,
+        code: 'EMAIL_VERIFICATION_REQUIRED',
+        action: 'RESEND_VERIFICATION',
+        message: 'Tu correo todavia no esta verificado.',
+      }),
+    });
+  });
+  await page.route('**/api/public/signup/resend', async (route) => {
+    resendCalls += 1;
+    await route.fulfill({
+      status: 202,
+      contentType: 'application/json',
+      body: JSON.stringify({ message: 'Si la cuenta esta pendiente, recibiras un enlace nuevo.' }),
+    });
+  });
+
+  await page.goto('/login');
+  await page.getByLabel('Correo', { exact: true }).fill('pendiente@example.test');
+  await page.getByLabel('Contraseña', { exact: true }).fill('Clave-segura-123!');
+  await page.getByRole('button', { name: 'Ingresar' }).click();
+
+  await expect(page.getByText('Cuenta pendiente de activar')).toBeVisible();
+  await page.getByRole('button', { name: 'Reenviar correo de activación' }).click();
+  await expect(page.getByRole('status')).toContainText('recibiras un enlace nuevo');
+  expect(resendCalls).toBe(1);
+});
+
 test('invitacion de cuenta nueva muestra repetir contrasena', async ({ page }) => {
   let acceptCalls = 0;
 

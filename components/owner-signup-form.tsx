@@ -37,15 +37,29 @@ export function OwnerSignupForm() {
 
   useEffect(() => {
     if (!scriptReady || !siteKey || !widgetRef.current || !window.turnstile || widgetIdRef.current) return;
+    const syncRenderedToken = () => {
+      const input = widgetRef.current?.querySelector<HTMLInputElement>('input[name="cf-turnstile-response"]');
+      if (input) setCaptchaToken(input.value.trim());
+    };
+    const tokenObserver = new MutationObserver(syncRenderedToken);
+    tokenObserver.observe(widgetRef.current, {
+      attributes: true,
+      attributeFilter: ['value'],
+      childList: true,
+      subtree: true,
+    });
     widgetIdRef.current = window.turnstile.render(widgetRef.current, {
       sitekey: siteKey,
       action: 'owner_signup',
       language: 'es',
+      size: 'flexible',
       callback: (token: string) => setCaptchaToken(token),
       'expired-callback': () => setCaptchaToken(''),
       'error-callback': () => setCaptchaToken(''),
     });
+    syncRenderedToken();
     return () => {
+      tokenObserver.disconnect();
       if (widgetIdRef.current && window.turnstile) {
         window.turnstile.remove(widgetIdRef.current);
         widgetIdRef.current = null;
@@ -112,9 +126,13 @@ export function OwnerSignupForm() {
   if (sent) {
     return (
       <div className="public-flow-success-next">
-        <h2>Revisa tu correo</h2>
-        <p>Si los datos son v&aacute;lidos, recibir&aacute;s un enlace para verificar tu correo y crear la prueba.</p>
-        <Link href="/login">Volver al inicio de sesi&oacute;n</Link>
+        <h2>Contin&uacute;a seg&uacute;n el estado de tu cuenta</h2>
+        <div className="public-flow-next-steps">
+          <p><strong>Cuenta nueva:</strong> revisa tu correo y abre el enlace de activaci&oacute;n.</p>
+          <p><strong>Cuenta ya creada:</strong> no recibir&aacute;s otro correo; inicia sesi&oacute;n directamente.</p>
+          <p><strong>No encuentras el mensaje:</strong> revisa spam o solicita un nuevo enlace desde Login.</p>
+        </div>
+        <Link href="/login">Ir al inicio de sesi&oacute;n</Link>
       </div>
     );
   }
@@ -124,7 +142,7 @@ export function OwnerSignupForm() {
       <Script
         src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
         strategy="afterInteractive"
-        onLoad={() => setScriptReady(true)}
+        onReady={() => setScriptReady(true)}
       />
       <form className="auth-form-next public-flow-form-next" onSubmit={submit}>
         <div className="public-flow-name-grid-next">

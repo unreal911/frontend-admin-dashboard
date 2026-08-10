@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FormEvent, useMemo, useState } from 'react';
 
@@ -10,6 +11,8 @@ interface LoginTenant {
   role: string;
 }
 
+type AccountIssue = 'EMAIL_VERIFICATION_REQUIRED' | 'TRIAL_SETUP_REQUIRED';
+
 export function AdminLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -18,7 +21,10 @@ export function AdminLoginForm() {
   const [tenantSlug, setTenantSlug] = useState('');
   const [tenants, setTenants] = useState<LoginTenant[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isResending, setIsResending] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
+  const [accountIssue, setAccountIssue] = useState<AccountIssue | null>(null);
 
   const returnUrl = useMemo(() => {
     const raw = String(searchParams.get('returnUrl') || '').trim();
@@ -28,6 +34,8 @@ export function AdminLoginForm() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErrorMessage(null);
+    setInfoMessage(null);
+    setAccountIssue(null);
     setIsSubmitting(true);
 
     try {
@@ -54,6 +62,12 @@ export function AdminLoginForm() {
       }
       if (!response.ok || !result?.success) {
         setErrorMessage(String(result?.message || 'No se pudo iniciar sesion.'));
+        if (
+          result?.action === 'RESEND_VERIFICATION'
+          && (result?.code === 'EMAIL_VERIFICATION_REQUIRED' || result?.code === 'TRIAL_SETUP_REQUIRED')
+        ) {
+          setAccountIssue(result.code);
+        }
         return;
       }
 
@@ -63,6 +77,29 @@ export function AdminLoginForm() {
       setErrorMessage('No se pudo conectar con el login del admin.');
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function resendVerification() {
+    setIsResending(true);
+    setErrorMessage(null);
+    setInfoMessage(null);
+    try {
+      const response = await fetch('/api/public/signup/resend', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) {
+        setErrorMessage(String(result?.message || 'No se pudo reenviar el enlace.'));
+        return;
+      }
+      setInfoMessage(String(result?.message || 'Revisa tu correo para continuar.'));
+    } catch {
+      setErrorMessage('No se pudo conectar con el reenvío de activación.');
+    } finally {
+      setIsResending(false);
     }
   }
 
@@ -96,7 +133,7 @@ export function AdminLoginForm() {
         </label>
       ) : null}
       <label>
-        Contrasena
+        Contraseña
         <input
           type="password"
           placeholder="********"
@@ -107,8 +144,23 @@ export function AdminLoginForm() {
         />
       </label>
       {errorMessage ? <p className="auth-error">{errorMessage}</p> : null}
+      {infoMessage ? <p className="auth-info-next" role="status">{infoMessage}</p> : null}
+      {accountIssue ? (
+        <div className="auth-account-action-next">
+          <strong>{accountIssue === 'EMAIL_VERIFICATION_REQUIRED' ? 'Cuenta pendiente de activar' : 'Registro pendiente de completar'}</strong>
+          <span>Usaremos el correo y la contrase&ntilde;a ingresados para generar un enlace nuevo.</span>
+          <button type="button" onClick={resendVerification} disabled={isResending}>
+            {isResending
+              ? 'Enviando...'
+              : accountIssue === 'EMAIL_VERIFICATION_REQUIRED'
+                ? 'Reenviar correo de activación'
+                : 'Enviar enlace para continuar'}
+          </button>
+          <Link href="/signup">Volver al registro</Link>
+        </div>
+      ) : null}
       <button type="submit" disabled={isSubmitting}>
-        {isSubmitting ? 'Ingresando...' : tenants.length > 1 ? 'Entrar a la empresa' : 'Entrar'}
+        {isSubmitting ? 'Ingresando...' : tenants.length > 1 ? 'Entrar a la empresa' : 'Ingresar'}
       </button>
     </form>
   );

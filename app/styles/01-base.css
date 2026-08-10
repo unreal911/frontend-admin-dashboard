@@ -3092,6 +3092,37 @@ a {
   font-weight: 700;
 }
 
+.auth-info-next {
+  margin: 0;
+  color: color-mix(in oklab, #16a34a 76%, var(--admin-text));
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.auth-account-action-next {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.75rem;
+  border: 1px solid color-mix(in oklab, #f59e0b 55%, var(--admin-border));
+  border-radius: 12px;
+  background: color-mix(in oklab, #f59e0b 9%, var(--admin-surface));
+  font-size: 0.8rem;
+}
+
+.auth-account-action-next span {
+  color: var(--admin-muted);
+}
+
+.auth-account-action-next a {
+  color: var(--admin-primary);
+  font-weight: 800;
+  text-align: center;
+}
+
+.auth-form-next .auth-account-action-next button {
+  background: color-mix(in oklab, #f59e0b 78%, var(--admin-primary-strong));
+}
+
 .auth-links-next {
   display: grid;
   gap: 0.35rem;
@@ -3101,6 +3132,525 @@ a {
   color: var(--admin-primary);
   font-size: 0.86rem;
   font-weight: 700;
+}
+
+/* Acceso y alta: identidad visual para comercio de moda. El contenido del
+   formulario aparece primero en el DOM; CSS lo ubica a la derecha en desktop. */
+.auth-fashion-shell-next {
+  --auth-ink: #172033;
+  --auth-muted: #68728a;
+  --auth-border: #dfe3ee;
+  --auth-primary: #5b3fd6;
+  --auth-primary-strong: #3f2cac;
+  width: calc(100% + 2rem);
+  min-height: 100vh;
+  margin: -1rem;
+  padding: clamp(1rem, 2vw, 2rem);
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 6% 8%, rgba(174, 74, 210, 0.34), transparent 31%),
+    radial-gradient(circle at 92% 88%, rgba(73, 83, 220, 0.3), transparent 34%),
+    linear-gradient(135deg, #f7f3ff 0%, #edf2ff 50%, #f8f7fc 100%);
+  color: var(--auth-ink);
+}
+
+.auth-fashion-layout-next {
+  width: min(1180px, 100%);
+  height: min(760px, calc(100dvh - 4rem));
+  min-height: 580px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.12fr) minmax(400px, 0.88fr);
+  grid-template-areas: 'visual form';
+  overflow: hidden;
+  border: 1px solid rgba(89, 64, 177, 0.18);
+  border-radius: 32px;
+  background: #fff;
+  box-shadow: 0 32px 90px rgba(39, 25, 89, 0.2);
+}
+
+.auth-fashion-layout-wide-next {
+  grid-template-columns: minmax(0, 0.96fr) minmax(480px, 1.04fr);
+}
+
+.auth-fashion-visual-next {
+  position: relative;
+  isolation: isolate;
+  grid-area: visual;
+  min-width: 0;
+  padding: clamp(1.5rem, 3vw, 2.6rem);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: #fff;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(228, 106, 208, 0.5), transparent 34%),
+    radial-gradient(circle at 84% 72%, rgba(53, 116, 255, 0.52), transparent 38%),
+    linear-gradient(145deg, #7b35c5 0%, #542bb1 43%, #253cbf 100%);
+}
+
+.auth-fashion-visual-next::before,
+.auth-fashion-visual-next::after {
+  position: absolute;
+  z-index: -1;
+  content: '';
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.auth-fashion-visual-next::before {
+  width: 360px;
+  height: 360px;
+  top: -210px;
+  right: -80px;
+}
+
+.auth-fashion-visual-next::after {
+  width: 280px;
+  height: 280px;
+  bottom: -190px;
+  left: -90px;
+}
+
+.auth-fashion-brand-next {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-size: 1rem;
+  letter-spacing: -0.01em;
+}
+
+.auth-fashion-brand-next > span {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #ff8064, #ee4f86);
+  color: #fff;
+  font-weight: 950;
+  box-shadow: 0 10px 24px rgba(47, 16, 101, 0.24);
+}
+
+.auth-fashion-brand-visual-next {
+  position: relative;
+  z-index: 2;
+}
+
+.auth-fashion-brand-form-next {
+  display: none;
+  color: var(--auth-ink);
+}
+
+.auth-fashion-visual-copy-next {
+  position: relative;
+  z-index: 2;
+  max-width: 500px;
+  margin: clamp(1.7rem, 4vh, 3.2rem) auto 0;
+  text-align: center;
+}
+
+.auth-fashion-visual-copy-next p {
+  margin: 0 0 0.55rem;
+  color: #ffd7ef;
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.auth-fashion-visual-copy-next h2 {
+  margin: 0;
+  font-size: clamp(1.75rem, 3vw, 2.65rem);
+  line-height: 1.05;
+  letter-spacing: -0.045em;
+}
+
+.auth-fashion-visual-copy-next > span {
+  display: block;
+  margin-top: 0.8rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.95rem;
+}
+
+.auth-fashion-image-next {
+  position: relative;
+  z-index: 1;
+  width: auto;
+  max-width: 90%;
+  height: min(52%, 420px);
+  margin: auto auto 1.2rem;
+  object-fit: contain;
+  filter: drop-shadow(0 24px 28px rgba(27, 10, 81, 0.24));
+  -webkit-mask-image: radial-gradient(ellipse 66% 70% at 50% 52%, #000 58%, transparent 100%);
+  mask-image: radial-gradient(ellipse 66% 70% at 50% 52%, #000 58%, transparent 100%);
+}
+
+.auth-fashion-benefits-next {
+  position: absolute;
+  z-index: 3;
+  right: 2rem;
+  bottom: 1.5rem;
+  left: 2rem;
+  display: flex;
+  justify-content: center;
+  gap: 0.55rem;
+}
+
+.auth-fashion-benefits-next span {
+  padding: 0.38rem 0.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  background: rgba(20, 18, 84, 0.28);
+  font-size: 0.72rem;
+  font-weight: 800;
+  backdrop-filter: blur(8px);
+}
+
+.auth-fashion-form-panel-next {
+  grid-area: form;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  padding: clamp(1.75rem, 4vw, 3.5rem);
+  overflow-y: auto;
+  align-content: center;
+  border: 0;
+  border-radius: 0;
+  background: #fff;
+  color: var(--auth-ink);
+}
+
+.auth-fashion-layout-wide-next .auth-fashion-form-panel-next {
+  align-content: start;
+  padding-block: clamp(2rem, 4vw, 3.4rem);
+}
+
+.auth-fashion-form-panel-next > * {
+  width: min(100%, 460px);
+  margin-inline: auto;
+}
+
+.auth-fashion-layout-wide-next .auth-fashion-form-panel-next > * {
+  width: min(100%, 540px);
+}
+
+.auth-fashion-heading-next {
+  display: grid;
+  gap: 0.55rem;
+  margin-bottom: 1.5rem;
+}
+
+.auth-fashion-form-panel-next .auth-fashion-heading-next h1 {
+  margin: 0;
+  color: var(--auth-ink);
+  font-size: clamp(1.75rem, 3vw, 2.4rem);
+  line-height: 1.08;
+  letter-spacing: -0.04em;
+}
+
+.auth-fashion-form-panel-next .auth-fashion-heading-next > p:not(.auth-fashion-eyebrow-next) {
+  margin: 0;
+  color: var(--auth-muted);
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.auth-fashion-form-panel-next .auth-fashion-eyebrow-next {
+  margin: 0;
+  color: var(--auth-primary);
+  font-size: 0.74rem;
+  font-weight: 900;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.auth-fashion-content-next {
+  min-width: 0;
+}
+
+.auth-fashion-form-panel-next .auth-form-next {
+  gap: 0.9rem;
+}
+
+.auth-fashion-form-panel-next .auth-form-next label {
+  gap: 0.42rem;
+  color: #47516a;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.auth-fashion-form-panel-next .auth-form-next input:not([type='checkbox']):not([type='radio']),
+.auth-fashion-form-panel-next .auth-form-next select {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid var(--auth-border);
+  border-radius: 13px;
+  background: #fafbff;
+  color: var(--auth-ink);
+  padding: 0.72rem 0.85rem;
+  font: inherit;
+  font-size: 0.95rem;
+  outline: none;
+  box-shadow: 0 1px 0 rgba(33, 23, 78, 0.03);
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+}
+
+.auth-fashion-form-panel-next .auth-form-next input:not([type='checkbox']):not([type='radio']):focus,
+.auth-fashion-form-panel-next .auth-form-next select:focus {
+  border-color: #7257df;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(107, 77, 216, 0.13);
+}
+
+.auth-fashion-form-panel-next .auth-form-next input:-webkit-autofill,
+.auth-fashion-form-panel-next .auth-form-next input:-webkit-autofill:hover,
+.auth-fashion-form-panel-next .auth-form-next input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--auth-ink);
+  -webkit-box-shadow: 0 0 0 1000px #fafbff inset !important;
+  box-shadow: 0 0 0 1000px #fafbff inset !important;
+  background-color: #fafbff !important;
+  transition: background-color 9999s ease-out;
+}
+
+.auth-fashion-form-panel-next .auth-form-next small {
+  color: #7d869a;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.auth-fashion-form-panel-next .auth-form-next > button,
+.auth-fashion-form-panel-next .auth-form-next .auth-account-action-next button {
+  min-height: 48px;
+  border-radius: 13px;
+  background: linear-gradient(135deg, #7452dc 0%, #4b34be 52%, #3349c7 100%);
+  color: #fff;
+  box-shadow: 0 12px 26px rgba(73, 49, 180, 0.22);
+  transition: transform 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease;
+}
+
+.auth-fashion-form-panel-next .auth-form-next > button:not(:disabled):hover,
+.auth-fashion-form-panel-next .auth-form-next .auth-account-action-next button:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 32px rgba(73, 49, 180, 0.28);
+}
+
+.auth-fashion-form-panel-next .auth-form-next button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.auth-fashion-form-panel-next .auth-error {
+  padding: 0.7rem 0.8rem;
+  border: 1px solid #fecaca;
+  border-radius: 11px;
+  background: #fff5f5;
+  color: #b42336;
+}
+
+.auth-fashion-form-panel-next .auth-info-next {
+  color: #087457;
+}
+
+.auth-fashion-form-panel-next .auth-account-action-next,
+.auth-fashion-form-panel-next .public-flow-next-steps {
+  border-color: #eadffc;
+  background: #faf7ff;
+  color: var(--auth-ink);
+}
+
+.auth-fashion-form-panel-next .auth-account-action-next span,
+.auth-fashion-form-panel-next .public-flow-next-steps p,
+.auth-fashion-form-panel-next .public-flow-success-next p,
+.auth-fashion-form-panel-next .public-flow-status-next p {
+  color: var(--auth-muted);
+}
+
+.auth-fashion-form-panel-next a,
+.auth-fashion-footer-next a {
+  color: var(--auth-primary-strong);
+}
+
+.auth-fashion-footer-next {
+  margin-top: 1.35rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem 1.25rem;
+  padding-top: 1.15rem;
+  border-top: 1px solid #eef0f6;
+  text-align: center;
+}
+
+.auth-fashion-footer-next a {
+  font-size: 0.84rem;
+  text-decoration: none;
+}
+
+.auth-fashion-footer-next a:hover {
+  text-decoration: underline;
+}
+
+.auth-fashion-form-panel-next .public-flow-form-next {
+  margin-top: 0;
+}
+
+.auth-fashion-form-panel-next .public-flow-check-next {
+  align-items: center;
+  color: #5d667c;
+  font-weight: 600;
+}
+
+.auth-fashion-form-panel-next .public-flow-check-next input {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  accent-color: var(--auth-primary);
+}
+
+.auth-fashion-form-panel-next .public-turnstile-next {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+@media (max-width: 920px) {
+  .auth-fashion-layout-next,
+  .auth-fashion-layout-wide-next {
+    grid-template-columns: minmax(0, 0.82fr) minmax(390px, 1.18fr);
+  }
+
+  .auth-fashion-visual-copy-next > span,
+  .auth-fashion-benefits-next {
+    display: none;
+  }
+
+  .auth-fashion-image-next {
+    width: min(105%, 470px);
+  }
+}
+
+@media (max-width: 760px) {
+  .auth-fashion-shell-next {
+    width: calc(100% + 2rem);
+    min-height: 100dvh;
+    padding: 0;
+    background: #fff;
+  }
+
+  .auth-fashion-layout-next,
+  .auth-fashion-layout-wide-next {
+    width: 100%;
+    height: auto;
+    min-height: 100dvh;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'visual'
+      'form';
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .auth-fashion-visual-next {
+    min-height: 176px;
+    max-height: 176px;
+    padding: 1.15rem 1.25rem;
+  }
+
+  .auth-fashion-brand-visual-next,
+  .auth-fashion-benefits-next {
+    display: none;
+  }
+
+  .auth-fashion-visual-copy-next {
+    display: none;
+  }
+
+  .auth-fashion-visual-copy-next p {
+    margin-bottom: 0.35rem;
+    font-size: 0.62rem;
+  }
+
+  .auth-fashion-visual-copy-next h2 {
+    font-size: clamp(1.25rem, 6vw, 1.7rem);
+    line-height: 1.02;
+  }
+
+  .auth-fashion-visual-copy-next > span {
+    display: none;
+  }
+
+  .auth-fashion-image-next {
+    position: absolute;
+    z-index: 1;
+    right: -20px;
+    bottom: -34px;
+    width: min(110vw, 430px);
+    max-width: none;
+    height: auto;
+    margin: 0;
+    -webkit-mask-image: radial-gradient(ellipse 67% 70% at 50% 52%, #000 58%, transparent 100%);
+    mask-image: radial-gradient(ellipse 67% 70% at 50% 52%, #000 58%, transparent 100%);
+  }
+
+  .auth-fashion-form-panel-next,
+  .auth-fashion-layout-wide-next .auth-fashion-form-panel-next {
+    min-height: calc(100dvh - 176px);
+    padding: 1.5rem clamp(1rem, 5vw, 1.5rem) 2rem;
+    align-content: start;
+    overflow-y: visible;
+  }
+
+  .auth-fashion-brand-form-next {
+    display: flex;
+    margin-bottom: 1.6rem;
+  }
+
+  .auth-fashion-brand-form-next > span {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+  }
+
+  .auth-fashion-heading-next {
+    margin-bottom: 1.2rem;
+  }
+
+  .auth-fashion-form-panel-next .auth-fashion-heading-next h1 {
+    font-size: clamp(1.7rem, 8vw, 2.1rem);
+  }
+
+  .auth-fashion-form-panel-next .auth-form-next input:not([type='checkbox']):not([type='radio']),
+  .auth-fashion-form-panel-next .auth-form-next select {
+    min-height: 50px;
+    font-size: 1rem;
+  }
+
+  .auth-fashion-form-panel-next .public-flow-name-grid-next {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 360px) {
+  .auth-fashion-form-panel-next,
+  .auth-fashion-layout-wide-next .auth-fashion-form-panel-next {
+    padding-inline: 0.9rem;
+  }
+
+  .auth-fashion-visual-copy-next {
+    display: none;
+  }
+
+  .auth-fashion-image-next {
+    right: -28px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-fashion-form-panel-next .auth-form-next button {
+    transition: none;
+  }
 }
 
 @media (max-width: 960px) {
@@ -5880,6 +6430,16 @@ a {
   justify-self: center;
   color: var(--admin-primary);
   font-weight: 800;
+}
+
+.public-flow-next-steps {
+  display: grid;
+  gap: 0.55rem;
+  text-align: left;
+  padding: 0.8rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--admin-surface) 75%, var(--admin-surface-soft));
 }
 
 @media (max-width: 780px) {

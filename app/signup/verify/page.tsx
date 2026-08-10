@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { OwnerVerificationFlow } from '@/components/owner-verification-flow';
+import { AuthFashionLayout } from '@/components/auth-fashion-layout';
 
 export const metadata: Metadata = {
   title: 'Verificar correo | Tienda SaaS',
@@ -13,10 +14,8 @@ export default async function VerifySignupPage({
 }) {
   const { token = '' } = await searchParams;
   return (
-    <section className="auth-shell public-flow-shell-next">
-      <article className="auth-card-next public-flow-card-next">
-        <OwnerVerificationFlow token={token} />
-      </article>
-    </section>
+    <AuthFashionLayout>
+      <OwnerVerificationFlow token={token} />
+    </AuthFashionLayout>
   );
 }

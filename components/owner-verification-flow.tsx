@@ -7,6 +7,7 @@ export function OwnerVerificationFlow({ token }: { token: string }) {
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [message, setMessage] = useState('Verificando tu correo...');
   const [tenantName, setTenantName] = useState('');
+  const [trialEndsAt, setTrialEndsAt] = useState('');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -56,6 +57,7 @@ export function OwnerVerificationFlow({ token }: { token: string }) {
       }
       if (!cancelled) {
         setTenantName(String(provisioned?.tenant?.name || 'tu empresa'));
+        setTrialEndsAt(String(provisioned?.tenant?.trialEndsAt || ''));
         setStatus('success');
         setMessage('Tu prueba de 15 d\u00edas est\u00e1 lista.');
       }
@@ -67,8 +69,16 @@ export function OwnerVerificationFlow({ token }: { token: string }) {
     <div className={`public-flow-status-next is-${status}`}>
       <h1>{status === 'success' ? tenantName : 'Verificaci\u00f3n de correo'}</h1>
       <p>{message}</p>
+      {status === 'success' && trialEndsAt ? (
+        <p>Tu prueba estar&aacute; activa hasta el {new Intl.DateTimeFormat('es-PE', { dateStyle: 'long' }).format(new Date(trialEndsAt))}.</p>
+      ) : null}
       {status === 'success' ? <Link href="/login">Ingresar a mi empresa</Link> : null}
-      {status === 'error' ? <Link href="/signup">Solicitar un registro nuevo</Link> : null}
+      {status === 'error' ? (
+        <>
+          <p>Si el enlace venci&oacute;, ingresa con tu correo y contrase&ntilde;a para solicitar uno nuevo.</p>
+          <Link href="/login">Ir al inicio de sesi&oacute;n</Link>
+        </>
+      ) : null}
     </div>
   );
 }

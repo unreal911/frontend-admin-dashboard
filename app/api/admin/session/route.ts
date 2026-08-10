@@ -22,6 +22,8 @@ interface AdminLoginResponse {
     role?: unknown;
   }>;
   message?: string;
+  code?: string;
+  action?: string;
 }
 
 function mapErrorMessage(payload: unknown, fallback: string): string {
@@ -75,7 +77,12 @@ export async function POST(request: Request) {
       }, { status: 409 });
     }
     return NextResponse.json(
-      { success: false, message: mapErrorMessage(result, 'Credenciales invalidas.') },
+      {
+        success: false,
+        message: mapErrorMessage(result, 'Credenciales invalidas.'),
+        ...(result?.code ? { code: result.code } : {}),
+        ...(result?.action ? { action: result.action } : {}),
+      },
       { status: upstream.status || 401 },
     );
   }
