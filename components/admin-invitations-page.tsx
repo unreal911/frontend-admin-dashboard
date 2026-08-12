@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
 import { useAdminUi } from '@/components/admin-ui-provider';
+import { AdminTableEmptyState } from '@/components/admin-table-empty-state';
 
 type InvitationRole = 'ADMIN' | 'MANAGER' | 'SELLER' | 'WAREHOUSE' | 'PICKER' | 'VIEWER';
 
@@ -188,7 +189,13 @@ export function AdminInvitationsPage() {
               {loading ? (
                 <tr><td colSpan={5}>Cargando invitaciones...</td></tr>
               ) : invitations.length === 0 ? (
-                <tr><td colSpan={5}>Todav&iacute;a no hay invitaciones.</td></tr>
+                <tr>
+                  <AdminTableEmptyState
+                    colSpan={5}
+                    title="Aun no hay invitaciones"
+                    description="Las invitaciones enviadas al equipo apareceran aqui."
+                  />
+                </tr>
               ) : invitations.map((invitation) => (
                 <tr key={invitation.id}>
                   <td data-label="Correo">{invitation.email}</td>

@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useAdminUi } from '@/components/admin-ui-provider';
 import { AdminSelect } from '@/components/admin-select';
+import { AdminTableEmptyState } from '@/components/admin-table-empty-state';
 
 type StoreType = 'STORE' | 'WAREHOUSE';
 
@@ -379,9 +380,11 @@ export function AdminStorePage() {
                 </tr>
               ) : stores.length === 0 ? (
                 <tr>
-                  <td colSpan={7} data-label="Estado">
-                    No hay tiendas para mostrar.
-                  </td>
+                  <AdminTableEmptyState
+                    colSpan={7}
+                    title="Aun no hay tiendas"
+                    description="Crea una tienda o almacen para comenzar a gestionar inventario."
+                  />
                 </tr>
               ) : (
                 stores.map((store, index) => (

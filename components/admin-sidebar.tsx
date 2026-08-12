@@ -141,7 +141,7 @@ function isRouteActive(pathname: string, item: AdminRouteItem, href: string): bo
 
 export function AdminSidebar() {
   const pathname = usePathname();
-  const { hasPermission } = useAdminAuth();
+  const { hasPermission, hasFeature } = useAdminAuth();
   const {
     isMobile,
     isSidebarOpen,
@@ -152,9 +152,11 @@ export function AdminSidebar() {
   const groupedRoutes = useMemo(() => ADMIN_ROUTE_GROUP_ORDER
     .map((group) => ({
       group,
-      routes: listAdminRoutesByGroup(group).filter((item) => hasPermission(item.permission)),
+      routes: listAdminRoutesByGroup(group).filter((item) => (
+        hasPermission(item.permission) && hasFeature(item.feature)
+      )),
     }))
-    .filter((section) => section.routes.length > 0), [hasPermission]);
+    .filter((section) => section.routes.length > 0), [hasFeature, hasPermission]);
 
   const activeGroup = useMemo<AdminRouteGroup>(() => {
     const section = groupedRoutes.find(({ routes }) => routes.some((item) => isRouteActive(pathname, item, buildAdminPath(item.slug))));

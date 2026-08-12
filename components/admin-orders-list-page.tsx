@@ -6,6 +6,7 @@ import { useAdminAuth } from '@/components/admin-auth-provider';
 import { ADMIN_LIVE_UPDATE_EVENT } from '@/components/admin-shell-provider';
 import { AdminSelect } from '@/components/admin-select';
 import { AdminButton } from '@/components/admin-design-system';
+import { AdminTableEmptyState } from '@/components/admin-table-empty-state';
 import {
   AdminOrder,
   AdminOrderStatus,
@@ -472,13 +473,16 @@ export function AdminOrdersListPage() {
           <h1>Gestion de ordenes</h1>
           <p>Visualiza y gestiona todos los pedidos del sistema.</p>
         </div>
+        <span className="orders-header-summary-next" aria-live="polite">
+          {loading ? 'Actualizando...' : `${totalOrders} ${totalOrders === 1 ? 'orden' : 'ordenes'}`}
+        </span>
       </article>
 
       <article className="admin-card orders-filters-shell-next">
         <div className="orders-filters-toolbar-next">
           <div className="orders-filters-toolbar-copy-next">
             <h2>Filtros</h2>
-            <p>Aplica filtros avanzados en un panel mas limpio.</p>
+            <p>Filtra por estado o abre la busqueda avanzada.</p>
           </div>
           <AdminButton type="button" variant="secondary" className="orders-open-filters-btn-next" onClick={openFiltersModal}>
             <svg className="orders-filter-icon-next" viewBox="0 0 24 24" aria-hidden="true">
@@ -518,9 +522,7 @@ export function AdminOrdersListPage() {
             ))}
             <button type="button" className="active-filters-clear-next" onClick={clearFilters}>Limpiar todo</button>
           </div>
-        ) : (
-          <p className="admin-muted-text">Sin filtros avanzados aplicados.</p>
-        )}
+        ) : null}
       </article>
 
       {showFiltersModal ? (
@@ -640,15 +642,26 @@ export function AdminOrdersListPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={9} data-label="Estado">Cargando ordenes...</td>
+                  <td colSpan={9} className="orders-feedback-cell-next">Cargando ordenes...</td>
                 </tr>
               ) : loadError ? (
                 <tr>
-                  <td colSpan={9} data-label="Estado">{loadError}</td>
+                  <td colSpan={9} className="orders-feedback-cell-next">{loadError}</td>
                 </tr>
               ) : orders.length === 0 ? (
                 <tr>
-                  <td colSpan={9} data-label="Estado">No hay ordenes para los filtros seleccionados.</td>
+                  <AdminTableEmptyState
+                    colSpan={9}
+                    title={hasActiveFilters ? 'No encontramos ordenes' : 'Aun no hay ordenes'}
+                    description={hasActiveFilters
+                      ? 'Prueba cambiando o eliminando los filtros aplicados.'
+                      : 'Las nuevas ventas apareceran aqui para su seguimiento.'}
+                    action={hasActiveFilters ? (
+                      <button type="button" className="admin-ghost-btn" onClick={clearFilters}>
+                        Limpiar filtros
+                      </button>
+                    ) : null}
+                  />
                 </tr>
               ) : (
                 orders.map((order) => (

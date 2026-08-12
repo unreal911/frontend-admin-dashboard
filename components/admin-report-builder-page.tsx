@@ -4,6 +4,7 @@ import { DragEvent, useCallback, useEffect, useMemo, useRef, useState } from 're
 import { useAdminAuth } from '@/components/admin-auth-provider';
 import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
 import { useAdminUi } from '@/components/admin-ui-provider';
+import { AdminTableEmptyState } from '@/components/admin-table-empty-state';
 import {
   defaultOperator,
   moveReportColumn,
@@ -384,7 +385,15 @@ export function AdminReportBuilderPage() {
       <article className="admin-card admin-report-preview-next">
         <header><div><span className="admin-report-step-next">4</span><div><h2>Vista previa</h2><p>{preview ? `${preview.total} registros coinciden${preview.truncated ? `; se muestran los primeros ${preview.rows.length}` : ''}.` : 'Genera el reporte para visualizar los resultados.'}</p></div></div>{preview ? <span className="admin-pill success">{preview.columns.length} columnas</span> : null}</header>
         {preview ? <div className="admin-table-wrap"><table className="admin-table mobile-card-table admin-report-table-next"><thead><tr>{preview.columns.map((field) => <th key={field.key}>{field.label}</th>)}</tr></thead><tbody>
-          {preview.rows.length === 0 ? <tr><td colSpan={preview.columns.length}>No hay registros que coincidan con los filtros.</td></tr> : preview.rows.map((row, rowIndex) => <tr key={rowIndex}>{preview.columns.map((field) => <td key={field.key} data-label={field.label}>{formatCell(field, row[field.key] ?? null)}</td>)}</tr>)}
+          {preview.rows.length === 0 ? (
+            <tr>
+              <AdminTableEmptyState
+                colSpan={preview.columns.length}
+                title="No encontramos registros"
+                description="Ajusta los filtros del reporte y genera una nueva vista previa."
+              />
+            </tr>
+          ) : preview.rows.map((row, rowIndex) => <tr key={rowIndex}>{preview.columns.map((field) => <td key={field.key} data-label={field.label}>{formatCell(field, row[field.key] ?? null)}</td>)}</tr>)}
         </tbody></table></div> : <div className="admin-report-preview-empty-next"><span aria-hidden="true">▦</span><strong>Tu reporte aparecerá aquí</strong><p>Selecciona columnas, agrega los filtros necesarios y genera una vista previa.</p></div>}
       </article>
     </section>

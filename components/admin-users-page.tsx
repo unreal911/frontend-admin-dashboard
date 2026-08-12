@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
 import { useAdminUi } from '@/components/admin-ui-provider';
+import { AdminTableEmptyState } from '@/components/admin-table-empty-state';
 import { validatePasswordConfirmation } from '@/lib/password-confirmation';
 
 interface AdminRole {
@@ -476,7 +477,11 @@ export function AdminUsersPage() {
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} data-label="Estado">No hay usuarios para mostrar.</td>
+                  <AdminTableEmptyState
+                    colSpan={6}
+                    title="No encontramos usuarios"
+                    description="Prueba con otra busqueda o revisa los filtros aplicados."
+                  />
                 </tr>
               ) : (
                 filteredUsers.map((user, index) => (

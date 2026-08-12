@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AdminSelect } from '@/components/admin-select';
 import { useAdminUi } from '@/components/admin-ui-provider';
+import { AdminTableEmptyState } from '@/components/admin-table-empty-state';
 
 interface UserActivityProduct {
   variantId: number;
@@ -376,7 +377,11 @@ export function AdminUserActivitiesPage() {
               </tr>
             ) : activities.length === 0 ? (
               <tr>
-                <td colSpan={9} data-label="Estado">No hay movimientos para los filtros aplicados.</td>
+                <AdminTableEmptyState
+                  colSpan={9}
+                  title="No encontramos actividad"
+                  description="Cambia el usuario, la accion o el periodo consultado."
+                />
               </tr>
             ) : (
               activities.map((activity) => (

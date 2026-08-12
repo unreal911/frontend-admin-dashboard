@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
 import { BarcodeScanButton } from '@/components/barcode-scan-button';
 import { useAdminUi } from '@/components/admin-ui-provider';
+import { AdminTableEmptyState } from '@/components/admin-table-empty-state';
 import {
   Inventory,
   InventoryMovementType,
@@ -1173,7 +1174,11 @@ export function AdminInventoryPage() {
                 </tr>
               ) : inventoryRows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} data-label="Estado">No hay inventarios para los filtros actuales.</td>
+                  <AdminTableEmptyState
+                    colSpan={7}
+                    title="No encontramos inventario"
+                    description="Prueba cambiando la busqueda, la tienda o los filtros de stock."
+                  />
                 </tr>
               ) : (
                 inventoryRows.map((row, index) => {

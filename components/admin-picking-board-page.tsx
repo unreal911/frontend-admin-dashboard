@@ -6,6 +6,7 @@ import { useAdminAuth } from '@/components/admin-auth-provider';
 import { ADMIN_LIVE_UPDATE_EVENT } from '@/components/admin-shell-provider';
 import { useAdminUi } from '@/components/admin-ui-provider';
 import { AdminSelect } from '@/components/admin-select';
+import { AdminTableEmptyState } from '@/components/admin-table-empty-state';
 import {
   AdminOrder,
   AdminOrderItem,
@@ -1182,7 +1183,11 @@ export function AdminPickingBoardPage() {
                 <tbody>
                   {pickingGroups.length === 0 ? (
                     <tr>
-                      <td colSpan={7} data-label="Estado">No hay items para picking.</td>
+                      <AdminTableEmptyState
+                        colSpan={7}
+                        title="No hay items para picking"
+                        description="Los productos pendientes de separacion apareceran aqui."
+                      />
                     </tr>
                   ) : (
                     pickingGroups.map((group) => {

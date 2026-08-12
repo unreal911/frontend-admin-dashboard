@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AdminNameModal } from '@/components/admin-name-modal';
 import { useAdminUi } from '@/components/admin-ui-provider';
 import { AdminButton, AdminPageHeader } from '@/components/admin-design-system';
+import { AdminTableEmptyState } from '@/components/admin-table-empty-state';
 
 interface AdminPaymentMethod {
   id: number;
@@ -267,9 +268,11 @@ export function AdminPaymentMethodPage() {
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={5} data-label="Estado">
-                    No hay metodos de pago para mostrar.
-                  </td>
+                  <AdminTableEmptyState
+                    colSpan={5}
+                    title="Aun no hay metodos de pago"
+                    description="Agrega los medios que aceptara tu tienda al registrar ventas."
+                  />
                 </tr>
               ) : (
                 filtered.map((item, index) => (

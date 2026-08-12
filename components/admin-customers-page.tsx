@@ -5,6 +5,7 @@ import { useAdminAuth } from '@/components/admin-auth-provider';
 import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
 import { useAdminUi } from '@/components/admin-ui-provider';
 import { AdminButton, AdminPageHeader } from '@/components/admin-design-system';
+import { AdminTableEmptyState } from '@/components/admin-table-empty-state';
 import {
   AdminCustomer,
   customerDocumentLabel,
@@ -219,7 +220,13 @@ export function AdminCustomersPage() {
             <thead><tr><th>Cliente</th><th>Documento</th><th>Contacto</th><th>Direccion</th><th>Estado</th><th>Acciones</th></tr></thead>
             <tbody>
               {loading ? <tr><td colSpan={6}>Cargando clientes...</td></tr> : customers.length === 0 ? (
-                <tr><td colSpan={6}>No hay clientes que coincidan con la busqueda.</td></tr>
+                <tr>
+                  <AdminTableEmptyState
+                    colSpan={6}
+                    title="No encontramos clientes"
+                    description="Prueba con otro nombre, documento o dato de contacto."
+                  />
+                </tr>
               ) : customers.map((customer) => (
                 <tr key={customer.id}>
                   <td data-label="Cliente" className="list-card-title-next">{customer.name}</td>

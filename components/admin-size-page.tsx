@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AdminNameModal } from '@/components/admin-name-modal';
 import { useAdminUi } from '@/components/admin-ui-provider';
 import { AdminButton, AdminPageHeader } from '@/components/admin-design-system';
+import { AdminTableEmptyState } from '@/components/admin-table-empty-state';
 
 interface AdminSize {
   id: number;
@@ -256,9 +257,11 @@ export function AdminSizePage() {
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={4} data-label="Estado">
-                    No hay tallas para mostrar.
-                  </td>
+                  <AdminTableEmptyState
+                    colSpan={4}
+                    title="Aun no hay tallas"
+                    description="Agrega tallas para utilizarlas en las variantes de producto."
+                  />
                 </tr>
               ) : (
                 filtered.map((size, index) => (

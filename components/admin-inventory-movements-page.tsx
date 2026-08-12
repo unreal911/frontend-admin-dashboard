@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
 import { useAdminUi } from '@/components/admin-ui-provider';
+import { AdminTableEmptyState } from '@/components/admin-table-empty-state';
 import { InventoryMovement, InventoryMovementType, normalizeInventoryMovements } from '@/lib/admin-inventory-types';
 
 type MovementTypeFilter = 'ALL' | InventoryMovementType;
@@ -281,7 +282,11 @@ export function AdminInventoryMovementsPage() {
                 </tr>
               ) : filteredMovements.length === 0 ? (
                 <tr>
-                  <td colSpan={8} data-label="Estado">No hay movimientos para los filtros seleccionados.</td>
+                  <AdminTableEmptyState
+                    colSpan={8}
+                    title="No encontramos movimientos"
+                    description="Ajusta los filtros para consultar otros movimientos de inventario."
+                  />
                 </tr>
               ) : (
                 pagedMovements.map((movement) => (

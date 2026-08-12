@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
 import { useAdminUi } from '@/components/admin-ui-provider';
+import { AdminTableEmptyState } from '@/components/admin-table-empty-state';
 
 interface RoleUserLite {
   id: number;
@@ -597,7 +598,11 @@ export function AdminRolesPage() {
                 </tr>
               ) : filteredRoles.length === 0 ? (
                 <tr>
-                  <td colSpan={7} data-label="Estado">No hay roles para mostrar.</td>
+                  <AdminTableEmptyState
+                    colSpan={7}
+                    title="No encontramos roles"
+                    description="Prueba con otra busqueda o crea un rol para tu equipo."
+                  />
                 </tr>
               ) : (
                 filteredRoles.map((role, index) => (

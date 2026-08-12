@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useAdminUi } from '@/components/admin-ui-provider';
 import { AdminButton, AdminPageHeader } from '@/components/admin-design-system';
+import { AdminTableEmptyState } from '@/components/admin-table-empty-state';
 
 interface AdminColor {
   id: number;
@@ -322,9 +323,11 @@ export function AdminColorPage() {
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={5} data-label="Estado">
-                    No hay colores para mostrar.
-                  </td>
+                  <AdminTableEmptyState
+                    colSpan={5}
+                    title="Aun no hay colores"
+                    description="Agrega colores para utilizarlos en las variantes de producto."
+                  />
                 </tr>
               ) : (
                 filtered.map((color, index) => (

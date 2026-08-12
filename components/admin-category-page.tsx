@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AdminNameModal } from '@/components/admin-name-modal';
 import { useAdminUi } from '@/components/admin-ui-provider';
 import { AdminButton, AdminPageHeader } from '@/components/admin-design-system';
+import { AdminTableEmptyState } from '@/components/admin-table-empty-state';
 
 interface AdminCategory {
   id: number;
@@ -258,9 +259,11 @@ export function AdminCategoryPage() {
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={4} data-label="Estado">
-                    No hay categorias para mostrar.
-                  </td>
+                  <AdminTableEmptyState
+                    colSpan={4}
+                    title="Aun no hay categorias"
+                    description="Crea una categoria para organizar tus productos."
+                  />
                 </tr>
               ) : (
                 filtered.map((category, index) => (

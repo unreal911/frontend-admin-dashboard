@@ -3,6 +3,7 @@
 import { FormEvent, Fragment, useEffect, useState } from 'react';
 import { AdminSelect } from '@/components/admin-select';
 import { useAdminUi } from '@/components/admin-ui-provider';
+import { AdminTableEmptyState } from '@/components/admin-table-empty-state';
 
 interface AuditActor {
   id: number | null;
@@ -377,9 +378,11 @@ export function AdminAuditLogsPage() {
                 </tr>
               ) : logs.length === 0 ? (
                 <tr>
-                  <td colSpan={6} data-label="Estado">
-                    No hay registros de auditoria para los filtros actuales.
-                  </td>
+                  <AdminTableEmptyState
+                    colSpan={6}
+                    title="No encontramos registros de auditoria"
+                    description="Prueba cambiando o eliminando los filtros aplicados."
+                  />
                 </tr>
               ) : (
                 logs.map((log) => {

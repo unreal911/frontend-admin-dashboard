@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAdminAuth } from '@/components/admin-auth-provider';
 import { useAdminUi } from '@/components/admin-ui-provider';
 import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
+import { AdminTableEmptyState } from '@/components/admin-table-empty-state';
 import {
   AdminOrder,
   normalizeOrdersListResponse,
@@ -1393,6 +1394,10 @@ export function AdminPosPage() {
       const orderData = (payload as { data?: { comprobante?: { serie?: unknown; numero?: unknown; tipo?: unknown; estado?: unknown }; comprobanteError?: unknown } }).data;
       const comprobanteInfo = orderData?.comprobante;
       showAlert(`Venta creada: ${code}`, 'success', 4200);
+      const planWarning = asText((payload as { planUsage?: { warning?: unknown } }).planUsage?.warning);
+      if (planWarning) {
+        showAlert(planWarning, 'error', 8000);
+      }
       if (comprobanteInfo?.serie) {
         const label = `${asText(comprobanteInfo.serie)}-${asText(comprobanteInfo.numero)}`;
         showAlert(`${asText(comprobanteInfo.tipo) === 'FACTURA' ? 'Factura' : 'Boleta'} ${label} generada.`, 'success', 5000);
@@ -2162,7 +2167,11 @@ export function AdminPosPage() {
                     </tr>
                   ) : salesHistory.length === 0 ? (
                     <tr>
-                      <td colSpan={5} data-label="Estado">No hay ventas recientes.</td>
+                      <AdminTableEmptyState
+                        colSpan={5}
+                        title="Aun no hay ventas recientes"
+                        description="Las ventas completadas en el POS apareceran aqui."
+                      />
                     </tr>
                   ) : (
                     salesHistory.map((order) => (

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { AdminTableEmptyState } from '@/components/admin-table-empty-state';
 import {
   AdminOrder,
   AdminOrderStatus,
@@ -664,7 +665,12 @@ export function AdminDashboardPage() {
     if (rows.length === 0) {
       return (
         <tr>
-          <td colSpan={3} data-label="Estado" className="dashboard-empty-cell-next">{emptyLabel}</td>
+          <AdminTableEmptyState
+            colSpan={3}
+            title={emptyLabel}
+            description="Los datos apareceran cuando se registren ventas en el periodo."
+            compact
+          />
         </tr>
       );
     }
@@ -833,7 +839,12 @@ export function AdminDashboardPage() {
             <tbody>
               {metrics.salesByStore.length === 0 ? (
                 <tr>
-                  <td colSpan={4} data-label="Estado" className="dashboard-empty-cell-next">Sin ventas por tienda para hoy.</td>
+                  <AdminTableEmptyState
+                    colSpan={4}
+                    title="Sin ventas por tienda hoy"
+                    description="El resumen se actualizara cuando se registren nuevas ventas."
+                    compact
+                  />
                 </tr>
               ) : metrics.salesByStore.map((row) => (
                 <tr key={row.storeName}>

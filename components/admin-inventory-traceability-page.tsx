@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
 import { useAdminUi } from '@/components/admin-ui-provider';
+import { AdminTableEmptyState } from '@/components/admin-table-empty-state';
 import {
   InventoryReservation,
   InventoryReservationStatus,
@@ -269,7 +270,11 @@ export function AdminInventoryTraceabilityPage() {
                 </tr>
               ) : filteredReservations.length === 0 ? (
                 <tr>
-                  <td colSpan={10} data-label="Estado">No hay reservas para los filtros actuales.</td>
+                  <AdminTableEmptyState
+                    colSpan={10}
+                    title="No encontramos reservas"
+                    description="Ajusta los filtros para revisar otra tienda, estado o periodo."
+                  />
                 </tr>
               ) : (
                 filteredReservations.map((reservation) => (

@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
 import { useAdminUi } from '@/components/admin-ui-provider';
+import { AdminTableEmptyState } from '@/components/admin-table-empty-state';
 import {
   Inventory,
   InventoryStore,
@@ -650,7 +651,11 @@ export function AdminTransfersPage() {
             <tbody>
               {filteredTransfers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} data-label="Estado">No hay transferencias para los filtros actuales.</td>
+                  <AdminTableEmptyState
+                    colSpan={7}
+                    title="No encontramos transferencias"
+                    description="Ajusta la busqueda o los filtros de origen, destino y estado."
+                  />
                 </tr>
               ) : (
                 filteredTransfers.map((transfer) => (

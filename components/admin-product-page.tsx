@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { AdminButtonLink, AdminPageHeader } from '@/components/admin-design-system';
 import { AdminCategoryOption } from '@/components/admin-product-modal';
 import { useAdminUi } from '@/components/admin-ui-provider';
+import { AdminTableEmptyState } from '@/components/admin-table-empty-state';
 
 interface AdminProductListItem {
   id: number;
@@ -263,9 +264,11 @@ export function AdminProductPage() {
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} data-label="Estado">
-                    No hay productos para mostrar.
-                  </td>
+                  <AdminTableEmptyState
+                    colSpan={7}
+                    title="No encontramos productos"
+                    description="Prueba con otra busqueda o crea un producto nuevo."
+                  />
                 </tr>
               ) : (
                 filtered.map((item, index) => (
