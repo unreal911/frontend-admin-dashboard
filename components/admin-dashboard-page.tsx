@@ -661,7 +661,7 @@ export function AdminDashboardPage() {
     router.push(`/admin/orders/list?status=PENDING&endDate=${encodeURIComponent(cutoff.toISOString())}`);
   }
 
-  function renderTopRows(rows: TopSaleMetric[], emptyLabel: string) {
+  function renderTopRows(rows: TopSaleMetric[], emptyLabel: string, itemLabel: 'Producto' | 'Variante') {
     if (rows.length === 0) {
       return (
         <tr>
@@ -676,7 +676,7 @@ export function AdminDashboardPage() {
     }
     return rows.map((item) => (
       <tr key={item.label}>
-        <td data-label="Item">{item.label}</td>
+        <td data-label={itemLabel}>{item.label}</td>
         <td data-label="Cantidad">{item.quantity}</td>
         <td data-label="Total">{formatCurrency(item.total)}</td>
       </tr>
@@ -925,22 +925,22 @@ export function AdminDashboardPage() {
             <div>
               <h3>Hoy</h3>
               <div className="admin-table-wrap">
-                <table className="admin-table mobile-card-table">
+                <table className="admin-table mobile-card-table dashboard-ranking-table-next">
                   <thead>
                     <tr><th>Producto</th><th>Cant.</th><th>Total</th></tr>
                   </thead>
-                  <tbody>{renderTopRows(metrics.topProductsToday, 'Sin datos de hoy.')}</tbody>
+                  <tbody>{renderTopRows(metrics.topProductsToday, 'Sin datos de hoy.', 'Producto')}</tbody>
                 </table>
               </div>
             </div>
             <div>
               <h3>Semana</h3>
               <div className="admin-table-wrap">
-                <table className="admin-table mobile-card-table">
+                <table className="admin-table mobile-card-table dashboard-ranking-table-next">
                   <thead>
                     <tr><th>Producto</th><th>Cant.</th><th>Total</th></tr>
                   </thead>
-                  <tbody>{renderTopRows(metrics.topProductsWeek, 'Sin datos de semana.')}</tbody>
+                  <tbody>{renderTopRows(metrics.topProductsWeek, 'Sin datos de semana.', 'Producto')}</tbody>
                 </table>
               </div>
             </div>
@@ -955,22 +955,22 @@ export function AdminDashboardPage() {
             <div>
               <h3>Hoy</h3>
               <div className="admin-table-wrap">
-                <table className="admin-table mobile-card-table">
+                <table className="admin-table mobile-card-table dashboard-ranking-table-next">
                   <thead>
                     <tr><th>Variante</th><th>Cant.</th><th>Total</th></tr>
                   </thead>
-                  <tbody>{renderTopRows(metrics.topVariantsToday, 'Sin datos de hoy.')}</tbody>
+                  <tbody>{renderTopRows(metrics.topVariantsToday, 'Sin datos de hoy.', 'Variante')}</tbody>
                 </table>
               </div>
             </div>
             <div>
               <h3>Semana</h3>
               <div className="admin-table-wrap">
-                <table className="admin-table mobile-card-table">
+                <table className="admin-table mobile-card-table dashboard-ranking-table-next">
                   <thead>
                     <tr><th>Variante</th><th>Cant.</th><th>Total</th></tr>
                   </thead>
-                  <tbody>{renderTopRows(metrics.topVariantsWeek, 'Sin datos de semana.')}</tbody>
+                  <tbody>{renderTopRows(metrics.topVariantsWeek, 'Sin datos de semana.', 'Variante')}</tbody>
                 </table>
               </div>
             </div>

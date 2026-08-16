@@ -4363,6 +4363,44 @@ a {
   font-size: 0.9rem;
 }
 
+/* Los rankings viven en medias columnas: anulan el ancho minimo de las tablas
+   operativas para mostrar toda la informacion sin una barra horizontal. */
+.dashboard-table-pair-next .admin-table-wrap {
+  overflow: hidden;
+}
+
+.dashboard-table-pair-next .dashboard-ranking-table-next {
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.dashboard-ranking-table-next th:first-child,
+.dashboard-ranking-table-next td:first-child {
+  width: auto;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.dashboard-ranking-table-next th:nth-child(2),
+.dashboard-ranking-table-next td:nth-child(2) {
+  width: 4rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.dashboard-ranking-table-next th:nth-child(3),
+.dashboard-ranking-table-next td:nth-child(3) {
+  width: 5.4rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+@media (max-width: 1400px) {
+  .dashboard-table-pair-next {
+    grid-template-columns: 1fr;
+  }
+}
+
 .dashboard-empty-cell-next {
   color: var(--admin-muted);
   text-align: center;
