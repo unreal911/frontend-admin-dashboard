@@ -269,6 +269,411 @@
   grid-column: 1 / -1;
 }
 
+.transfer-draft-item-next .admin-select-list-next {
+  width: min(520px, calc(100vw - 2rem));
+  max-width: min(520px, calc(100vw - 2rem));
+}
+
+.transfer-draft-item-next .admin-select-option-label-next {
+  font-size: 0.84rem;
+}
+
+/* Transferencias: seleccion progresiva producto padre -> combinaciones -> resumen. */
+.transfer-product-results-next,
+.transfer-product-variants-next,
+.transfer-selection-next {
+  display: grid;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.transfer-search-hint-next,
+.transfer-selection-empty-next {
+  display: grid;
+  gap: 0.18rem;
+  padding: 0.78rem;
+  border: 1px dashed var(--admin-border);
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--admin-surface-soft) 62%, var(--admin-surface));
+  color: var(--admin-muted);
+  font-size: 0.8rem;
+}
+
+.transfer-search-hint-next strong {
+  color: var(--admin-text);
+}
+
+.transfer-product-card-list-next {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.transfer-product-card-next {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  min-width: 0;
+  min-height: 68px;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 11px;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.transfer-product-card-next:hover,
+.transfer-product-card-next.is-active {
+  border-color: var(--admin-primary-strong);
+  background: color-mix(in oklab, var(--admin-primary) 8%, var(--admin-surface));
+}
+
+.transfer-product-card-next > span:first-child {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+.transfer-product-card-next strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transfer-product-card-next small {
+  color: var(--admin-muted);
+  font-size: 0.73rem;
+}
+
+.transfer-product-stock-next {
+  flex: 0 0 auto;
+  padding: 0.22rem 0.5rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, #22c55e 14%, var(--admin-surface));
+  color: color-mix(in oklab, #15803d 82%, var(--admin-text));
+  font-size: 0.73rem;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.transfer-product-variants-next,
+.transfer-selection-next {
+  padding: 0.72rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--admin-surface) 88%, var(--admin-surface-soft));
+}
+
+.transfer-product-variants-head-next,
+.transfer-draft-box-head-next > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.transfer-product-variants-head-next > div:first-child {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.transfer-product-variants-head-next h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.transfer-draft-box-head-next small {
+  color: var(--admin-muted);
+  font-size: 0.74rem;
+}
+
+.transfer-variant-choice-grid-next {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.transfer-single-variant-next {
+  max-width: 260px;
+}
+
+.transfer-variant-choice-next {
+  display: grid;
+  place-items: center;
+  gap: 0.14rem;
+  width: 100%;
+  min-width: 0;
+  min-height: 54px;
+  padding: 0.42rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 9px;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  font: inherit;
+  cursor: pointer;
+  outline: none;
+}
+
+.transfer-variant-choice-next.is-selected {
+  border-color: var(--admin-primary-strong);
+  background: color-mix(in oklab, var(--admin-primary) 13%, var(--admin-surface));
+}
+
+.transfer-variant-choice-next strong {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.transfer-variant-choice-next span {
+  color: var(--admin-muted);
+  font-size: 0.69rem;
+  font-weight: 750;
+}
+
+.transfer-variant-choice-next.is-selected span {
+  color: var(--admin-primary-strong);
+}
+
+.transfer-variant-choice-next:focus-visible {
+  outline: 2px solid var(--admin-primary-strong);
+  outline-offset: 2px;
+}
+
+.transfer-variant-matrix-wrap-next {
+  max-width: 100%;
+  overflow: auto;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+}
+
+.transfer-variant-matrix-next {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--admin-surface);
+}
+
+.transfer-variant-matrix-next th,
+.transfer-variant-matrix-next td {
+  min-width: 86px;
+  padding: 0.38rem;
+  border-right: 1px solid var(--admin-border);
+  border-bottom: 1px solid var(--admin-border);
+  text-align: center;
+}
+
+.transfer-variant-matrix-next th {
+  background: color-mix(in oklab, var(--admin-surface-soft) 75%, var(--admin-surface));
+  font-size: 0.74rem;
+  font-weight: 850;
+}
+
+.transfer-variant-matrix-next tr:last-child > * {
+  border-bottom: 0;
+}
+
+.transfer-variant-matrix-next tr > *:last-child {
+  border-right: 0;
+}
+
+.transfer-variant-missing-next {
+  color: var(--admin-muted);
+}
+
+.transfer-mobile-matrix-next {
+  display: none;
+}
+
+.transfer-axis-switch-next {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid var(--admin-border);
+  border-radius: 9px;
+  background: var(--admin-surface);
+}
+
+.transfer-axis-switch-next button {
+  min-height: 36px;
+  border: 0;
+  background: transparent;
+  color: var(--admin-muted);
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.transfer-axis-switch-next button + button {
+  border-left: 1px solid var(--admin-border);
+}
+
+.transfer-axis-switch-next button.is-active {
+  background: color-mix(in oklab, var(--admin-primary) 14%, var(--admin-surface));
+  color: var(--admin-primary-strong);
+}
+
+.transfer-axis-hint-next {
+  margin: 0;
+  padding: 0.65rem;
+  border: 1px dashed var(--admin-border);
+  border-radius: 9px;
+  color: var(--admin-muted);
+  font-size: 0.76rem;
+  text-align: center;
+}
+
+.transfer-selection-table-wrap-next {
+  overflow: auto;
+}
+
+.transfer-selection-table-next {
+  min-width: 700px;
+}
+
+.transfer-selection-table-next td:nth-child(2) span,
+.transfer-selection-table-next td:nth-child(2) small {
+  display: block;
+}
+
+.transfer-mobile-selection-next {
+  display: none;
+}
+
+.transfer-mobile-product-group-next {
+  overflow: hidden;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: var(--admin-surface);
+}
+
+.transfer-mobile-product-title-next {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.55rem 0.62rem;
+  border-bottom: 1px solid var(--admin-border);
+  background: color-mix(in oklab, var(--admin-primary) 7%, var(--admin-surface));
+}
+
+.transfer-mobile-product-title-next strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.transfer-mobile-product-title-next span {
+  flex: 0 0 auto;
+  color: var(--admin-muted);
+  font-size: 0.69rem;
+  font-weight: 750;
+}
+
+.transfer-mobile-selected-list-next {
+  display: grid;
+}
+
+.transfer-mobile-selected-row-next {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 30px;
+  align-items: center;
+  gap: 0.42rem;
+  min-width: 0;
+  padding: 0.45rem 0.5rem;
+}
+
+.transfer-mobile-selected-row-next + .transfer-mobile-selected-row-next {
+  border-top: 1px solid var(--admin-border);
+}
+
+.transfer-mobile-selected-copy-next {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.transfer-mobile-selected-copy-next strong,
+.transfer-mobile-selected-copy-next small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transfer-mobile-selected-copy-next strong {
+  font-size: 0.78rem;
+}
+
+.transfer-mobile-selected-copy-next small {
+  color: var(--admin-muted);
+  font-size: 0.65rem;
+}
+
+.transfer-mobile-remove-next {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--admin-muted);
+  font: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.transfer-selection-table-next td:nth-child(2) small {
+  margin-top: 0.12rem;
+  color: var(--admin-muted);
+}
+
+.transfer-qty-stepper-next {
+  display: grid;
+  grid-template-columns: 34px 54px 34px;
+  width: max-content;
+  overflow: hidden;
+  border: 1px solid var(--admin-border);
+  border-radius: 9px;
+  background: var(--admin-surface);
+}
+
+.transfer-qty-stepper-next button,
+.transfer-qty-stepper-next input {
+  min-width: 0;
+  min-height: 36px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--admin-text);
+  font: inherit;
+  text-align: center;
+}
+
+.transfer-qty-stepper-next button {
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 850;
+}
+
+.transfer-qty-stepper-next input {
+  border-inline: 1px solid var(--admin-border);
+  padding: 0.2rem;
+  appearance: textfield;
+}
+
+.transfer-qty-stepper-next input::-webkit-inner-spin-button,
+.transfer-qty-stepper-next input::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
 .transfer-details-modal-next {
   position: fixed;
   left: 50%;
@@ -456,6 +861,77 @@
 
   .transfer-draft-item-next {
     grid-template-columns: 1fr;
+  }
+
+  .transfer-product-card-list-next {
+    grid-template-columns: 1fr;
+  }
+
+  .transfer-product-card-next {
+    min-height: 62px;
+  }
+
+  .transfer-product-variants-next,
+  .transfer-selection-next {
+    padding: 0.62rem;
+  }
+
+  .transfer-variant-matrix-wrap-next {
+    display: none;
+  }
+
+  .transfer-mobile-matrix-next {
+    display: grid;
+    gap: 0.65rem;
+  }
+
+  .transfer-variant-choice-grid-next {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .transfer-single-variant-next {
+    max-width: none;
+  }
+
+  .transfer-selection-table-wrap-next {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+
+  .transfer-desktop-selection-next {
+    display: none;
+  }
+
+  .transfer-mobile-selection-next {
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .transfer-selection-table-next {
+    min-width: 0;
+  }
+
+  .transfer-selection-table-next tbody tr {
+    margin-bottom: 0.55rem;
+  }
+
+  .transfer-selection-table-next tbody td {
+    align-items: center !important;
+  }
+
+  .transfer-qty-stepper-next {
+    justify-self: end;
+  }
+
+  .transfer-mobile-selected-row-next .transfer-qty-stepper-next {
+    grid-template-columns: 28px 36px 28px;
+  }
+
+  .transfer-mobile-selected-row-next .transfer-qty-stepper-next button,
+  .transfer-mobile-selected-row-next .transfer-qty-stepper-next input {
+    min-height: 30px;
+    font-size: 0.76rem;
   }
 }
 

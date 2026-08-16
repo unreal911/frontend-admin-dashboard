@@ -537,6 +537,63 @@
   white-space: normal;
 }
 
+.admin-select-value-next,
+.admin-select-option-copy-next {
+  display: grid;
+  min-width: 0;
+  gap: 0.16rem;
+}
+
+.admin-select-value-label-next,
+.admin-select-option-label-next {
+  min-width: 0;
+  font-weight: 800;
+}
+
+.admin-select-value-description-next,
+.admin-select-option-description-next {
+  min-width: 0;
+  color: var(--ds-text-muted);
+  font-size: 0.74rem;
+  font-weight: 650;
+  line-height: 1.25;
+  white-space: normal;
+}
+
+.admin-select-meta-next {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--ds-brand-100);
+  color: var(--ds-brand-800);
+  padding: 0.2rem 0.48rem;
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.admin-select-option-next:has(.admin-select-option-description-next) {
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.65rem;
+  padding-block: 0.62rem;
+}
+
+.admin-select-trigger-next:has(.admin-select-value-next.rich) {
+  justify-content: space-between;
+  gap: 0.65rem;
+  min-height: 56px;
+  padding-right: 2.25rem;
+  text-align: left;
+}
+
+.admin-select-trigger-next:has(.admin-select-value-next.rich) .admin-select-value-next,
+.admin-select-trigger-next:has(.admin-select-value-next.rich) .admin-select-value-next span {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
 .admin-select-option-next:hover,
 .admin-select-option-next.selected {
   background: var(--ds-brand-100);

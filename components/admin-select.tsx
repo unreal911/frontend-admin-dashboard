@@ -5,6 +5,8 @@ import { KeyboardEvent, Ref, useEffect, useId, useMemo, useRef, useState } from 
 export interface AdminSelectOption<TValue extends string = string> {
   value: TValue;
   label: string;
+  description?: string;
+  meta?: string;
   disabled?: boolean;
 }
 
@@ -40,6 +42,8 @@ export function AdminSelect<TValue extends string = string>({
   const selectedOption = useMemo(() => {
     return options.find((option) => option.value === value) || options[0] || null;
   }, [options, value]);
+
+  const hasRichSelectedOption = Boolean(selectedOption?.description || selectedOption?.meta);
 
   useEffect(() => {
     if (!open) {
@@ -112,7 +116,13 @@ export function AdminSelect<TValue extends string = string>({
         onClick={toggleMenu}
         onKeyDown={onButtonKeyDown}
       >
-        <span>{selectedOption?.label || ''}</span>
+        <span className={`admin-select-value-next${hasRichSelectedOption ? ' rich' : ''}`}>
+          <span className="admin-select-value-label-next">{selectedOption?.label || ''}</span>
+          {selectedOption?.description ? (
+            <small className="admin-select-value-description-next">{selectedOption.description}</small>
+          ) : null}
+        </span>
+        {selectedOption?.meta ? <span className="admin-select-meta-next">{selectedOption.meta}</span> : null}
       </button>
 
       {open ? (
@@ -132,7 +142,13 @@ export function AdminSelect<TValue extends string = string>({
               className={`admin-select-option-next ${option.value === value ? 'selected' : ''}`}
               onClick={() => selectOption(option)}
             >
-              {option.label}
+              <span className="admin-select-option-copy-next">
+                <span className="admin-select-option-label-next">{option.label}</span>
+                {option.description ? (
+                  <small className="admin-select-option-description-next">{option.description}</small>
+                ) : null}
+              </span>
+              {option.meta ? <span className="admin-select-meta-next">{option.meta}</span> : null}
             </button>
           ))}
         </div>
