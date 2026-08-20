@@ -213,14 +213,22 @@ export function AdminProductVariantsManager({
     }
     const preview = URL.createObjectURL(file);
     setVariants((current) => current.map((variant, idx) => (
-      idx === index ? { ...variant, imageFile: file, imagePreview: preview } : variant
+      idx === index ? {
+        ...variant,
+        imageUrl: undefined,
+        imageFile: file,
+        imagePreview: preview,
+      } : variant
     )));
     event.target.value = '';
   }
 
   function removeVariantImage(index: number) {
     setVariants((current) => current.map((variant, idx) => (
-      idx === index ? { ...variant, imageFile: undefined, imageUrl: undefined, imagePreview: undefined } : variant
+      idx === index ? {
+        ...variant,
+        imageFile: undefined, imageUrl: undefined, imagePreview: undefined,
+      } : variant
     )));
   }
 
@@ -231,7 +239,10 @@ export function AdminProductVariantsManager({
     }
     const preview = URL.createObjectURL(file);
     setVariants((current) => current.map((variant) => (
-      variant.colorId === colorId ? { ...variant, imageFile: file, imagePreview: preview } : variant
+      variant.colorId === colorId ? {
+        ...variant,
+        imageUrl: undefined, imageFile: file, imagePreview: preview,
+      } : variant
     )));
     event.target.value = '';
   }
@@ -239,7 +250,10 @@ export function AdminProductVariantsManager({
   function removeColorImage(colorId: number) {
     setVariants((current) => current.map((variant) => (
       variant.colorId === colorId
-        ? { ...variant, imageFile: undefined, imageUrl: undefined, imagePreview: undefined }
+        ? {
+          ...variant,
+          imageFile: undefined, imageUrl: undefined, imagePreview: undefined,
+        }
         : variant
     )));
   }
@@ -571,8 +585,8 @@ export function AdminProductVariantsManager({
             </div>
             <div className="admin-color-image-actions">
               <label className="admin-file-picker-next">
-                <span>{getVariantPreview(variants[0]) ? 'Cambiar' : 'Seleccionar'}</span>
-                <input type="file" accept="image/*" onChange={(event) => onVariantImageChange(0, event)} />
+                <span>{getVariantPreview(variants[0]) ? 'Cambiar imagen' : 'Seleccionar imagen'}</span>
+                <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => onVariantImageChange(0, event)} />
               </label>
               {getVariantPreview(variants[0]) ? (
                 <button type="button" className="admin-ghost-btn" onClick={() => removeVariantImage(0)}>Quitar</button>
@@ -639,7 +653,7 @@ export function AdminProductVariantsManager({
                             {getVariantPreview(variant) ? <img src={getVariantPreview(variant)} alt={`Talla ${getSizeName(variant.sizeId)}`} /> : null}
                             <label className="admin-file-picker-next">
                               <span>{getVariantPreview(variant) ? 'Cambiar' : 'Imagen'}</span>
-                              <input type="file" accept="image/*" onChange={(event) => onVariantImageChange(index, event)} />
+                              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => onVariantImageChange(index, event)} />
                             </label>
                             {getVariantPreview(variant) ? (
                               <button type="button" className="admin-ghost-btn admin-btn-sm" onClick={() => removeVariantImage(index)}>Quitar</button>
@@ -734,7 +748,7 @@ export function AdminProductVariantsManager({
                             <input type="number" min="0" step="0.01" placeholder="S/ fila" onChange={(event) => setBulkPriceColor(colorId, event.target.value)} />
                             <label className="admin-matrix-img-btn-next" title="Imagen del color">
                               {preview ? <img src={preview} alt={getColorName(colorId)} /> : <span>img</span>}
-                              <input type="file" accept="image/*" onChange={(event) => onColorImageChange(colorId, event)} />
+                              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => onColorImageChange(colorId, event)} />
                             </label>
                             {preview ? (
                               <button type="button" className="admin-ghost-btn admin-btn-sm" onClick={() => removeColorImage(colorId)}>Quitar img</button>

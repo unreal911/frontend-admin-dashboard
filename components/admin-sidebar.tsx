@@ -37,6 +37,14 @@ function routeIcon(route: AdminRouteItem) {
       </>
     );
   }
+  if (slug === 'manual') {
+    return (
+      <>
+        <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11a2 2 0 0 1 2 2v16a2 2 0 0 0-2-2H6.5A2.5 2.5 0 0 0 4 21.5z" />
+        <path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H13v18a2 2 0 0 1 2-2h2.5a2.5 2.5 0 0 1 2.5 2.5z" />
+      </>
+    );
+  }
   if (slug === 'category') {
     return (
       <>
@@ -141,7 +149,8 @@ function isRouteActive(pathname: string, item: AdminRouteItem, href: string): bo
 
 export function AdminSidebar() {
   const pathname = usePathname();
-  const { hasPermission, hasFeature } = useAdminAuth();
+  const { hasPermission, hasFeature, user } = useAdminAuth();
+  const membershipRole = user?.membership.role;
   const {
     isMobile,
     isSidebarOpen,
@@ -153,10 +162,12 @@ export function AdminSidebar() {
     .map((group) => ({
       group,
       routes: listAdminRoutesByGroup(group).filter((item) => (
-        hasPermission(item.permission) && hasFeature(item.feature)
+        hasPermission(item.permission)
+        && hasFeature(item.feature)
+        && (!item.ownerOnly || membershipRole === 'OWNER')
       )),
     }))
-    .filter((section) => section.routes.length > 0), [hasFeature, hasPermission]);
+    .filter((section) => section.routes.length > 0), [hasFeature, hasPermission, membershipRole]);
 
   const activeGroup = useMemo<AdminRouteGroup>(() => {
     const section = groupedRoutes.find(({ routes }) => routes.some((item) => isRouteActive(pathname, item, buildAdminPath(item.slug))));

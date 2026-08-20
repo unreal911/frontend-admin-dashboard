@@ -28,7 +28,7 @@
     "@tiptap/pm": "^3.28.0",
     "@tiptap/react": "^3.28.0",
     "@tiptap/starter-kit": "^3.28.0",
-    "next": "16.2.6",
+    "next": "^16.2.11",
     "react": "19.2.6",
     "react-dom": "19.2.6"
   },
@@ -38,7 +38,12 @@
     "@types/react": "^19.2.6",
     "@types/react-dom": "^19.2.3",
     "eslint": "^9.36.0",
-    "eslint-config-next": "16.2.6",
+    "eslint-config-next": "^16.2.11",
     "typescript": "^5.9.2"
+  },
+  "overrides": {
+    "nanoid": "3.3.18",
+    "postcss": "8.5.24",
+    "sharp": "0.35.3"
   }
 }

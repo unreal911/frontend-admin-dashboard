@@ -27,6 +27,7 @@ export async function GET(request: Request) {
     headers: {
       accept: 'text/event-stream',
       Authorization: `Bearer ${token}`,
+      ...(request.headers.get('last-event-id') ? { 'last-event-id': request.headers.get('last-event-id')! } : {}),
     },
     cache: 'no-store',
     signal: upstreamAbort.signal,

@@ -2909,6 +2909,36 @@ a {
   transform: translateY(-1px);
 }
 
+.admin-notification-item-next.commercial-alert {
+  cursor: default;
+  border-left: 4px solid var(--admin-primary);
+}
+
+.admin-notification-item-next.commercial-alert.warning {
+  border-left-color: #f59e0b;
+}
+
+.admin-notification-item-next.commercial-alert.success {
+  border-left-color: #10b981;
+  background: color-mix(in oklab, #10b981 6%, var(--admin-surface));
+}
+
+.admin-notification-item-next.commercial-alert.critical {
+  border-left-color: #ef4444;
+}
+
+.admin-notification-alert-open {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  display: grid;
+  gap: 0.22rem;
+}
+
 .admin-notification-item-title-next {
   font-size: 0.82rem;
   font-weight: 700;
@@ -5727,7 +5757,12 @@ a {
   right: 1rem;
   z-index: 3400;
   width: min(360px, calc(100vw - 2rem));
-  animation: adminSlideIn 0.25s ease-out;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  pointer-events: none;
 }
 
 .admin-alert {
@@ -5739,6 +5774,8 @@ a {
   justify-content: space-between;
   gap: 0.6rem;
   padding: 0.7rem 0.75rem;
+  animation: adminSlideIn 0.25s ease-out;
+  pointer-events: auto;
 }
 
 .admin-alert-body {

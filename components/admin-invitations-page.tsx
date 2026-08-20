@@ -4,6 +4,7 @@ import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
 import { useAdminUi } from '@/components/admin-ui-provider';
 import { AdminTableEmptyState } from '@/components/admin-table-empty-state';
+import { useAdminAuth } from '@/components/admin-auth-provider';
 
 type InvitationRole = 'ADMIN' | 'MANAGER' | 'SELLER' | 'WAREHOUSE' | 'PICKER' | 'VIEWER';
 
@@ -55,6 +56,7 @@ function statusLabel(status: TenantInvitation['status']): string {
 
 export function AdminInvitationsPage() {
   const { confirm, showAlert } = useAdminUi();
+  const { user } = useAdminAuth();
   const [invitations, setInvitations] = useState<TenantInvitation[]>([]);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<InvitationRole>('SELLER');
@@ -153,7 +155,9 @@ export function AdminInvitationsPage() {
             Rol
             <AdminSelect
               value={role}
-              options={INVITATION_ROLE_OPTIONS}
+              options={INVITATION_ROLE_OPTIONS.filter((option) => (
+                option.value !== 'ADMIN' || user?.membership.role === 'OWNER'
+              ))}
               onChange={setRole}
               ariaLabel="Rol de la invitacion"
             />

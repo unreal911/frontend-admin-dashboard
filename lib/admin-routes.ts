@@ -13,6 +13,7 @@ export interface AdminRouteItem {
   group: AdminRouteGroup;
   permission?: string;
   feature?: string;
+  ownerOnly?: boolean;
   description: string;
 }
 
@@ -39,6 +40,7 @@ export const ADMIN_ROUTE_GROUP_LABELS: Record<AdminRouteGroup, string> = {
 export const ADMIN_ROUTE_ITEMS: AdminRouteItem[] = [
   { slug: 'dashboard', label: 'Dashboard', group: 'General', permission: 'dashboard.view', description: 'Resumen general del sistema.' },
   { slug: 'reports', label: 'Reportes', group: 'General', permission: 'reports.view', feature: 'reports.advanced', description: 'Constructor de reportes personalizados y exportacion a Excel.' },
+  { slug: 'manual', label: 'Manual de usuario', group: 'General', description: 'Guia paso a paso para aprender a usar el sistema.' },
 
   { slug: 'product', label: 'Productos', group: 'Catalogo', permission: 'products.view', description: 'Administracion de productos y variantes.' },
   { slug: 'category', label: 'Categorias', group: 'Catalogo', permission: 'categories.manage', description: 'Gestion de categorias.' },
@@ -66,7 +68,7 @@ export const ADMIN_ROUTE_ITEMS: AdminRouteItem[] = [
   { slug: 'empresa', label: 'Empresa y plan', group: 'Sistema', permission: 'settings.manage', description: 'Perfil legal, trial, cuotas y activacion.' },
   { slug: 'settings', label: 'Configuracion general', group: 'Sistema', permission: 'settings.manage', description: 'Parametros globales del sistema.' },
   { slug: 'payment-methods', label: 'Metodos de pago', group: 'Sistema', permission: 'payment_methods.manage', description: 'Configuracion de medios de pago.' },
-  { slug: 'sunat/configuracion', label: 'Emisor SUNAT', group: 'Sistema', permission: 'sunat.config', feature: 'sunat', description: 'Datos del emisor, credenciales y certificado para facturacion electronica.' },
+  { slug: 'sunat/configuracion', label: 'Emisor SUNAT', group: 'Sistema', permission: 'sunat.config', feature: 'sunat', ownerOnly: true, description: 'Datos del emisor, credenciales y certificado para facturacion electronica.' },
   { slug: 'audit-logs', label: 'Auditoria', group: 'Sistema', permission: 'settings.manage', description: 'Bitacora de auditoria.' },
   { slug: 'user-activities', label: 'Actividades', group: 'Sistema', permission: 'settings.manage', description: 'Actividad de usuarios.' },
 ];

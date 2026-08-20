@@ -40,11 +40,20 @@ export function AdminAccessGate({ children }: { children: React.ReactNode }) {
   const { loading, user, hasPermission } = useAdminAuth();
 
   const requiredPermission = useMemo(() => resolveRequiredPermission(pathname), [pathname]);
-  const allowed = hasPermission(requiredPermission);
+  const routeItem = useMemo(() => {
+    const slugParts = pathname.replace(/^\/admin\/?/, '').split('/').filter(Boolean);
+    return resolveAdminRoute(slugParts);
+  }, [pathname]);
+  const membershipRole = user?.membership.role;
+  const ownerAllowed = !routeItem?.ownerOnly || membershipRole === 'OWNER';
+  const allowed = hasPermission(requiredPermission) && ownerAllowed;
 
   const allowedRoutes = useMemo(() => {
-    return ADMIN_ROUTE_ITEMS.filter((item) => hasPermission(item.permission)).slice(0, 8);
-  }, [hasPermission]);
+    return ADMIN_ROUTE_ITEMS.filter((item) => (
+      hasPermission(item.permission)
+      && (!item.ownerOnly || membershipRole === 'OWNER')
+    )).slice(0, 8);
+  }, [hasPermission, membershipRole]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -70,13 +79,15 @@ export function AdminAccessGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (requiredPermission && !allowed) {
+  if ((requiredPermission || routeItem?.ownerOnly) && !allowed) {
     return (
       <article className="admin-card admin-no-access-next">
         <h1>Acceso denegado</h1>
         <p>No tienes permiso para acceder a esta seccion.</p>
         <p className="admin-muted-text">
-          Permiso requerido: <strong>{requiredPermission}</strong>
+          {routeItem?.ownerOnly
+            ? <>Esta sección está reservada para el propietario de la empresa.</>
+            : <>Permiso requerido: <strong>{requiredPermission}</strong></>}
         </p>
         {allowedRoutes.length > 0 ? (
           <>

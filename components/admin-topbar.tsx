@@ -12,7 +12,9 @@ export function AdminTopbar() {
     theme,
     isMobile,
     pendingAssignments,
+    commercialAlerts,
     loadingNotifications,
+    dismissCommercialAlert,
     toggleTheme,
     toggleSidebar,
   } = useAdminShell();
@@ -62,6 +64,13 @@ export function AdminTopbar() {
     router.push(`/admin/orders/${orderId}`);
   }
 
+  function openCommercialAlert(href?: string) {
+    setNotificationsOpen(false);
+    router.push(href || '/admin/empresa');
+  }
+
+  const notificationCount = pendingAssignments.length + commercialAlerts.length;
+
   return (
     <header className="admin-topbar">
       <div className="admin-topbar-left-next">
@@ -102,25 +111,35 @@ export function AdminTopbar() {
                 <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5m2 0v1a1 1 0 0 0 2 0v-1m-2 0h2" />
               </svg>
             </span>
-            {pendingAssignments.length > 0 ? (
-              <span className="admin-notification-count-next">{pendingAssignments.length}</span>
+            {notificationCount > 0 ? (
+              <span className="admin-notification-count-next">{notificationCount}</span>
             ) : null}
           </button>
 
           {notificationsOpen ? (
             <div className="admin-notification-panel-next">
               <div className="admin-notification-panel-head-next">
-                <strong>Pendientes asignados</strong>
+                <strong>Notificaciones</strong>
                 <button type="button" className="admin-ghost-btn admin-notification-close-next" onClick={() => setNotificationsOpen(false)}>
                   Cerrar
                 </button>
               </div>
               {loadingNotifications ? (
                 <p className="admin-notification-empty-next">Cargando notificaciones...</p>
-              ) : pendingAssignments.length === 0 ? (
-                <p className="admin-notification-empty-next">No tienes tareas pendientes asignadas.</p>
+              ) : notificationCount === 0 ? (
+                <p className="admin-notification-empty-next">No tienes alertas ni tareas pendientes.</p>
               ) : (
                 <div className="admin-notification-list-next">
+                  {commercialAlerts.map((alert) => (
+                    <div key={alert.id} className={`admin-notification-item-next commercial-alert ${alert.severity.toLowerCase()}`}>
+                      <button type="button" className="admin-notification-alert-open" onClick={() => openCommercialAlert(alert.metadata?.href)}>
+                        <span className="admin-notification-item-title-next">{alert.title}</span>
+                        <span className="admin-notification-item-detail-next">{alert.message}</span>
+                        <span className="admin-notification-item-status-next">{alert.severity}</span>
+                      </button>
+                      <button type="button" className="admin-ghost-btn admin-btn-sm" onClick={() => dismissCommercialAlert(alert.id)}>Descartar</button>
+                    </div>
+                  ))}
                   {pendingAssignments.map((assignment) => (
                     <button
                       key={assignment.orderId}

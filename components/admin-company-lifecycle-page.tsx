@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { useAdminUi } from '@/components/admin-ui-provider';
 import { AdminSubscriptionPanel } from '@/components/admin-subscription-panel';
+import { useAdminAuth } from '@/components/admin-auth-provider';
 
 type Lifecycle = {
   tenant: {
@@ -74,8 +75,10 @@ function percent(used: number, limit: number): number {
 
 export function AdminCompanyLifecyclePage() {
   const { showAlert } = useAdminUi();
+  const { user } = useAdminAuth();
   const [data, setData] = useState<Lifecycle | null>(null);
   const [loading, setLoading] = useState(true);
+  const [trialDaysRemaining, setTrialDaysRemaining] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [stores, setStores] = useState<StoreOption[]>([]);
@@ -90,19 +93,52 @@ export function AdminCompanyLifecyclePage() {
       const payload = await response.json().catch(() => null);
       if (!response.ok) throw new Error(String(payload?.message || 'No se pudo cargar la empresa.'));
       const next = payload as Lifecycle;
-      setData(next);
-      setPrimaryStoreId(next.plan.welcomeStorePromotion.primaryStoreId
-        ? String(next.plan.welcomeStorePromotion.primaryStoreId)
+      const rawTenant = (payload as { tenant: Partial<Lifecycle['tenant']> }).tenant;
+      const nextTenant = {
+        maxUsers: 0, maxProducts: 0, maxOrders: 0, maxStores: 0, maxVariantsPerProduct: 0,
+        maxPosSalesPerMonth: 0, maxMainImagesPerProduct: 0, maxImagesPerVariant: 0,
+        maxStorageBytes: '0', sunatProductionEnabled: false,
+        ...rawTenant,
+      } as Lifecycle['tenant'];
+      const nextPlan = next.plan ?? {
+        code: nextTenant.planCode,
+        name: nextTenant.planCode === 'TRIAL' ? 'Prueba gratuita' : nextTenant.planCode,
+        monthlyPricePen: null,
+        features: [],
+        effectiveMaxStores: nextTenant.maxStores,
+        welcomeStorePromotion: { active: false, warning: false },
+      };
+      const rawUsage = (payload as { usage?: Partial<Lifecycle['usage']> }).usage;
+      const nextUsage = {
+        users: 0, products: 0, stores: 0, activeVariants: 0, posSales: 0, posSalesToday: 0,
+        posSalesPeriodEnd: new Date().toISOString(), storageBytes: '0',
+        ...(rawUsage ?? {}),
+      } as Lifecycle['usage'];
+      const rawConflicts = (payload as { conflicts?: Partial<Lifecycle['conflicts']> }).conflicts;
+      const nextConflicts = {
+        hasConflicts: false,
+        users: { used: nextUsage.users, limit: nextTenant.maxUsers, excess: 0 },
+        products: { used: nextUsage.products, limit: nextTenant.maxProducts, excess: 0 },
+        stores: { used: nextUsage.stores, limit: nextPlan.effectiveMaxStores, excess: 0 },
+        productsOverVariantLimit: 0, productsOverMainImageLimit: 0, variantsWithImagesNotAllowed: 0,
+        ...(rawConflicts ?? {}),
+      } as Lifecycle['conflicts'];
+      setData({ ...next, tenant: nextTenant, plan: nextPlan, usage: nextUsage, conflicts: nextConflicts });
+      setTrialDaysRemaining(nextTenant.planCode === 'TRIAL' && nextTenant.trialEndsAt
+        ? Math.max(0, Math.ceil((new Date(nextTenant.trialEndsAt).getTime() - Date.now()) / 86_400_000))
+        : null);
+      setPrimaryStoreId(nextPlan.welcomeStorePromotion.primaryStoreId
+        ? String(nextPlan.welcomeStorePromotion.primaryStoreId)
         : '');
       setForm({
-        ruc: next.tenant.ruc || '',
-        legalName: next.tenant.legalName || '',
-        address: next.tenant.address || '',
-        contactEmail: next.tenant.contactEmail || '',
-        contactPhone: next.tenant.contactPhone || '',
-        confirmRuc: Boolean(next.tenant.rucConfirmedAt),
+        ruc: nextTenant.ruc || '',
+        legalName: nextTenant.legalName || '',
+        address: nextTenant.address || '',
+        contactEmail: nextTenant.contactEmail || '',
+        contactPhone: nextTenant.contactPhone || '',
+        confirmRuc: Boolean(nextTenant.rucConfirmedAt),
       });
-      if (next.tenant.planCode === 'STARTER' && next.plan.welcomeStorePromotion.endsAt) {
+      if (nextTenant.planCode === 'STARTER' && nextPlan.welcomeStorePromotion.endsAt) {
         const storesResponse = await fetch('/api/admin/stores?includeInactive=false&take=100', { cache: 'no-store' });
         if (storesResponse.ok) {
           const storePayload = await storesResponse.json().catch(() => []);
@@ -187,7 +223,7 @@ export function AdminCompanyLifecyclePage() {
     }
   }
 
-  if (loading) return <section className="admin-page-stack"><article className="admin-card">Cargando empresa...</article></section>;
+  if (loading) return <section className="admin-page-stack admin-company-page-next"><article className="admin-card admin-company-loading-next"><span /><span /><span /></article></section>;
   if (!data) return <section className="admin-page-stack"><article className="admin-card">Empresa no disponible.</article></section>;
   const quotas = [
     { label: 'Usuarios', used: data.usage.users, limit: data.tenant.maxUsers },
@@ -195,35 +231,35 @@ export function AdminCompanyLifecyclePage() {
     { label: 'Tiendas activas', used: data.usage.stores, limit: data.plan.effectiveMaxStores },
     { label: 'Ventas POS del periodo', used: data.usage.posSales, limit: data.tenant.maxPosSalesPerMonth },
   ];
-
   return (
     <section className="admin-page-stack admin-company-page-next">
-      <article className="admin-card inventory-header-card admin-company-summary-card-next">
-        <div>
-          <p className="section-kicker">Empresa SaaS</p>
-          <h1 className="section-title">{data.tenant.name}</h1>
-          <p className="section-subtitle">Plan {data.plan.name} · Estado {data.tenant.status}</p>
+      <article className="admin-card admin-company-summary-card-next">
+        <div className="admin-company-hero-copy-next">
+          <div className="admin-company-title-block-next admin-page-header"><span className="admin-company-eyebrow-next">Cuenta empresarial</span><h1>{data.tenant.name}</h1></div>
+          <p>Administra tu suscripción, capacidad operativa y datos fiscales desde un solo lugar.</p>
+          <nav className="admin-company-nav-next" aria-label="Secciones de empresa">
+            <a href="#planes-y-pago">Planes y pagos</a><a href="#uso-del-plan">Uso del plan</a><a href="#perfil-legal">Perfil legal</a>
+          </nav>
         </div>
-        <span className={`admin-status-badge ${data.readOnly ? 'warning' : 'success'}`}>
-          {data.readOnly ? 'Solo lectura' : 'Operativa'}
-        </span>
+        <div className="admin-current-plan-next">
+          <div><span>Plan actual</span><span className={`admin-status-badge ${data.readOnly ? 'warning' : 'success'}`}>{data.readOnly ? 'Solo lectura' : 'Cuenta operativa'}</span></div>
+          <strong>{data.plan.name}</strong>
+          <p>{data.plan.monthlyPricePen === null ? 'Periodo de prueba' : `S/${data.plan.monthlyPricePen.toLocaleString('es-PE', { minimumFractionDigits: 2 })} al mes`}</p>
+          <div className="admin-current-plan-meta-next"><span><b>{data.tenant.maxProducts}</b> productos</span><span><b>{data.tenant.maxUsers}</b> usuarios</span><span><b>{data.plan.effectiveMaxStores}</b> tiendas</span></div>
+        </div>
       </article>
 
-      {data.tenant.trialEndsAt ? (
-        <article className="admin-card admin-company-trial-card-next">
-          <h2>Periodo de prueba</h2>
-          <p>Vence: {new Date(data.tenant.trialEndsAt).toLocaleString('es-PE')}</p>
-          {data.tenant.graceEndsAt ? <p>Consulta/exportación disponible hasta: {new Date(data.tenant.graceEndsAt).toLocaleString('es-PE')}</p> : null}
-          <p>SUNAT: <strong>No disponible durante el trial</strong></p>
-          <button className="admin-primary-btn" type="button" disabled={exporting} onClick={() => void exportData()}>
-            {exporting ? 'Preparando exportación...' : 'Exportar mis datos'}
-          </button>
+      {data.tenant.planCode === 'TRIAL' && data.tenant.trialEndsAt ? (
+        <article className={`admin-card admin-company-trial-card-next ${trialDaysRemaining !== null && trialDaysRemaining <= 5 ? 'urgent' : ''}`}>
+          <div className="admin-trial-countdown-next"><strong>{trialDaysRemaining ?? '—'}</strong><span>{trialDaysRemaining === 1 ? 'día restante' : 'días restantes'}</span></div>
+          <div className="admin-trial-copy-next"><span className="admin-company-eyebrow-next">Periodo de prueba</span><h2>{trialDaysRemaining === 0 ? 'Tu prueba terminó' : 'Aprovecha tu prueba sin interrupciones'}</h2><p>Tu acceso trial vence el <strong>{new Date(data.tenant.trialEndsAt).toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' })}</strong>. Elige un plan y reporta el pago antes de esa fecha.</p><small>SUNAT se habilita al activar un plan pagado.</small></div>
+          <div className="admin-trial-actions-next"><a className="admin-primary-btn" href="#planes-y-pago">Elegir mi plan</a>{user?.membership.role === 'OWNER' ? <button className="admin-ghost-btn" type="button" disabled={exporting} onClick={() => void exportData()}>{exporting ? 'Preparando…' : 'Exportar datos'}</button> : null}</div>
         </article>
       ) : null}
 
       {data.plan.welcomeStorePromotion.endsAt ? (
-        <article className="admin-card admin-company-trial-card-next">
-          <h2>Beneficio de segunda tienda</h2>
+        <article className="admin-card admin-company-promotion-card-next">
+          <div><span className="admin-company-eyebrow-next">Beneficio temporal</span><h2>Segunda tienda incluida</h2></div>
           <p>
             {data.plan.welcomeStorePromotion.active ? 'Disponible' : 'Finalizado'} · vence:{' '}
             {new Date(data.plan.welcomeStorePromotion.endsAt).toLocaleString('es-PE')}
@@ -248,13 +284,8 @@ export function AdminCompanyLifecyclePage() {
 
       <AdminSubscriptionPanel currentPlanCode={data.tenant.planCode} />
 
-      <article className="admin-card admin-company-usage-card-next">
-        <h2>Uso del plan</h2>
-        <p>Variantes activas por producto: máximo {data.tenant.maxVariantsPerProduct}. Imágenes principales: {data.tenant.maxMainImagesPerProduct}. Imágenes por variante: {data.tenant.maxImagesPerVariant}.</p>
-        <p>
-          Almacenamiento comercial contratado: {(Number(data.tenant.maxStorageBytes) / 1073741824).toLocaleString('es-PE')} GB.
-          Los artefactos SUNAT protegidos ({(Number(data.usage.storageBytes) / 1048576).toLocaleString('es-PE', { maximumFractionDigits: 2 })} MB) no consumen esa cuota.
-        </p>
+      <article className="admin-card admin-company-usage-card-next" id="uso-del-plan">
+        <div className="admin-company-section-head-next"><div><span className="admin-company-eyebrow-next">Capacidad</span><h2>Uso del plan</h2><p>Revisa cuánto espacio operativo tienes disponible antes de alcanzar un límite.</p></div><span className="admin-storage-chip-next">{(Number(data.tenant.maxStorageBytes) / 1073741824).toLocaleString('es-PE')} GB contratados</span></div>
         {data.usage.posSalesGraceUntil ? <p><strong>Cuota POS alcanzada:</strong> puedes continuar hasta {new Date(data.usage.posSalesGraceUntil).toLocaleString('es-PE')}.</p> : null}
         {data.conflicts?.hasConflicts ? (
           <div className="admin-inline-alert warning">
@@ -270,18 +301,18 @@ export function AdminCompanyLifecyclePage() {
           </div>
         ) : null}
         <div className="admin-company-usage-grid-next">
-          {quotas.map((quota) => (
+          {quotas.map((quota, index) => (
             <div key={quota.label} className="admin-company-quota-next">
-              <strong>{quota.label}</strong>
-              <p>{quota.used.toLocaleString('es-PE')} / {quota.limit.toLocaleString('es-PE')}</p>
-              <progress max={100} value={percent(quota.used, quota.limit)} style={{ width: '100%' }} />
+              <div><span className="admin-quota-icon-next">{['U', 'P', 'T', 'V'][index]}</span><span className={`admin-quota-percent-next ${percent(quota.used, quota.limit) >= 85 ? 'warning' : ''}`}>{percent(quota.used, quota.limit)}%</span></div>
+              <strong>{quota.label}</strong><p><b>{quota.used.toLocaleString('es-PE')}</b> de {quota.limit.toLocaleString('es-PE')}</p><progress max={100} value={percent(quota.used, quota.limit)} />
             </div>
           ))}
         </div>
+        <div className="admin-plan-details-next"><span>Hasta <b>{data.tenant.maxVariantsPerProduct}</b> variantes por producto</span><span><b>{data.tenant.maxMainImagesPerProduct}</b> imágenes principales</span><span><b>{data.tenant.maxImagesPerVariant}</b> imágenes por variante</span><span><b>{(Number(data.usage.storageBytes) / 1048576).toLocaleString('es-PE', { maximumFractionDigits: 2 })} MB</b> en archivos protegidos</span></div>
       </article>
 
-      <article className="admin-card admin-company-legal-card-next">
-        <h2>Perfil legal</h2>
+      <article className="admin-card admin-company-legal-card-next" id="perfil-legal">
+        <div className="admin-company-section-head-next"><div><span className="admin-company-eyebrow-next">Datos de empresa</span><h2>Perfil legal</h2><p>Esta información se utiliza en documentos, comunicaciones y configuración tributaria.</p></div>{data.tenant.rucConfirmedAt ? <span className="admin-status-badge success">RUC confirmado</span> : <span className="admin-status-badge warning">Pendiente de confirmar</span>}</div>
         <form className="tenant-invitation-form-next tenant-legal-profile-form-next" onSubmit={save}>
           <label><span>RUC</span><input value={form.ruc} inputMode="numeric" maxLength={11} onChange={(e) => setForm({ ...form, ruc: e.target.value.replace(/\D/g, '') })} required /></label>
           <label><span>Razón social</span><input value={form.legalName} onChange={(e) => setForm({ ...form, legalName: e.target.value })} required /></label>
