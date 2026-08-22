@@ -556,7 +556,10 @@ export function AdminProductModal({
         ? variant.colorId === groupId
         : variant.sizeId === groupId;
       return matchesGroup
-        ? { ...variant, imageFile: file, imagePreview: preview }
+        ? {
+          ...variant,
+          imageFile: file, imageUrl: undefined, imagePreview: preview,
+        }
         : variant;
     }));
     event.target.value = '';
@@ -1166,7 +1169,7 @@ export function AdminProductModal({
           <div key={item.key} className="admin-color-image-card">
             <div className="admin-color-image-thumb">
               {item.preview ? (
-                <img src={item.preview} alt={`Preview ${item.label}`} />
+                <img src={item.preview} alt={item.label} />
               ) : (
                 <span className="admin-color-image-thumb-empty">Sin<br />imagen</span>
               )}
@@ -1178,7 +1181,7 @@ export function AdminProductModal({
             <div className="admin-color-image-actions">
               <label className="admin-file-picker-next">
                 <span>{item.preview ? 'Cambiar' : 'Seleccionar'}</span>
-                <input type="file" accept="image/*" onChange={item.onFile} />
+                <input type="file" accept="image/jpeg,image/png,image/webp" onChange={item.onFile} />
               </label>
               {item.preview ? (
                 <button type="button" className="admin-ghost-btn" onClick={item.onRemove}>

@@ -18,6 +18,21 @@ export interface AdminAuthUser {
   email: string;
   role: string;
   permissions: string[];
+  tenant: {
+    id: string;
+    slug: string;
+    name: string;
+    status: string;
+  };
+  membership: {
+    id: string;
+    role: string;
+    status: string;
+  };
+  plan: {
+    code: string;
+    features: string[];
+  };
 }
 
 interface AdminAuthContextValue {
@@ -25,6 +40,7 @@ interface AdminAuthContextValue {
   user: AdminAuthUser | null;
   permissions: string[];
   hasPermission: (required?: string | string[] | null) => boolean;
+  hasFeature: (required?: string | string[] | null) => boolean;
   refreshUser: () => Promise<void>;
 }
 
@@ -54,6 +70,9 @@ function normalizeAuthUser(payload: unknown): AdminAuthUser | null {
     email?: unknown;
     role?: unknown;
     permissions?: unknown;
+    tenant?: unknown;
+    membership?: unknown;
+    plan?: unknown;
   };
 
   const id = Number(user.id);
@@ -64,6 +83,12 @@ function normalizeAuthUser(payload: unknown): AdminAuthUser | null {
   const permissions = Array.isArray(user.permissions)
     ? normalizePermissionList(user.permissions)
     : [];
+  const tenant = user.tenant as Record<string, unknown> | null;
+  const membership = user.membership as Record<string, unknown> | null;
+  const plan = user.plan as Record<string, unknown> | null;
+  if (!tenant || !membership || !tenant.id || !tenant.slug || !tenant.name || !membership.id) {
+    return null;
+  }
 
   return {
     id,
@@ -72,6 +97,21 @@ function normalizeAuthUser(payload: unknown): AdminAuthUser | null {
     email: String(user.email || '').trim(),
     role: String(user.role || '').trim() || 'USER',
     permissions,
+    tenant: {
+      id: String(tenant.id),
+      slug: String(tenant.slug),
+      name: String(tenant.name),
+      status: String(tenant.status || ''),
+    },
+    membership: {
+      id: String(membership.id),
+      role: String(membership.role || ''),
+      status: String(membership.status || ''),
+    },
+    plan: {
+      code: String(plan?.code || ''),
+      features: Array.isArray(plan?.features) ? normalizePermissionList(plan.features) : ['*'],
+    },
   };
 }
 
@@ -174,13 +214,26 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       .some((permission) => permissions.includes(permission));
   }, [permissions, user]);
 
+  const hasFeature = useCallback((required?: string | string[] | null) => {
+    if (!required) return true;
+    if (!user) return false;
+    const features = normalizePermissionList(user.plan.features || []);
+    if (features.includes('*')) return true;
+    const requiredList = Array.isArray(required) ? required : [required];
+    return requiredList
+      .map((feature) => String(feature || '').trim().toLowerCase())
+      .filter(Boolean)
+      .some((feature) => features.includes(feature));
+  }, [user]);
+
   const contextValue = useMemo<AdminAuthContextValue>(() => ({
     loading,
     user,
     permissions,
     hasPermission,
+    hasFeature,
     refreshUser,
-  }), [hasPermission, loading, permissions, refreshUser, user]);
+  }), [hasFeature, hasPermission, loading, permissions, refreshUser, user]);
 
   return (
     <AdminAuthContext.Provider value={contextValue}>

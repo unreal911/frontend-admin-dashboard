@@ -1006,6 +1006,88 @@
   gap: 0.6rem;
 }
 
+.admin-pos-customer-search-next {
+  margin: 0 0 1rem;
+}
+
+.admin-pos-customer-query-next {
+  position: relative;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.admin-pos-customer-results-next {
+  display: grid;
+  max-height: 230px;
+  overflow-y: auto;
+  border: 1px solid var(--admin-border);
+  border-radius: 0.75rem;
+  background: var(--admin-surface, #fff);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.18);
+}
+
+.admin-pos-customer-results-next button {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.75rem;
+  border: 0;
+  border-bottom: 1px solid var(--admin-border);
+  background: transparent;
+  color: var(--admin-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-pos-customer-results-next button strong,
+.admin-pos-customer-selected-next strong {
+  color: var(--admin-text);
+}
+
+.admin-pos-customer-results-next button:hover,
+.admin-pos-customer-results-next button:focus-visible {
+  background: color-mix(in srgb, var(--admin-primary) 10%, transparent);
+}
+
+.admin-pos-customer-results-next button:last-child {
+  border-bottom: 0;
+}
+
+.admin-pos-customer-results-next button span,
+.admin-pos-customer-results-next p,
+.admin-pos-customer-selected-next small {
+  color: var(--admin-muted);
+  font-size: 0.78rem;
+}
+
+.admin-pos-customer-results-next p {
+  margin: 0;
+  padding: 0.8rem;
+}
+
+.admin-pos-customer-selected-next {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--admin-primary) 35%, var(--admin-border));
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--admin-primary) 8%, transparent);
+}
+
+.admin-pos-customer-selected-next > div {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.admin-pos-save-customer-next {
+  grid-column: 1 / -1;
+  align-items: center;
+  padding: 0.7rem;
+  border: 1px dashed var(--admin-border);
+  border-radius: 0.65rem;
+}
+
 .admin-pos-form-group-next {
   margin: 0;
 }
@@ -1299,6 +1381,50 @@
 }
 
 @media (max-width: 760px) {
+  .admin-pos-header-next,
+  .admin-pos-layout-next,
+  .admin-pos-catalog-next,
+  .admin-pos-toolbar-next,
+  .admin-pos-categories-next,
+  .admin-pos-products-grid-next {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .admin-pos-header-actions-next {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .admin-pos-header-actions-next > * {
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
+    text-align: center;
+  }
+
+  .admin-pos-toolbar-next,
+  .admin-pos-categories-next,
+  .admin-pos-products-info-next,
+  .admin-pos-products-grid-next {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .admin-pos-categories-next {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+
+  .admin-pos-category-btn-next {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .admin-pos-variant-drawer-next,
   .admin-pos-payment-drawer-next {
     left: 0;
@@ -1576,3 +1702,28 @@
   opacity: 0.75;
 }
 
+/* Select compartido: controles tactiles y menu contenido en telefono/tablet. */
+@media (max-width: 900px), (pointer: coarse) {
+  .admin-toolbar-join-next input:not([type='checkbox']):not([type='radio']),
+  .admin-modal-form input:not([type='checkbox']):not([type='radio']) {
+    min-height: 44px;
+    font-size: 1rem;
+  }
+
+  .admin-select-trigger-next {
+    min-height: 44px;
+    max-width: 100%;
+  }
+
+  .admin-select-list-next {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    max-height: min(280px, 44dvh);
+  }
+
+  .admin-select-option-next {
+    min-height: 44px;
+    padding-block: 0.65rem;
+  }
+}

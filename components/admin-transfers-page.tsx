@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
 import { useAdminUi } from '@/components/admin-ui-provider';
+import { AdminTableEmptyState } from '@/components/admin-table-empty-state';
 import {
   Inventory,
   InventoryStore,
@@ -17,12 +18,25 @@ import {
 } from '@/lib/admin-inventory-types';
 
 interface TransferVariantOption {
+  productId: number;
   variantId: number;
   sku: string;
   productName: string;
   colorName: string;
   sizeName: string;
-  label: string;
+  isUnique: boolean;
+  description: string;
+  searchText: string;
+}
+
+interface TransferProductOption {
+  productId: number;
+  productName: string;
+  hasColor: boolean;
+  hasSize: boolean;
+  variants: TransferVariantOption[];
+  totalAvailable: number;
+  searchText: string;
 }
 
 interface TransferDraftItem {
@@ -140,12 +154,20 @@ function getUserFullName(user?: { firstName: string; lastName: string } | null):
   return fullName || '-';
 }
 
+function normalizeVariantSearch(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
 export function AdminTransfersPage() {
   const searchParams = useSearchParams();
   const { showAlert } = useAdminUi();
 
   const originAvailabilityCacheRef = useRef<Map<number, Record<number, number>>>(new Map());
-  const nextDraftRowIdRef = useRef(2);
+  const nextDraftRowIdRef = useRef(1);
 
   const [transfersData, setTransfersData] = useState<StockTransfer[]>([]);
   const [storeOptions, setStoreOptions] = useState<InventoryStore[]>([]);
@@ -159,12 +181,16 @@ export function AdminTransfersPage() {
   const [selectedTransferDetails, setSelectedTransferDetails] = useState<StockTransfer | null>(null);
   const [creatingTransfer, setCreatingTransfer] = useState(false);
   const [receivingTransferIds, setReceivingTransferIds] = useState<number[]>([]);
+  const [dispatchingTransferIds, setDispatchingTransferIds] = useState<number[]>([]);
 
   const [fromStoreId, setFromStoreId] = useState<number | null>(null);
   const [toStoreId, setToStoreId] = useState<number | null>(null);
   const [transferNote, setTransferNote] = useState('');
   const [variantSearch, setVariantSearch] = useState('');
-  const [draftItems, setDraftItems] = useState<TransferDraftItem[]>([{ rowId: 1, variantId: null, quantity: 1 }]);
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
+  const [variantAxis, setVariantAxis] = useState<'color' | 'size'>('color');
+  const [activeVariantFilter, setActiveVariantFilter] = useState('');
+  const [draftItems, setDraftItems] = useState<TransferDraftItem[]>([]);
 
   const [loadingOriginInventory, setLoadingOriginInventory] = useState(false);
   const [originVariantStockById, setOriginVariantStockById] = useState<Record<number, number>>({});
@@ -176,40 +202,101 @@ export function AdminTransfersPage() {
         if (variant.isActive === false) {
           return;
         }
-        const colorName = variant.color?.name || 'Sin color';
-        const sizeName = variant.size?.name || 'Sin talla';
+        const colorName = product.hasColor ? (variant.color?.name || 'Sin color') : '';
+        const sizeName = product.hasSize ? (variant.size?.name || 'Sin talla') : '';
         const sku = variant.sku || `VAR-${variant.id}`;
+        const isUnique = !product.hasColor && !product.hasSize;
+        const attributes = [
+          product.hasColor ? `Color: ${colorName}` : '',
+          product.hasSize ? `Talla: ${sizeName}` : '',
+        ].filter(Boolean);
+        const description = `${isUnique ? 'Variante única' : attributes.join(' · ')} · SKU: ${sku}`;
         options.push({
+          productId: product.id,
           variantId: variant.id,
           sku,
           productName: product.name,
           colorName,
           sizeName,
-          label: `${product.name} - ${colorName} / ${sizeName} - ${sku}`,
+          isUnique,
+          description,
+          searchText: normalizeVariantSearch([
+            product.name,
+            colorName,
+            sizeName,
+            sku,
+            isUnique ? 'unico unica variante unica' : '',
+          ].join(' ')),
         });
       });
     });
-    return options.sort((a, b) => a.label.localeCompare(b.label));
+    return options.sort((a, b) => (
+      a.productName.localeCompare(b.productName)
+      || a.description.localeCompare(b.description)
+    ));
   }, [productCatalog]);
 
-  const filteredVariantCatalog = useMemo(() => {
-    if (!fromStoreId) {
-      return [] as TransferVariantOption[];
+  const availableProductCatalog = useMemo<TransferProductOption[]>(() => productCatalog
+    .map((product) => {
+      const variants = variantCatalog.filter((variant) => (
+        variant.productId === product.id && (originVariantStockById[variant.variantId] || 0) > 0
+      ));
+      return {
+        productId: product.id,
+        productName: product.name,
+        hasColor: product.hasColor,
+        hasSize: product.hasSize,
+        variants,
+        totalAvailable: variants.reduce(
+          (total, variant) => total + (originVariantStockById[variant.variantId] || 0),
+          0,
+        ),
+        searchText: normalizeVariantSearch([
+          product.name,
+          ...variants.map((variant) => variant.searchText),
+        ].join(' ')),
+      };
+    })
+    .filter((product) => product.variants.length > 0)
+    .sort((a, b) => a.productName.localeCompare(b.productName)), [originVariantStockById, productCatalog, variantCatalog]);
+
+  const productSearchResults = useMemo(() => {
+    if (!fromStoreId || !toStoreId || fromStoreId === toStoreId || loadingOriginInventory) {
+      return [] as TransferProductOption[];
     }
-
-    const search = variantSearch.trim().toLowerCase();
-    const baseOptions = variantCatalog.filter((variant) => (originVariantStockById[variant.variantId] || 0) > 0);
-
-    if (!search) {
-      return baseOptions;
+    const terms = normalizeVariantSearch(variantSearch).split(/\s+/).filter(Boolean);
+    if (terms.length === 0) {
+      return [] as TransferProductOption[];
     }
+    return availableProductCatalog
+      .filter((product) => terms.every((term) => product.searchText.includes(term)))
+      .slice(0, 8);
+  }, [availableProductCatalog, fromStoreId, loadingOriginInventory, toStoreId, variantSearch]);
 
-    return baseOptions.filter((variant) =>
-      variant.sku.toLowerCase().includes(search)
-      || variant.productName.toLowerCase().includes(search)
-      || variant.colorName.toLowerCase().includes(search)
-      || variant.sizeName.toLowerCase().includes(search));
-  }, [fromStoreId, originVariantStockById, variantCatalog, variantSearch]);
+  const selectedProduct = useMemo(() => (
+    availableProductCatalog.find((product) => product.productId === selectedProductId) || null
+  ), [availableProductCatalog, selectedProductId]);
+
+  const selectedVariantIds = useMemo(() => new Set(
+    draftItems.flatMap((item) => (item.variantId ? [item.variantId] : [])),
+  ), [draftItems]);
+
+  const selectedUnitCount = useMemo(() => draftItems.reduce((total, item) => total + (item.quantity || 0), 0), [draftItems]);
+
+  const selectedProductGroups = useMemo(() => {
+    const groups = new Map<number, {
+      productName: string;
+      entries: Array<{ item: TransferDraftItem; variant: TransferVariantOption }>;
+    }>();
+    draftItems.forEach((item) => {
+      const variant = variantCatalog.find((entry) => entry.variantId === item.variantId);
+      if (!variant) return;
+      const group = groups.get(variant.productId) || { productName: variant.productName, entries: [] };
+      group.entries.push({ item, variant });
+      groups.set(variant.productId, group);
+    });
+    return Array.from(groups.entries()).map(([productId, group]) => ({ productId, ...group }));
+  }, [draftItems, variantCatalog]);
 
   const filteredTransfers = useMemo(() => {
     const query = searchParam.trim().toLowerCase();
@@ -246,8 +333,10 @@ export function AdminTransfersPage() {
       return false;
     }
     const validItems = draftItems.filter((item) => Number.isInteger(item.variantId) && (item.quantity || 0) > 0);
-    return validItems.length > 0;
-  }, [creatingTransfer, draftItems, fromStoreId, toStoreId]);
+    return validItems.length > 0 && validItems.every((item) => (
+      item.variantId != null && item.quantity <= (originVariantStockById[item.variantId] || 0)
+    ));
+  }, [creatingTransfer, draftItems, fromStoreId, originVariantStockById, toStoreId]);
 
   const loadTransfers = useCallback(async () => {
     const response = await fetch('/api/admin/inventory/transfers', {
@@ -310,17 +399,17 @@ export function AdminTransfersPage() {
   const clearUnavailableDraftVariants = useCallback((availability: Record<number, number>) => {
     let removedSelections = 0;
 
-    setDraftItems((current) => current.map((item) => {
+    setDraftItems((current) => current.filter((item) => {
       const variantId = Number(item.variantId || 0);
       if (!variantId) {
-        return item;
+        return false;
       }
 
       if ((availability[variantId] || 0) <= 0) {
         removedSelections += 1;
-        return { ...item, variantId: null };
+        return false;
       }
-      return item;
+      return true;
     }));
 
     if (removedSelections > 0) {
@@ -412,10 +501,13 @@ export function AdminTransfersPage() {
     setToStoreId(null);
     setTransferNote('');
     setVariantSearch('');
-    setDraftItems([{ rowId: 1, variantId: null, quantity: 1 }]);
+    setSelectedProductId(null);
+    setVariantAxis('color');
+    setActiveVariantFilter('');
+    setDraftItems([]);
     setOriginVariantStockById({});
     setLoadingOriginInventory(false);
-    nextDraftRowIdRef.current = 2;
+    nextDraftRowIdRef.current = 1;
     setCreatingTransfer(false);
   }
 
@@ -428,47 +520,204 @@ export function AdminTransfersPage() {
     setShowCreateDrawer(false);
   }
 
-  function addDraftItemRow() {
-    const nextId = nextDraftRowIdRef.current++;
-    setDraftItems((current) => [...current, { rowId: nextId, variantId: null, quantity: 1 }]);
-  }
-
   function removeDraftItemRow(rowId: number) {
-    setDraftItems((current) => {
-      const remaining = current.filter((item) => item.rowId !== rowId);
-      if (remaining.length > 0) {
-        return remaining;
-      }
-      const nextId = nextDraftRowIdRef.current++;
-      return [{ rowId: nextId, variantId: null, quantity: 1 }];
-    });
+    setDraftItems((current) => current.filter((item) => item.rowId !== rowId));
   }
 
-  function setDraftVariant(rowId: number, value: string) {
-    const variantId = toPositiveInt(value);
-    setDraftItems((current) => current.map((item) => (
-      item.rowId === rowId ? { ...item, variantId } : item
-    )));
+  function toggleDraftVariant(variantId: number) {
+    const available = getOriginVariantAvailableStock(variantId);
+    if (available <= 0) {
+      showAlert('Esta variante ya no tiene stock disponible en la tienda de origen.', 'warning');
+      return;
+    }
+    setDraftItems((current) => {
+      if (current.some((item) => item.variantId === variantId)) {
+        return current.filter((item) => item.variantId !== variantId);
+      }
+      return [...current, { rowId: nextDraftRowIdRef.current++, variantId, quantity: 1 }];
+    });
   }
 
   function setDraftQuantity(rowId: number, value: string) {
     const quantity = Number(value);
     const normalized = Number.isFinite(quantity) && quantity > 0 ? Math.floor(quantity) : 0;
     setDraftItems((current) => current.map((item) => (
-      item.rowId === rowId ? { ...item, quantity: normalized } : item
+      item.rowId === rowId
+        ? { ...item, quantity: Math.min(normalized, getOriginVariantAvailableStock(Number(item.variantId || 0))) }
+        : item
     )));
   }
 
-  function getDraftVariantLabel(variantId: number | null): string {
-    if (!variantId) {
-      return '-';
-    }
-    const variant = variantCatalog.find((item) => item.variantId === variantId);
-    return variant?.label || `Variante #${variantId}`;
+  function adjustDraftQuantity(rowId: number, delta: number) {
+    setDraftItems((current) => current.map((item) => {
+      if (item.rowId !== rowId || !item.variantId) {
+        return item;
+      }
+      const available = getOriginVariantAvailableStock(item.variantId);
+      return { ...item, quantity: Math.min(available, Math.max(1, item.quantity + delta)) };
+    }));
   }
 
   function getOriginVariantAvailableStock(variantId: number): number {
     return originVariantStockById[variantId] || 0;
+  }
+
+  function selectOriginStore(nextValue: string) {
+    const nextStoreId = toPositiveInt(nextValue);
+    if (nextStoreId !== fromStoreId && draftItems.length > 0) {
+      showAlert('Se limpio la seleccion porque cambiaste la tienda de origen.', 'info');
+    }
+    setFromStoreId(nextStoreId);
+    setSelectedProductId(null);
+    setVariantAxis('color');
+    setActiveVariantFilter('');
+    setVariantSearch('');
+    setDraftItems([]);
+  }
+
+  function renderVariantChoice(variant: TransferVariantOption, label: string) {
+    const available = getOriginVariantAvailableStock(variant.variantId);
+    const isSelected = selectedVariantIds.has(variant.variantId);
+    return (
+      <button
+        key={variant.variantId}
+        type="button"
+        className={`transfer-variant-choice-next${isSelected ? ' is-selected' : ''}`}
+        aria-pressed={isSelected}
+        onClick={(event) => {
+          toggleDraftVariant(variant.variantId);
+          if (isSelected && event.detail > 0) {
+            event.currentTarget.blur();
+          }
+        }}
+      >
+        <strong>{label}</strong>
+        <span>{isSelected ? 'Agregada' : `Disp. ${available}`}</span>
+      </button>
+    );
+  }
+
+  function renderProductVariantPicker(product: TransferProductOption) {
+    if (!product.hasColor && !product.hasSize) {
+      return (
+        <div className="transfer-single-variant-next">
+          {renderVariantChoice(product.variants[0], 'Variante única')}
+        </div>
+      );
+    }
+
+    if (!(product.hasColor && product.hasSize)) {
+      return (
+        <div className="transfer-variant-choice-grid-next">
+          {product.variants.map((variant) => renderVariantChoice(
+            variant,
+            product.hasColor ? variant.colorName : variant.sizeName,
+          ))}
+        </div>
+      );
+    }
+
+    const sizes = Array.from(new Set(product.variants.map((variant) => variant.sizeName)))
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    const colors = Array.from(new Set(product.variants.map((variant) => variant.colorName)))
+      .sort((a, b) => a.localeCompare(b));
+    const axisOptions = variantAxis === 'color' ? colors : sizes;
+    const activeAxisValue = axisOptions.includes(activeVariantFilter) ? activeVariantFilter : '';
+    const variantsForMobileAxis = activeAxisValue
+      ? product.variants.filter((variant) => (
+        variantAxis === 'color'
+          ? variant.colorName === activeAxisValue
+          : variant.sizeName === activeAxisValue
+      ))
+      : [];
+
+    return (
+      <>
+        <div className="transfer-variant-matrix-wrap-next">
+          <table className="transfer-variant-matrix-next">
+            <thead>
+              <tr>
+                <th>Color \ Talla</th>
+                {sizes.map((size) => <th key={size}>{size}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {colors.map((color) => (
+                <tr key={color}>
+                  <th>{color}</th>
+                  {sizes.map((size) => {
+                    const variant = product.variants.find((item) => item.colorName === color && item.sizeName === size);
+                    return (
+                      <td key={size}>
+                        {variant ? renderVariantChoice(variant, size) : <span className="transfer-variant-missing-next">—</span>}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="transfer-mobile-matrix-next">
+          <div className="transfer-axis-switch-next" role="group" aria-label="Ordenar variantes por">
+            <button
+              type="button"
+              className={variantAxis === 'color' ? 'is-active' : ''}
+              aria-pressed={variantAxis === 'color'}
+              onClick={() => {
+                setVariantAxis('color');
+                setActiveVariantFilter('');
+              }}
+            >
+              Por color
+            </button>
+            <button
+              type="button"
+              className={variantAxis === 'size' ? 'is-active' : ''}
+              aria-pressed={variantAxis === 'size'}
+              onClick={() => {
+                setVariantAxis('size');
+                setActiveVariantFilter('');
+              }}
+            >
+              Por talla
+            </button>
+          </div>
+
+          <div className="variant-chip-row" role="group" aria-label={variantAxis === 'color' ? 'Color' : 'Talla'}>
+            {axisOptions.map((option) => (
+              <button
+                key={option}
+                type="button"
+                className={`variant-chip${option === activeAxisValue ? ' is-active' : ''}`}
+                aria-pressed={option === activeAxisValue}
+                onClick={() => setActiveVariantFilter((current) => current === option ? '' : option)}
+              >
+                {option}
+                <span className="variant-chip-count">
+                  {product.variants.filter((variant) => (
+                    variantAxis === 'color' ? variant.colorName === option : variant.sizeName === option
+                  )).length}
+                </span>
+              </button>
+            ))}
+          </div>
+          {activeAxisValue ? (
+            <div className="transfer-variant-choice-grid-next">
+              {variantsForMobileAxis.map((variant) => renderVariantChoice(
+                variant,
+                variantAxis === 'color' ? variant.sizeName : variant.colorName,
+              ))}
+            </div>
+          ) : (
+            <p className="transfer-axis-hint-next">
+              Selecciona {variantAxis === 'color' ? 'un color' : 'una talla'} para ver sus combinaciones.
+            </p>
+          )}
+        </div>
+      </>
+    );
   }
 
   async function saveTransfer() {
@@ -536,15 +785,10 @@ export function AdminTransfersPage() {
   }
 
   async function receiveTransfer(transfer: StockTransfer) {
-    if (transfer.status === 'RECEIVED') {
-      showAlert('Esta transferencia ya fue recibida.', 'info');
+    if (transfer.status !== 'IN_TRANSIT') {
+      showAlert('Solo una transferencia en transito puede recibirse.', 'warning');
       return;
     }
-    if (transfer.status === 'CANCELLED') {
-      showAlert('No se puede recibir una transferencia cancelada.', 'warning');
-      return;
-    }
-
     setReceivingTransferIds((current) => (current.includes(transfer.id) ? current : [...current, transfer.id]));
     try {
       const response = await fetch(`/api/admin/inventory/transfers/${transfer.id}/receive`, {
@@ -562,6 +806,29 @@ export function AdminTransfersPage() {
       showAlert('Error al recibir transferencia.', 'error');
     } finally {
       setReceivingTransferIds((current) => current.filter((id) => id !== transfer.id));
+    }
+  }
+
+  async function dispatchTransfer(transfer: StockTransfer) {
+    if (transfer.status !== 'PENDING') {
+      showAlert('Solo una transferencia pendiente puede despacharse.', 'warning');
+      return;
+    }
+
+    setDispatchingTransferIds((current) => current.includes(transfer.id) ? current : [...current, transfer.id]);
+    try {
+      const response = await fetch(`/api/admin/inventory/transfers/${transfer.id}/dispatch`, { method: 'PATCH' });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        showAlert(String((payload as { message?: unknown } | null)?.message || 'Error al despachar transferencia.'), 'error');
+        return;
+      }
+      showAlert(`Transferencia ${transfer.code} despachada.`, 'success');
+      loadTransfers();
+    } catch {
+      showAlert('Error al despachar transferencia.', 'error');
+    } finally {
+      setDispatchingTransferIds((current) => current.filter((id) => id !== transfer.id));
     }
   }
 
@@ -583,6 +850,12 @@ export function AdminTransfersPage() {
           <button type="button" className="admin-primary-btn" onClick={openCreateTransferDrawer}>Nueva transferencia</button>
         </div>
       </article>
+
+      <nav className="admin-card inventory-mobile-actions-next" aria-label="Acciones de transferencias">
+        <Link href="/admin/inventory" className="admin-ghost-btn">Volver a inventario</Link>
+        <button type="button" className="admin-ghost-btn" onClick={loadTransfers}>Actualizar</button>
+        <button type="button" className="admin-primary-btn" onClick={openCreateTransferDrawer}>Nueva transferencia</button>
+      </nav>
 
       <article className="admin-card inventory-filters-card">
         <div className="transfer-filter-grid">
@@ -625,7 +898,11 @@ export function AdminTransfersPage() {
             <tbody>
               {filteredTransfers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} data-label="Estado">No hay transferencias para los filtros actuales.</td>
+                  <AdminTableEmptyState
+                    colSpan={7}
+                    title="No encontramos transferencias"
+                    description="Ajusta la busqueda o los filtros de origen, destino y estado."
+                  />
                 </tr>
               ) : (
                 filteredTransfers.map((transfer) => (
@@ -686,7 +963,17 @@ export function AdminTransfersPage() {
                         >
                           Ver
                         </button>
-                        {transfer.status !== 'RECEIVED' && transfer.status !== 'CANCELLED' ? (
+                        {transfer.status === 'PENDING' ? (
+                          <button
+                            type="button"
+                            className="admin-primary-btn"
+                            disabled={dispatchingTransferIds.includes(transfer.id)}
+                            onClick={() => dispatchTransfer(transfer)}
+                          >
+                            {dispatchingTransferIds.includes(transfer.id) ? 'Despachando...' : 'Despachar'}
+                          </button>
+                        ) : null}
+                        {transfer.status === 'IN_TRANSIT' ? (
                           <button
                             type="button"
                             className="admin-primary-btn"
@@ -822,7 +1109,7 @@ export function AdminTransfersPage() {
                     ...storeOptions.map((store) => ({ value: String(store.id), label: `${store.name} (${store.code})` })),
                   ]}
                   ariaLabel="Seleccionar tienda origen"
-                  onChange={(nextValue) => setFromStoreId(toPositiveInt(nextValue))}
+                  onChange={selectOriginStore}
                 />
               </div>
 
@@ -835,70 +1122,205 @@ export function AdminTransfersPage() {
                     ...storeOptions.map((store) => ({ value: String(store.id), label: `${store.name} (${store.code})` })),
                   ]}
                   ariaLabel="Seleccionar tienda destino"
-                  onChange={(nextValue) => setToStoreId(toPositiveInt(nextValue))}
+                  onChange={(nextValue) => {
+                    setToStoreId(toPositiveInt(nextValue));
+                    setSelectedProductId(null);
+    setVariantAxis('color');
+    setActiveVariantFilter('');
+                  }}
                 />
               </div>
 
               <label className="inventory-field">
-                <span>Buscar variante</span>
+                <span>Buscar producto</span>
                 <input
-                  type="text"
+                  type="search"
                   value={variantSearch}
                   onChange={(event) => setVariantSearch(event.target.value)}
-                  placeholder="SKU, producto, color o talla"
+                  placeholder="Nombre del producto o SKU"
+                  disabled={!fromStoreId || !toStoreId || fromStoreId === toStoreId || loadingOriginInventory}
                 />
-                {!fromStoreId ? (
-                  <small className="admin-muted-text">Selecciona tienda origen para ver variantes disponibles.</small>
+                {!fromStoreId || !toStoreId ? (
+                  <small className="admin-muted-text">Selecciona tienda de origen y destino para buscar productos.</small>
                 ) : null}
-                {fromStoreId && loadingOriginInventory ? (
-                  <small className="admin-muted-text">Cargando variantes disponibles...</small>
+                {fromStoreId && toStoreId && fromStoreId === toStoreId ? (
+                  <small className="admin-muted-text">La tienda de destino debe ser diferente a la de origen.</small>
                 ) : null}
-                {fromStoreId && !loadingOriginInventory && filteredVariantCatalog.length === 0 ? (
-                  <small className="admin-muted-text">No hay variantes con stock disponible en origen.</small>
+                {fromStoreId && toStoreId && loadingOriginInventory ? (
+                  <small className="admin-muted-text">Cargando productos disponibles...</small>
                 ) : null}
               </label>
 
-              <div className="transfer-draft-box-next">
+              {fromStoreId && toStoreId && fromStoreId !== toStoreId && !loadingOriginInventory ? (
+                <section className="transfer-product-results-next" aria-label="Resultados de productos">
+                  {!variantSearch.trim() ? (
+                    <div className="transfer-search-hint-next">
+                      <strong>Busca el producto padre</strong>
+                      <span>Escribe su nombre o el SKU de una variante.</span>
+                    </div>
+                  ) : productSearchResults.length === 0 ? (
+                    <div className="transfer-search-hint-next">
+                      <strong>No encontramos productos con stock</strong>
+                      <span>Prueba con otro nombre o SKU.</span>
+                    </div>
+                  ) : (
+                    <div className="transfer-product-card-list-next">
+                      {productSearchResults.map((product) => {
+                        const isActive = selectedProductId === product.productId;
+                        return (
+                          <button
+                            key={product.productId}
+                            type="button"
+                            className={`transfer-product-card-next${isActive ? ' is-active' : ''}`}
+                            aria-expanded={isActive}
+                            onClick={() => {
+                              setSelectedProductId(product.productId);
+                              setVariantAxis('color');
+                              setActiveVariantFilter('');
+                            }}
+                          >
+                            <span>
+                              <strong>{product.productName}</strong>
+                              <small>{product.variants.length} variantes con stock</small>
+                            </span>
+                            <span className="transfer-product-stock-next">{product.totalAvailable} disp.</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </section>
+              ) : null}
+
+              {selectedProduct ? (
+                <section className="transfer-product-variants-next">
+                  <div className="transfer-product-variants-head-next">
+                    <div>
+                      <span className="section-kicker">Variantes disponibles</span>
+                      <h4>{selectedProduct.productName}</h4>
+                    </div>
+                    <button type="button" className="admin-ghost-btn" onClick={() => setSelectedProductId(null)}>
+                      Cerrar
+                    </button>
+                  </div>
+                  {renderProductVariantPicker(selectedProduct)}
+                </section>
+              ) : null}
+
+              <section className="transfer-selection-next">
                 <div className="transfer-draft-box-head-next">
-                  <p>Items de transferencia</p>
-                  <button type="button" className="admin-ghost-btn" onClick={addDraftItemRow}>
-                    Agregar fila
-                  </button>
+                  <div>
+                    <p>Selección para transferir</p>
+                    <small>{draftItems.length} variantes · {selectedUnitCount} unidades</small>
+                  </div>
                 </div>
 
-                <div className="transfer-draft-list-next">
-                  {draftItems.map((item) => (
-                    <article key={item.rowId} className="transfer-draft-item-next">
-                      <AdminSelect
-                        value={String(item.variantId || '')}
-                        disabled={!fromStoreId || loadingOriginInventory}
-                        options={[
-                          { value: '', label: 'Selecciona variante' },
-                          ...filteredVariantCatalog.map((variant) => ({
-                            value: String(variant.variantId),
-                            label: `${variant.productName} - Disp: ${getOriginVariantAvailableStock(variant.variantId)}`,
-                          })),
-                        ]}
-                        ariaLabel="Seleccionar variante para transferencia"
-                        onChange={(nextValue) => setDraftVariant(item.rowId, nextValue)}
-                      />
+                {draftItems.length === 0 ? (
+                  <div className="transfer-selection-empty-next">
+                    Selecciona una combinación de color y talla para agregarla.
+                  </div>
+                ) : (
+                  <>
+                    <div className="admin-table-wrap transfer-selection-table-wrap-next transfer-desktop-selection-next">
+                      <table className="admin-table transfer-selection-table-next">
+                      <thead>
+                        <tr>
+                          <th>Producto</th>
+                          <th>Variante</th>
+                          <th>Disponible</th>
+                          <th>Cantidad</th>
+                          <th>Acción</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {draftItems.map((item) => {
+                          const variant = variantCatalog.find((entry) => entry.variantId === item.variantId);
+                          if (!variant || !item.variantId) return null;
+                          const available = getOriginVariantAvailableStock(item.variantId);
+                          const variantName = variant.isUnique
+                            ? 'Variante única'
+                            : [variant.colorName, variant.sizeName].filter(Boolean).join(' / ');
+                          return (
+                            <tr key={item.rowId}>
+                              <td data-label="Producto"><strong>{variant.productName}</strong></td>
+                              <td data-label="Variante">
+                                <span>{variantName}</span>
+                                <small>{variant.sku}</small>
+                              </td>
+                              <td data-label="Disponible">{available}</td>
+                              <td data-label="Cantidad">
+                                <div className="transfer-qty-stepper-next">
+                                  <button type="button" aria-label={`Restar una unidad de ${variant.productName}`} onClick={() => adjustDraftQuantity(item.rowId, -1)}>−</button>
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    max={available}
+                                    value={item.quantity}
+                                    aria-label={`Cantidad de ${variant.productName} ${variantName}`}
+                                    onChange={(event) => setDraftQuantity(item.rowId, event.target.value)}
+                                  />
+                                  <button type="button" aria-label={`Sumar una unidad de ${variant.productName}`} onClick={() => adjustDraftQuantity(item.rowId, 1)}>+</button>
+                                </div>
+                              </td>
+                              <td data-label="Acción">
+                                <button type="button" className="admin-ghost-btn" onClick={() => removeDraftItemRow(item.rowId)}>Quitar</button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                      </table>
+                    </div>
 
-                      <input
-                        type="number"
-                        min={1}
-                        value={item.quantity}
-                        onChange={(event) => setDraftQuantity(item.rowId, event.target.value)}
-                      />
-
-                      <button type="button" className="admin-ghost-btn" onClick={() => removeDraftItemRow(item.rowId)}>
-                        Quitar
-                      </button>
-
-                      <p className="admin-muted-text">{getDraftVariantLabel(item.variantId)}</p>
-                    </article>
-                  ))}
-                </div>
-              </div>
+                    <div className="transfer-mobile-selection-next">
+                      {selectedProductGroups.map((group) => (
+                        <article key={group.productId} className="transfer-mobile-product-group-next">
+                          <div className="transfer-mobile-product-title-next">
+                            <strong>{group.productName}</strong>
+                            <span>{group.entries.length} {group.entries.length === 1 ? 'variante' : 'variantes'}</span>
+                          </div>
+                          <div className="transfer-mobile-selected-list-next">
+                            {group.entries.map(({ item, variant }) => {
+                              const available = getOriginVariantAvailableStock(variant.variantId);
+                              const variantName = variant.isUnique
+                                ? 'Variante única'
+                                : [variant.colorName, variant.sizeName].filter(Boolean).join(' / ');
+                              return (
+                                <div key={item.rowId} className="transfer-mobile-selected-row-next">
+                                  <div className="transfer-mobile-selected-copy-next" title={variant.sku}>
+                                    <strong>{variantName}</strong>
+                                    <small>Disp. {available} · {variant.sku}</small>
+                                  </div>
+                                  <div className="transfer-qty-stepper-next">
+                                    <button type="button" aria-label={`Restar una unidad de ${variant.productName}`} onClick={() => adjustDraftQuantity(item.rowId, -1)}>−</button>
+                                    <input
+                                      type="number"
+                                      min={1}
+                                      max={available}
+                                      value={item.quantity}
+                                      aria-label={`Cantidad de ${variant.productName} ${variantName}`}
+                                      onChange={(event) => setDraftQuantity(item.rowId, event.target.value)}
+                                    />
+                                    <button type="button" aria-label={`Sumar una unidad de ${variant.productName}`} onClick={() => adjustDraftQuantity(item.rowId, 1)}>+</button>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    className="transfer-mobile-remove-next"
+                                    aria-label={`Quitar ${variant.productName} ${variantName}`}
+                                    onClick={() => removeDraftItemRow(item.rowId)}
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </section>
 
               <label className="inventory-field">
                 <span>Nota</span>
@@ -916,7 +1338,7 @@ export function AdminTransfersPage() {
                 Cancelar
               </button>
               <button type="button" className="admin-primary-btn" disabled={!canCreateTransfer} onClick={saveTransfer}>
-                {creatingTransfer ? 'Creando...' : 'Crear transferencia'}
+                {creatingTransfer ? 'Creando...' : `Crear transferencia · ${selectedUnitCount} unidades`}
               </button>
             </div>
           </aside>

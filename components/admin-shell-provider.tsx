@@ -36,12 +36,23 @@ export interface PendingAssignment {
   createdAt: string | null;
 }
 
+export interface CommercialAlert {
+  id: string;
+  severity: 'INFO' | 'SUCCESS' | 'WARNING' | 'CRITICAL';
+  title: string;
+  message: string;
+  percent?: number | null;
+  metadata?: { href?: string } | null;
+  lastTriggeredAt: string;
+}
+
 interface AdminShellContextValue {
   theme: AdminTheme;
   isMobile: boolean;
   isSidebarOpen: boolean;
   isSidebarCollapsed: boolean;
   pendingAssignments: PendingAssignment[];
+  commercialAlerts: CommercialAlert[];
   loadingNotifications: boolean;
   toggleTheme: () => void;
   toggleSidebar: () => void;
@@ -49,12 +60,13 @@ interface AdminShellContextValue {
   closeSidebar: () => void;
   toggleSidebarCollapsed: () => void;
   refreshPendingAssignments: () => Promise<void>;
+  dismissCommercialAlert: (id: string) => Promise<void>;
 }
 
 const AdminShellContext = createContext<AdminShellContextValue | null>(null);
 
 function normalizeTheme(value: string | null | undefined): AdminTheme {
-  return value === 'light' ? 'light' : 'dark';
+  return value === 'dark' ? 'dark' : 'light';
 }
 
 function getPendingReturnUnits(order: Record<string, unknown>): number {
@@ -130,11 +142,12 @@ function mapPendingAssignments(payload: unknown, userId: number): PendingAssignm
 
 export function AdminShellProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAdminAuth();
-  const [theme, setTheme] = useState<AdminTheme>('dark');
+  const [theme, setTheme] = useState<AdminTheme>('light');
   const [isMobile, setIsMobile] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [pendingAssignments, setPendingAssignments] = useState<PendingAssignment[]>([]);
+  const [commercialAlerts, setCommercialAlerts] = useState<CommercialAlert[]>([]);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
 
   useEffect(() => {
@@ -193,10 +206,10 @@ export function AdminShellProvider({ children }: { children: React.ReactNode }) 
         responsibleUserId: String(userId),
       });
 
-      const response = await fetch(`/api/admin/orders?${params.toString()}`, {
-        method: 'GET',
-        cache: 'no-store',
-      }).catch(() => null);
+      const [response, lifecycleResponse] = await Promise.all([
+        fetch(`/api/admin/orders?${params.toString()}`, { method: 'GET', cache: 'no-store' }).catch(() => null),
+        fetch('/api/admin/tenant/lifecycle', { method: 'GET', cache: 'no-store' }).catch(() => null),
+      ]);
 
       if (!response) {
         setPendingAssignments([]);
@@ -210,10 +223,24 @@ export function AdminShellProvider({ children }: { children: React.ReactNode }) 
       }
 
       setPendingAssignments(mapPendingAssignments(payload, userId));
+      if (lifecycleResponse?.ok) {
+        const lifecycle = await lifecycleResponse.json().catch(() => null);
+        const alerts = Array.isArray((lifecycle as { alerts?: unknown[] } | null)?.alerts)
+          ? (lifecycle as { alerts: CommercialAlert[] }).alerts
+          : [];
+        setCommercialAlerts(alerts);
+      } else {
+        setCommercialAlerts([]);
+      }
     } finally {
       setLoadingNotifications(false);
     }
   }, [user?.id]);
+
+  const dismissCommercialAlert = useCallback(async (id: string) => {
+    const response = await fetch(`/api/admin/tenant/alerts/${encodeURIComponent(id)}/dismiss`, { method: 'POST' });
+    if (response.ok) setCommercialAlerts((current) => current.filter((alert) => alert.id !== id));
+  }, []);
 
   useEffect(() => {
     refreshPendingAssignments();
@@ -311,6 +338,7 @@ export function AdminShellProvider({ children }: { children: React.ReactNode }) 
     isSidebarOpen,
     isSidebarCollapsed,
     pendingAssignments,
+    commercialAlerts,
     loadingNotifications,
     toggleTheme,
     toggleSidebar,
@@ -318,6 +346,7 @@ export function AdminShellProvider({ children }: { children: React.ReactNode }) 
     closeSidebar,
     toggleSidebarCollapsed,
     refreshPendingAssignments,
+    dismissCommercialAlert,
   }), [
     closeSidebar,
     isMobile,
@@ -326,7 +355,9 @@ export function AdminShellProvider({ children }: { children: React.ReactNode }) 
     loadingNotifications,
     openSidebar,
     pendingAssignments,
+    commercialAlerts,
     refreshPendingAssignments,
+    dismissCommercialAlert,
     theme,
     toggleSidebar,
     toggleSidebarCollapsed,

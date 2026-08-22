@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
 import { useAdminUi } from '@/components/admin-ui-provider';
+import { AdminTableEmptyState } from '@/components/admin-table-empty-state';
 import {
   InventoryReservation,
   InventoryReservationStatus,
@@ -197,6 +198,14 @@ export function AdminInventoryTraceabilityPage() {
         </div>
       </article>
 
+      <nav className="admin-card inventory-mobile-actions-next" aria-label="Acciones de trazabilidad">
+        <Link href="/admin/inventory" className="admin-ghost-btn">Volver a inventario</Link>
+        <Link href="/admin/inventory/movements" className="admin-ghost-btn">Ir a movimientos</Link>
+        <button type="button" className="admin-ghost-btn" onClick={() => loadReservations(inventoryIdFilter)}>
+          Actualizar
+        </button>
+      </nav>
+
       <article className="admin-card admin-filters-card-next inventory-filters-card">
         <fieldset className="admin-filters-fieldset-next">
           <legend className="admin-filters-legend-next">Filtros</legend>
@@ -261,7 +270,11 @@ export function AdminInventoryTraceabilityPage() {
                 </tr>
               ) : filteredReservations.length === 0 ? (
                 <tr>
-                  <td colSpan={10} data-label="Estado">No hay reservas para los filtros actuales.</td>
+                  <AdminTableEmptyState
+                    colSpan={10}
+                    title="No encontramos reservas"
+                    description="Ajusta los filtros para revisar otra tienda, estado o periodo."
+                  />
                 </tr>
               ) : (
                 filteredReservations.map((reservation) => (

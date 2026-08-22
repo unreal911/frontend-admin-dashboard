@@ -53,35 +53,38 @@ function getAlertTitle(type: AlertType): string {
 }
 
 export function AdminUiProvider({ children }: { children: React.ReactNode }) {
-  const [alert, setAlert] = useState<AdminAlert | null>(null);
+  const [alerts, setAlerts] = useState<AdminAlert[]>([]);
   const [confirmOptions, setConfirmOptions] = useState<ConfirmOptions | null>(null);
   const alertCounterRef = useRef(0);
-  const alertTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const alertTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const confirmResolverRef = useRef<((value: boolean) => void) | null>(null);
 
-  const closeAlert = useCallback(() => {
-    if (alertTimerRef.current) {
-      clearTimeout(alertTimerRef.current);
-      alertTimerRef.current = null;
+  const removeAlert = useCallback((id: string) => {
+    const timer = alertTimersRef.current.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      alertTimersRef.current.delete(id);
     }
-    setAlert(null);
+    setAlerts((current) => current.filter((alert) => alert.id !== id));
+  }, []);
+
+  const closeAlert = useCallback(() => {
+    for (const timer of alertTimersRef.current.values()) clearTimeout(timer);
+    alertTimersRef.current.clear();
+    setAlerts([]);
   }, []);
 
   const showAlert = useCallback(
     (message: string, type: AlertType = 'info', durationMs = 3000, action?: AdminAlertAction) => {
-      if (alertTimerRef.current) {
-        clearTimeout(alertTimerRef.current);
-        alertTimerRef.current = null;
-      }
-
       const id = `alert-${++alertCounterRef.current}`;
-      setAlert({ id, type, message, action });
+      setAlerts((current) => [{ id, type, message, action }, ...current]);
 
       if (durationMs > 0) {
-        alertTimerRef.current = setTimeout(() => {
-          setAlert(null);
-          alertTimerRef.current = null;
+        const timer = setTimeout(() => {
+          alertTimersRef.current.delete(id);
+          setAlerts((current) => current.filter((alert) => alert.id !== id));
         }, durationMs);
+        alertTimersRef.current.set(id, timer);
       }
     },
     [],
@@ -118,10 +121,8 @@ export function AdminUiProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     return () => {
-      if (alertTimerRef.current) {
-        clearTimeout(alertTimerRef.current);
-        alertTimerRef.current = null;
-      }
+      for (const timer of alertTimersRef.current.values()) clearTimeout(timer);
+      alertTimersRef.current.clear();
       if (confirmResolverRef.current) {
         confirmResolverRef.current(false);
         confirmResolverRef.current = null;
@@ -142,30 +143,32 @@ export function AdminUiProvider({ children }: { children: React.ReactNode }) {
     <AdminUiContext.Provider value={contextValue}>
       {children}
 
-      {alert ? (
+      {alerts.length > 0 ? (
         <div className="admin-alert-root" role="status" aria-live="polite">
-          <div className={`admin-alert admin-alert-${alert.type}`}>
-            <div className="admin-alert-body">
-              <strong>{getAlertTitle(alert.type)}</strong>
-              <p>{alert.message}</p>
-            </div>
-            {alert.action ? (
-              <button
-                type="button"
-                className="admin-alert-action"
-                onClick={() => {
-                  const handler = alert.action?.onClick;
-                  closeAlert();
-                  handler?.();
-                }}
-              >
-                {alert.action.label}
+          {alerts.map((alert) => (
+            <div className={`admin-alert admin-alert-${alert.type}`} key={alert.id}>
+              <div className="admin-alert-body">
+                <strong>{getAlertTitle(alert.type)}</strong>
+                <p>{alert.message}</p>
+              </div>
+              {alert.action ? (
+                <button
+                  type="button"
+                  className="admin-alert-action"
+                  onClick={() => {
+                    const handler = alert.action?.onClick;
+                    removeAlert(alert.id);
+                    handler?.();
+                  }}
+                >
+                  {alert.action.label}
+                </button>
+              ) : null}
+              <button type="button" className="admin-alert-close" onClick={() => removeAlert(alert.id)}>
+                Cerrar
               </button>
-            ) : null}
-            <button type="button" className="admin-alert-close" onClick={closeAlert}>
-              Cerrar
-            </button>
-          </div>
+            </div>
+          ))}
         </div>
       ) : null}
 

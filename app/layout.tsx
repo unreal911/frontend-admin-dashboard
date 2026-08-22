@@ -7,6 +7,8 @@ import './styles/04-pedidos.css';
 import './styles/05-pedidos-detalle.css';
 import './styles/06-pos.css';
 import './styles/07-fulfillment.css';
+// Contrato visual transversal. Debe permanecer al final para normalizar todos los modulos.
+import './styles/08-design-system.css';
 import { getSiteUrl } from '@/lib/seo';
 import { AdminUiProvider } from '@/components/admin-ui-provider';
 

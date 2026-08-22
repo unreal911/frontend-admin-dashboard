@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
 import { BarcodeScanButton } from '@/components/barcode-scan-button';
 import { useAdminUi } from '@/components/admin-ui-provider';
+import { AdminTableEmptyState } from '@/components/admin-table-empty-state';
 import {
   Inventory,
   InventoryMovementType,
@@ -994,6 +995,20 @@ export function AdminInventoryPage() {
         </div>
       </article>
 
+      <nav className="admin-card inventory-mobile-actions-next" aria-label="Acciones de inventario">
+        <Link href="/admin/inventory/movements" className="admin-ghost-btn">Movimientos</Link>
+        <Link href="/admin/inventory/traceability" className="admin-ghost-btn">Trazabilidad</Link>
+        <Link href="/admin/transfers" className="admin-ghost-btn">Transferencias</Link>
+        <button
+          type="button"
+          className="admin-primary-btn"
+          disabled={mismatchedCount === 0 || reconcilingReserved}
+          onClick={() => reconcileReservedStock()}
+        >
+          {reconcilingReserved ? 'Reconciliando...' : `Reconciliar (${mismatchedCount})`}
+        </button>
+      </nav>
+
       <article className={`admin-card admin-filters-card-next inventory-filters-card${showAdvancedFilters ? ' is-open' : ''}`}>
         <fieldset className="admin-filters-fieldset-next">
           <legend className="admin-filters-legend-next">Filtros</legend>
@@ -1159,7 +1174,11 @@ export function AdminInventoryPage() {
                 </tr>
               ) : inventoryRows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} data-label="Estado">No hay inventarios para los filtros actuales.</td>
+                  <AdminTableEmptyState
+                    colSpan={7}
+                    title="No encontramos inventario"
+                    description="Prueba cambiando la busqueda, la tienda o los filtros de stock."
+                  />
                 </tr>
               ) : (
                 inventoryRows.map((row, index) => {
@@ -1542,4 +1561,3 @@ export function AdminInventoryPage() {
     </section>
   );
 }
-

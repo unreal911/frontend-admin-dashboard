@@ -36,6 +36,7 @@ export async function GET() {
       Authorization: `Bearer ${token}`,
     },
     cache: 'no-store',
+    signal: AbortSignal.timeout(10_000),
   }).catch(() => null);
 
   if (!upstream) {

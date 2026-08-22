@@ -10,6 +10,7 @@ interface OrderWorkflowSettings {
   marketplacePaymentMethodIds: number[];
   marketplaceIncludeIgv: boolean;
   marketplaceAutoReserveStock: boolean;
+  marketplaceSlug: string;
   companyName: string;
   companyLegalName: string;
   companyRuc: string;
@@ -39,6 +40,7 @@ const DEFAULT_SETTINGS: OrderWorkflowSettings = {
   marketplacePaymentMethodIds: [],
   marketplaceIncludeIgv: true,
   marketplaceAutoReserveStock: false,
+  marketplaceSlug: '',
   companyName: 'B2B Marketplace',
   companyLegalName: '',
   companyRuc: '',
@@ -72,6 +74,7 @@ function normalizeSettings(payload: unknown): OrderWorkflowSettings {
     marketplacePaymentMethodIds: uniqueNumberIds(data.marketplacePaymentMethodIds),
     marketplaceIncludeIgv: data.marketplaceIncludeIgv !== false,
     marketplaceAutoReserveStock: data.marketplaceAutoReserveStock === true,
+    marketplaceSlug: normalizeText(data.marketplaceSlug),
     companyName: normalizeText(data.companyName) || 'B2B Marketplace',
     companyLegalName: normalizeText(data.companyLegalName),
     companyRuc: normalizeText(data.companyRuc),
@@ -193,6 +196,7 @@ export function AdminSettingsPage() {
       || settings.marketplacePaymentMethodsEnabled !== initialSettings.marketplacePaymentMethodsEnabled
       || settings.marketplaceIncludeIgv !== initialSettings.marketplaceIncludeIgv
       || settings.marketplaceAutoReserveStock !== initialSettings.marketplaceAutoReserveStock
+      || settings.marketplaceSlug !== initialSettings.marketplaceSlug
       || settings.companyName !== initialSettings.companyName
       || settings.companyLegalName !== initialSettings.companyLegalName
       || settings.companyRuc !== initialSettings.companyRuc
@@ -553,6 +557,25 @@ export function AdminSettingsPage() {
           </div>
           <span className="settings-pill">Marca</span>
         </div>
+
+        <label className="admin-form-field">
+          <span>Direccion publica de la tienda</span>
+          <div className="admin-toolbar-join-next">
+            <span>www.tienda.com/</span>
+            <input
+              type="text"
+              value={settings.marketplaceSlug}
+              maxLength={50}
+              placeholder="fatima"
+              disabled={loading || saving}
+              onChange={(event) => updateSetting(
+                'marketplaceSlug',
+                event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''),
+              )}
+            />
+          </div>
+          <small className="admin-field-hint">Debe ser unica. Usa letras minusculas, numeros y guiones.</small>
+        </label>
 
         <label className="admin-form-field">
           <span>Titulo principal (hero)</span>

@@ -1,8 +1,11 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
 import { useAdminUi } from '@/components/admin-ui-provider';
+import { AdminTableEmptyState } from '@/components/admin-table-empty-state';
+import { validatePasswordConfirmation } from '@/lib/password-confirmation';
 
 interface AdminRole {
   id: number;
@@ -27,6 +30,7 @@ interface UserFormState {
   lastName: string;
   email: string;
   password: string;
+  confirmPassword: string;
   roleId: number;
   isActive: boolean;
 }
@@ -36,6 +40,7 @@ const DEFAULT_FORM: UserFormState = {
   lastName: '',
   email: '',
   password: '',
+  confirmPassword: '',
   roleId: 0,
   isActive: true,
 };
@@ -130,7 +135,7 @@ export function AdminUsersPage() {
   const [roles, setRoles] = useState<AdminRole[]>([]);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
-  const [isLoadingRoles, setIsLoadingRoles] = useState(true);
+  const [, setIsLoadingRoles] = useState(true);
   const [isMutating, setIsMutating] = useState(false);
   const [searchDraft, setSearchDraft] = useState('');
   const [searchText, setSearchText] = useState('');
@@ -248,17 +253,6 @@ export function AdminUsersPage() {
     };
   }, [modalOpen, isMutating]);
 
-  function openCreateModal() {
-    setEditingUser(null);
-    const firstRoleId = roles.find((role) => role.isActive !== false)?.id || roles[0]?.id || 0;
-    setForm({
-      ...DEFAULT_FORM,
-      roleId: firstRoleId,
-    });
-    setModalError('');
-    setModalOpen(true);
-  }
-
   function openEditModal(user: AdminUser) {
     setEditingUser(user);
     setForm({
@@ -266,6 +260,7 @@ export function AdminUsersPage() {
       lastName: user.lastName,
       email: user.email,
       password: '',
+      confirmPassword: '',
       roleId: user.role.id,
       isActive: user.isActive,
     });
@@ -299,6 +294,15 @@ export function AdminUsersPage() {
     if (!editingUser && form.password.trim().length < 6) {
       return 'La contrasena debe tener minimo 6 caracteres.';
     }
+    if (!editingUser) {
+      const passwordConfirmationError = validatePasswordConfirmation(
+        form.password.trim(),
+        form.confirmPassword.trim(),
+      );
+      if (passwordConfirmationError) {
+        return passwordConfirmationError;
+      }
+    }
     return null;
   }
 
@@ -319,13 +323,15 @@ export function AdminUsersPage() {
       const isEditing = Boolean(editingUser);
       const endpoint = isEditing ? `/api/admin/users/${editingUser?.id}` : '/api/admin/users';
       const method = isEditing ? 'PUT' : 'POST';
-      const payload: Record<string, unknown> = {
-        firstName: form.firstName.trim(),
-        lastName: form.lastName.trim(),
-        email: form.email.trim(),
-        roleId: form.roleId,
-        isActive: form.isActive,
-      };
+      const payload: Record<string, unknown> = isEditing
+        ? { roleId: form.roleId, isActive: form.isActive }
+        : {
+            firstName: form.firstName.trim(),
+            lastName: form.lastName.trim(),
+            email: form.email.trim(),
+            roleId: form.roleId,
+            isActive: form.isActive,
+          };
       if (!isEditing) {
         payload.password = form.password.trim();
       }
@@ -445,9 +451,9 @@ export function AdminUsersPage() {
               <button type="button" className="admin-ghost-btn" onClick={loadUsers} disabled={isLoadingUsers}>
                 Actualizar
               </button>
-              <button type="button" className="admin-primary-btn" onClick={openCreateModal} disabled={isLoadingRoles}>
-                Agregar usuario
-              </button>
+              <Link className="admin-primary-btn" href="/admin/invitations">
+                Invitar usuario
+              </Link>
             </div>
           </form>
         </fieldset>
@@ -471,7 +477,11 @@ export function AdminUsersPage() {
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} data-label="Estado">No hay usuarios para mostrar.</td>
+                  <AdminTableEmptyState
+                    colSpan={6}
+                    title="No encontramos usuarios"
+                    description="Prueba con otra busqueda o revisa los filtros aplicados."
+                  />
                 </tr>
               ) : (
                 filteredUsers.map((user, index) => (
@@ -515,8 +525,8 @@ export function AdminUsersPage() {
           <article className="admin-modal-dialog admin-user-modal-dialog" onClick={(event) => event.stopPropagation()}>
             <header className="admin-modal-head-next">
               <div>
-                <h3>{editingUser ? 'Editar usuario' : 'Crear nuevo usuario'}</h3>
-                <p>{editingUser ? 'Actualiza los datos del usuario.' : 'Agrega un nuevo usuario al sistema.'}</p>
+                <h3>{editingUser ? 'Editar membresia' : 'Crear nuevo usuario'}</h3>
+                <p>{editingUser ? 'Actualiza el rol y acceso del usuario en esta empresa.' : 'Agrega un nuevo usuario al sistema.'}</p>
               </div>
               <button
                 type="button"
@@ -542,6 +552,7 @@ export function AdminUsersPage() {
                   <input
                     type="text"
                     value={form.firstName}
+                    disabled={Boolean(editingUser)}
                     onChange={(event) => setForm((current) => ({ ...current, firstName: event.target.value }))}
                     placeholder="Ingresa el nombre"
                   />
@@ -552,6 +563,7 @@ export function AdminUsersPage() {
                   <input
                     type="text"
                     value={form.lastName}
+                    disabled={Boolean(editingUser)}
                     onChange={(event) => setForm((current) => ({ ...current, lastName: event.target.value }))}
                     placeholder="Ingresa el apellido"
                   />
@@ -563,21 +575,35 @@ export function AdminUsersPage() {
                 <input
                   type="email"
                   value={form.email}
+                  disabled={Boolean(editingUser)}
                   onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
                   placeholder="usuario@ejemplo.com"
                 />
               </label>
 
               {!editingUser ? (
-                <label>
-                  <span>Contrasena</span>
-                  <input
-                    type="password"
-                    value={form.password}
-                    onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
-                    placeholder="Minimo 6 caracteres"
-                  />
-                </label>
+                <div className="admin-user-form-grid">
+                  <label>
+                    <span>Contrasena</span>
+                    <input
+                      type="password"
+                      autoComplete="new-password"
+                      value={form.password}
+                      onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
+                      placeholder="Minimo 6 caracteres"
+                    />
+                  </label>
+                  <label>
+                    <span>Repetir contrasena</span>
+                    <input
+                      type="password"
+                      autoComplete="new-password"
+                      value={form.confirmPassword}
+                      onChange={(event) => setForm((current) => ({ ...current, confirmPassword: event.target.value }))}
+                      placeholder="Repite la contrasena"
+                    />
+                  </label>
+                </div>
               ) : null}
 
               <div className="admin-user-form-grid">

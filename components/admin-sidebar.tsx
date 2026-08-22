@@ -2,10 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 import { useAdminAuth } from '@/components/admin-auth-provider';
 import { useAdminShell } from '@/components/admin-shell-provider';
 import {
   ADMIN_ROUTE_GROUP_ORDER,
+  ADMIN_ROUTE_GROUP_LABELS,
+  AdminRouteGroup,
   AdminRouteItem,
   buildAdminPath,
   listAdminRoutesByGroup,
@@ -21,6 +24,24 @@ function routeIcon(route: AdminRouteItem) {
         <path d="M9 9h2v8H9z" />
         <path d="M13 5h2v12h-2z" />
         <path d="M17 11h2v6h-2z" />
+      </>
+    );
+  }
+  if (slug === 'reports') {
+    return (
+      <>
+        <path d="M4 20V10" />
+        <path d="M10 20V4" />
+        <path d="M16 20v-7" />
+        <path d="M22 20H2" />
+      </>
+    );
+  }
+  if (slug === 'manual') {
+    return (
+      <>
+        <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11a2 2 0 0 1 2 2v16a2 2 0 0 0-2-2H6.5A2.5 2.5 0 0 0 4 21.5z" />
+        <path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H13v18a2 2 0 0 1 2-2h2.5a2.5 2.5 0 0 1 2.5 2.5z" />
       </>
     );
   }
@@ -92,11 +113,11 @@ function routeIcon(route: AdminRouteItem) {
   if (slug === 'orders/pos') {
     return <path d="M4 7h16 M4 12h16 M4 17h16" />;
   }
-  if (slug === 'orders/list' || slug.startsWith('orders/')) {
-    return <path d="M9 6h11 M9 12h11 M9 18h11 M3 6h.01 M3 12h.01 M3 18h.01" />;
-  }
   if (slug === 'orders/picking') {
     return <path d="M9 3H5a2 2 0 0 0-2 2v4h18V5a2 2 0 0 0-2-2h-4 M12 3V2a1 1 0 0 0-1-1h2a1 1 0 0 0-1 1v1 M6 7h12" />;
+  }
+  if (slug === 'orders/list' || slug.startsWith('orders/')) {
+    return <path d="M9 6h11 M9 12h11 M9 18h11 M3 6h.01 M3 12h.01 M3 18h.01" />;
   }
   if (slug.startsWith('sunat')) {
     return (
@@ -121,25 +142,48 @@ function routeIcon(route: AdminRouteItem) {
   return <path d="M4 12h16" />;
 }
 
+function isRouteActive(pathname: string, item: AdminRouteItem, href: string): boolean {
+  if (pathname === href) return true;
+  return item.slug === 'orders/list' && /^\/admin\/orders\/\d+$/.test(pathname);
+}
+
 export function AdminSidebar() {
   const pathname = usePathname();
-  const { hasPermission } = useAdminAuth();
+  const { hasPermission, hasFeature, user } = useAdminAuth();
+  const membershipRole = user?.membership.role;
   const {
     isMobile,
     isSidebarOpen,
     isSidebarCollapsed,
     closeSidebar,
   } = useAdminShell();
-  const routes = ADMIN_ROUTE_GROUP_ORDER
-    .flatMap((group) => listAdminRoutesByGroup(group))
-    .filter((item) => hasPermission(item.permission));
 
-  function isRouteActive(item: AdminRouteItem, href: string): boolean {
-    if (pathname === href) {
-      return true;
-    }
+  const groupedRoutes = useMemo(() => ADMIN_ROUTE_GROUP_ORDER
+    .map((group) => ({
+      group,
+      routes: listAdminRoutesByGroup(group).filter((item) => (
+        hasPermission(item.permission)
+        && hasFeature(item.feature)
+        && (!item.ownerOnly || membershipRole === 'OWNER')
+      )),
+    }))
+    .filter((section) => section.routes.length > 0), [hasFeature, hasPermission, membershipRole]);
 
-    return item.slug === 'orders/list' && /^\/admin\/orders\/\d+$/.test(pathname);
+  const activeGroup = useMemo<AdminRouteGroup>(() => {
+    const section = groupedRoutes.find(({ routes }) => routes.some((item) => isRouteActive(pathname, item, buildAdminPath(item.slug))));
+    return section?.group || 'General';
+  }, [groupedRoutes, pathname]);
+
+  const [expandedGroups, setExpandedGroups] = useState<AdminRouteGroup[]>(['General']);
+
+  useEffect(() => {
+    setExpandedGroups((current) => current.includes(activeGroup) ? current : [...current, activeGroup]);
+  }, [activeGroup]);
+
+  function toggleGroup(group: AdminRouteGroup) {
+    setExpandedGroups((current) => current.includes(group)
+      ? current.filter((item) => item !== group)
+      : [...current, group]);
   }
 
   return (
@@ -151,31 +195,52 @@ export function AdminSidebar() {
         !isMobile && isSidebarCollapsed ? 'collapsed' : '',
       ].filter(Boolean).join(' ')}
     >
-      <nav className="admin-sidebar-nav-next">
-        {routes.map((item) => {
-          const href = buildAdminPath(item.slug);
-          const active = isRouteActive(item, href);
-
-          return (
-            <Link
-              key={item.slug}
-              href={href}
-              title={item.label}
-              aria-current={active ? 'page' : undefined}
-              className={active ? 'active' : ''}
-              onClick={(event) => {
-                event.currentTarget.blur();
-                if (isMobile) {
-                  closeSidebar();
-                }
-              }}
-            >
-              <span className="admin-sidebar-icon-next" aria-hidden="true">
-                <svg viewBox="0 0 24 24">{routeIcon(item)}</svg>
-              </span>
-              <span className="admin-sidebar-label-next">{item.label}</span>
-            </Link>
-          );
+      <div className="admin-sidebar-mobile-head-next">
+        <div><strong>Menu principal</strong><span>Navega por secciones</span></div>
+        <button type="button" onClick={closeSidebar} aria-label="Cerrar menu lateral">&times;</button>
+      </div>
+      <nav className="admin-sidebar-groups" aria-label="Menu de administracion">
+        {groupedRoutes.map(({ group, routes }) => {
+          const expanded = (!isMobile && isSidebarCollapsed) || expandedGroups.includes(group);
+          return <section className={`admin-sidebar-group ${activeGroup === group ? 'has-active' : ''}`} key={group}>
+            <h3>
+              <button
+                type="button"
+                className="admin-sidebar-group-toggle-next"
+                aria-label={`Seccion ${ADMIN_ROUTE_GROUP_LABELS[group]}`}
+                title={ADMIN_ROUTE_GROUP_LABELS[group]}
+                aria-expanded={expanded}
+                aria-controls={`admin-sidebar-group-${group.toLowerCase()}`}
+                onClick={() => toggleGroup(group)}
+              >
+                <span>{ADMIN_ROUTE_GROUP_LABELS[group]}</span>
+                <small>{routes.length}</small>
+                <i aria-hidden="true">⌄</i>
+              </button>
+            </h3>
+            <div id={`admin-sidebar-group-${group.toLowerCase()}`} className="admin-sidebar-nav-next" hidden={!expanded}>
+              {routes.map((item) => {
+                const href = buildAdminPath(item.slug);
+                const active = isRouteActive(pathname, item, href);
+                return <Link
+                  key={item.slug}
+                  href={href}
+                  title={item.description}
+                  aria-current={active ? 'page' : undefined}
+                  className={active ? 'active' : ''}
+                  onClick={(event) => {
+                    event.currentTarget.blur();
+                    if (isMobile) closeSidebar();
+                  }}
+                >
+                  <span className="admin-sidebar-icon-next" aria-hidden="true">
+                    <svg viewBox="0 0 24 24">{routeIcon(item)}</svg>
+                  </span>
+                  <span className="admin-sidebar-label-next">{item.label}</span>
+                </Link>;
+              })}
+            </div>
+          </section>;
         })}
       </nav>
     </aside>

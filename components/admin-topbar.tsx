@@ -12,17 +12,21 @@ export function AdminTopbar() {
     theme,
     isMobile,
     pendingAssignments,
+    commercialAlerts,
     loadingNotifications,
+    dismissCommercialAlert,
     toggleTheme,
     toggleSidebar,
   } = useAdminShell();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
 
   useEffect(() => {
     function onEscape(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         setNotificationsOpen(false);
+        setAccountOpen(false);
       }
     }
 
@@ -30,6 +34,9 @@ export function AdminTopbar() {
       const target = event.target as HTMLElement | null;
       if (!target?.closest('.admin-notifications-next')) {
         setNotificationsOpen(false);
+      }
+      if (!target?.closest('.admin-account-next')) {
+        setAccountOpen(false);
       }
     }
 
@@ -57,6 +64,13 @@ export function AdminTopbar() {
     router.push(`/admin/orders/${orderId}`);
   }
 
+  function openCommercialAlert(href?: string) {
+    setNotificationsOpen(false);
+    router.push(href || '/admin/empresa');
+  }
+
+  const notificationCount = pendingAssignments.length + commercialAlerts.length;
+
   return (
     <header className="admin-topbar">
       <div className="admin-topbar-left-next">
@@ -75,6 +89,12 @@ export function AdminTopbar() {
         <div className="admin-navbar-title-next">Panel de Administracion</div>
       </div>
       <div className="admin-topbar-actions">
+        {user ? (
+          <div className="admin-active-tenant-next" title={`Empresa activa: ${user.tenant.name}`}>
+            <span>Empresa activa</span>
+            <strong>{user.tenant.name}</strong>
+          </div>
+        ) : null}
         <div className="admin-notifications-next">
           <button
             type="button"
@@ -91,25 +111,35 @@ export function AdminTopbar() {
                 <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5m2 0v1a1 1 0 0 0 2 0v-1m-2 0h2" />
               </svg>
             </span>
-            {pendingAssignments.length > 0 ? (
-              <span className="admin-notification-count-next">{pendingAssignments.length}</span>
+            {notificationCount > 0 ? (
+              <span className="admin-notification-count-next">{notificationCount}</span>
             ) : null}
           </button>
 
           {notificationsOpen ? (
             <div className="admin-notification-panel-next">
               <div className="admin-notification-panel-head-next">
-                <strong>Pendientes asignados</strong>
+                <strong>Notificaciones</strong>
                 <button type="button" className="admin-ghost-btn admin-notification-close-next" onClick={() => setNotificationsOpen(false)}>
                   Cerrar
                 </button>
               </div>
               {loadingNotifications ? (
                 <p className="admin-notification-empty-next">Cargando notificaciones...</p>
-              ) : pendingAssignments.length === 0 ? (
-                <p className="admin-notification-empty-next">No tienes tareas pendientes asignadas.</p>
+              ) : notificationCount === 0 ? (
+                <p className="admin-notification-empty-next">No tienes alertas ni tareas pendientes.</p>
               ) : (
                 <div className="admin-notification-list-next">
+                  {commercialAlerts.map((alert) => (
+                    <div key={alert.id} className={`admin-notification-item-next commercial-alert ${alert.severity.toLowerCase()}`}>
+                      <button type="button" className="admin-notification-alert-open" onClick={() => openCommercialAlert(alert.metadata?.href)}>
+                        <span className="admin-notification-item-title-next">{alert.title}</span>
+                        <span className="admin-notification-item-detail-next">{alert.message}</span>
+                        <span className="admin-notification-item-status-next">{alert.severity}</span>
+                      </button>
+                      <button type="button" className="admin-ghost-btn admin-btn-sm" onClick={() => dismissCommercialAlert(alert.id)}>Descartar</button>
+                    </div>
+                  ))}
                   {pendingAssignments.map((assignment) => (
                     <button
                       key={assignment.orderId}
@@ -130,27 +160,47 @@ export function AdminTopbar() {
           ) : null}
         </div>
 
-        {user ? (
-          <div className="admin-topbar-user-next">
-            <strong>{`${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email}</strong>
-            <span className="admin-topbar-role-badge-next">{user.role}</span>
-          </div>
-        ) : null}
+        <div className={`admin-account-next ${accountOpen ? 'open' : ''}`}>
+          <button
+            type="button"
+            className="admin-account-trigger-next"
+            aria-label="Abrir menú de cuenta"
+            aria-haspopup="menu"
+            aria-expanded={accountOpen}
+            onClick={(event) => {
+              event.stopPropagation();
+              setNotificationsOpen(false);
+              setAccountOpen((current) => !current);
+            }}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 12a4 4 0 1 0 0-8a4 4 0 0 0 0 8M4 21a8 8 0 0 1 16 0" />
+            </svg>
+          </button>
+          <div className="admin-account-panel-next" role={isMobile ? 'dialog' : undefined} aria-label={isMobile ? 'Cuenta y preferencias' : undefined}>
+            {user ? (
+              <div className="admin-topbar-user-next">
+                <strong>{`${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email}</strong>
+                <span className="admin-topbar-role-badge-next">{user.role}</span>
+              </div>
+            ) : null}
 
-        <button
-          type="button"
-          className="theme-toggle-next"
-          aria-label={theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
-          title={theme === 'dark' ? 'Tema oscuro' : 'Tema claro'}
-          onClick={toggleTheme}
-        >
-          <span className="theme-toggle-track-next">
-            <span className="theme-toggle-thumb-next">{theme === 'dark' ? 'Oscuro' : 'Claro'}</span>
-          </span>
-        </button>
-        <button type="button" className="admin-ghost-btn admin-navbar-logout-next" onClick={handleLogout} disabled={isLoggingOut}>
-          {isLoggingOut ? 'Cerrando...' : 'Cerrar Sesion'}
-        </button>
+            <button
+              type="button"
+              className="theme-toggle-next"
+              aria-label={theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+              title={theme === 'dark' ? 'Tema oscuro' : 'Tema claro'}
+              onClick={toggleTheme}
+            >
+              <span className="theme-toggle-track-next">
+                <span className="theme-toggle-thumb-next">{theme === 'dark' ? 'Oscuro' : 'Claro'}</span>
+              </span>
+            </button>
+            <button type="button" className="admin-ghost-btn admin-navbar-logout-next" onClick={handleLogout} disabled={isLoggingOut}>
+              {isLoggingOut ? 'Cerrando...' : 'Cerrar sesión'}
+            </button>
+          </div>
+        </div>
       </div>
     </header>
   );

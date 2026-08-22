@@ -10,6 +10,7 @@ import { useAdminUi } from '@/components/admin-ui-provider';
 import { EcommerceFulfillmentPanel } from '@/components/ecommerce-fulfillment-panel';
 import { AdminOrderReturnPanel } from '@/components/admin-order-return-panel';
 import { PickingScanPanel } from '@/components/picking-scan-panel';
+import { AdminTableEmptyState } from '@/components/admin-table-empty-state';
 import {
   AdminOrder,
   AdminOrderItem,
@@ -2591,7 +2592,11 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
             <tbody>
               {order.items.length === 0 ? (
                 <tr>
-                  <td colSpan={8}>No hay items en el pedido.</td>
+                  <AdminTableEmptyState
+                    colSpan={8}
+                    title="Este pedido no tiene productos"
+                    description="Los productos asociados al pedido apareceran en esta tabla."
+                  />
                 </tr>
               ) : (
                 order.items.map((item) => (
@@ -2855,7 +2860,11 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
                 <tbody>
                   {detailPickingGroups.length === 0 ? (
                     <tr>
-                      <td colSpan={8}>No hay items para picking.</td>
+                      <AdminTableEmptyState
+                        colSpan={8}
+                        title="No hay items para picking"
+                        description="Este pedido no tiene productos pendientes de separacion."
+                      />
                     </tr>
                   ) : (
                     detailPickingGroups.map((group) => {

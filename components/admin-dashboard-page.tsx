@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { AdminTableEmptyState } from '@/components/admin-table-empty-state';
 import {
   AdminOrder,
   AdminOrderStatus,
@@ -15,6 +16,7 @@ import {
   normalizeInventoryList,
   normalizeTransfers,
 } from '@/lib/admin-inventory-types';
+import { AdminButton, AdminNotice, AdminPageHeader } from '@/components/admin-design-system';
 
 type SalesChannel = 'POS' | 'ECOMMERCE' | 'INTERNAL';
 type StockScope = 'OUT' | 'CRITICAL' | 'LOW' | 'NORMAL' | 'CRITICAL_TOTAL';
@@ -659,17 +661,22 @@ export function AdminDashboardPage() {
     router.push(`/admin/orders/list?status=PENDING&endDate=${encodeURIComponent(cutoff.toISOString())}`);
   }
 
-  function renderTopRows(rows: TopSaleMetric[], emptyLabel: string) {
+  function renderTopRows(rows: TopSaleMetric[], emptyLabel: string, itemLabel: 'Producto' | 'Variante') {
     if (rows.length === 0) {
       return (
         <tr>
-          <td colSpan={3} data-label="Estado" className="dashboard-empty-cell-next">{emptyLabel}</td>
+          <AdminTableEmptyState
+            colSpan={3}
+            title={emptyLabel}
+            description="Los datos apareceran cuando se registren ventas en el periodo."
+            compact
+          />
         </tr>
       );
     }
     return rows.map((item) => (
       <tr key={item.label}>
-        <td data-label="Item">{item.label}</td>
+        <td data-label={itemLabel}>{item.label}</td>
         <td data-label="Cantidad">{item.quantity}</td>
         <td data-label="Total">{formatCurrency(item.total)}</td>
       </tr>
@@ -678,26 +685,24 @@ export function AdminDashboardPage() {
 
   return (
     <section className="dashboard-page-next">
-      <article className="admin-card dashboard-hero-next">
-        <div>
-          <p className="section-kicker">Panel operativo</p>
-          <h1 className="section-title">Dashboard principal</h1>
-          <p className="section-subtitle">Acciones pendientes, ventas, operacion y stock en tiempo real.</p>
-        </div>
-        <div className="dashboard-hero-actions-next">
+      <AdminPageHeader
+        eyebrow="Panel operativo"
+        title="Dashboard principal"
+        description="Acciones pendientes, ventas, operacion y stock en tiempo real."
+        actions={<div className="dashboard-hero-actions-next">
           {lastUpdated ? <span>Actualizado: {formatShortDateTime(lastUpdated)}</span> : null}
-          <button type="button" className="admin-primary-btn" disabled={loading} onClick={() => void loadDashboard()}>
+          <AdminButton type="button" loading={loading} onClick={() => void loadDashboard()}>
             {loading ? 'Actualizando...' : 'Actualizar'}
-          </button>
-        </div>
-      </article>
+          </AdminButton>
+        </div>}
+      />
 
       {loading ? (
-        <div className="admin-feedback info" role="status">{loadingMessage}</div>
+        <AdminNotice tone="info" title="Actualizando información">{loadingMessage}</AdminNotice>
       ) : null}
 
       {error ? (
-        <div className="admin-feedback error" role="alert">{error}</div>
+        <AdminNotice tone="error" title="No se pudo cargar el dashboard">{error}</AdminNotice>
       ) : null}
 
       <section className="dashboard-kpi-grid-next">
@@ -834,7 +839,12 @@ export function AdminDashboardPage() {
             <tbody>
               {metrics.salesByStore.length === 0 ? (
                 <tr>
-                  <td colSpan={4} data-label="Estado" className="dashboard-empty-cell-next">Sin ventas por tienda para hoy.</td>
+                  <AdminTableEmptyState
+                    colSpan={4}
+                    title="Sin ventas por tienda hoy"
+                    description="El resumen se actualizara cuando se registren nuevas ventas."
+                    compact
+                  />
                 </tr>
               ) : metrics.salesByStore.map((row) => (
                 <tr key={row.storeName}>
@@ -915,22 +925,22 @@ export function AdminDashboardPage() {
             <div>
               <h3>Hoy</h3>
               <div className="admin-table-wrap">
-                <table className="admin-table mobile-card-table">
+                <table className="admin-table mobile-card-table dashboard-ranking-table-next">
                   <thead>
                     <tr><th>Producto</th><th>Cant.</th><th>Total</th></tr>
                   </thead>
-                  <tbody>{renderTopRows(metrics.topProductsToday, 'Sin datos de hoy.')}</tbody>
+                  <tbody>{renderTopRows(metrics.topProductsToday, 'Sin datos de hoy.', 'Producto')}</tbody>
                 </table>
               </div>
             </div>
             <div>
               <h3>Semana</h3>
               <div className="admin-table-wrap">
-                <table className="admin-table mobile-card-table">
+                <table className="admin-table mobile-card-table dashboard-ranking-table-next">
                   <thead>
                     <tr><th>Producto</th><th>Cant.</th><th>Total</th></tr>
                   </thead>
-                  <tbody>{renderTopRows(metrics.topProductsWeek, 'Sin datos de semana.')}</tbody>
+                  <tbody>{renderTopRows(metrics.topProductsWeek, 'Sin datos de semana.', 'Producto')}</tbody>
                 </table>
               </div>
             </div>
@@ -945,22 +955,22 @@ export function AdminDashboardPage() {
             <div>
               <h3>Hoy</h3>
               <div className="admin-table-wrap">
-                <table className="admin-table mobile-card-table">
+                <table className="admin-table mobile-card-table dashboard-ranking-table-next">
                   <thead>
                     <tr><th>Variante</th><th>Cant.</th><th>Total</th></tr>
                   </thead>
-                  <tbody>{renderTopRows(metrics.topVariantsToday, 'Sin datos de hoy.')}</tbody>
+                  <tbody>{renderTopRows(metrics.topVariantsToday, 'Sin datos de hoy.', 'Variante')}</tbody>
                 </table>
               </div>
             </div>
             <div>
               <h3>Semana</h3>
               <div className="admin-table-wrap">
-                <table className="admin-table mobile-card-table">
+                <table className="admin-table mobile-card-table dashboard-ranking-table-next">
                   <thead>
                     <tr><th>Variante</th><th>Cant.</th><th>Total</th></tr>
                   </thead>
-                  <tbody>{renderTopRows(metrics.topVariantsWeek, 'Sin datos de semana.')}</tbody>
+                  <tbody>{renderTopRows(metrics.topVariantsWeek, 'Sin datos de semana.', 'Variante')}</tbody>
                 </table>
               </div>
             </div>

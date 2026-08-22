@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
 import { useAdminUi } from '@/components/admin-ui-provider';
+import { AdminTableEmptyState } from '@/components/admin-table-empty-state';
 
 interface RoleUserLite {
   id: number;
@@ -539,10 +540,10 @@ export function AdminRolesPage() {
         <div>
           <p className="section-kicker">Admin Dashboard</p>
           <h1 className="section-title">Gestion de roles</h1>
-          <p className="section-subtitle">Administra roles, estado y permisos por modulo.</p>
+          <p className="section-subtitle">Consulta los roles operativos predefinidos. Sus permisos se versionan en el backend.</p>
         </div>
-        <button type="button" className="admin-primary-btn" onClick={openCreateRoleModal}>
-          Crear rol
+        <button type="button" className="admin-primary-btn" onClick={openCreateRoleModal} disabled>
+          Roles predefinidos
         </button>
       </article>
 
@@ -597,7 +598,11 @@ export function AdminRolesPage() {
                 </tr>
               ) : filteredRoles.length === 0 ? (
                 <tr>
-                  <td colSpan={7} data-label="Estado">No hay roles para mostrar.</td>
+                  <AdminTableEmptyState
+                    colSpan={7}
+                    title="No encontramos roles"
+                    description="Prueba con otra busqueda o crea un rol para tu equipo."
+                  />
                 </tr>
               ) : (
                 filteredRoles.map((role, index) => (
@@ -614,13 +619,13 @@ export function AdminRolesPage() {
                     <td data-label="Creado">{formatRoleDate(role.createdAt)}</td>
                     <td data-label="Accion">
                       <div className="admin-table-actions">
-                        <button type="button" className="admin-ghost-btn" onClick={() => openEditRoleModal(role)}>
-                          Editar
+                        <button type="button" className="admin-ghost-btn" onClick={() => openEditRoleModal(role)} disabled>
+                          Consultar
                         </button>
-                        <button type="button" className="admin-ghost-btn" onClick={() => toggleRoleStatus(role)} disabled={isMutating}>
+                        <button type="button" className="admin-ghost-btn" onClick={() => toggleRoleStatus(role)} disabled>
                           {role.isActive === false ? 'Activar' : 'Desactivar'}
                         </button>
-                        <button type="button" className="admin-ghost-btn" onClick={() => openPermissionsModal(role)}>
+                        <button type="button" className="admin-ghost-btn" onClick={() => openPermissionsModal(role)} disabled title="Los permisos de roles predefinidos se administran desde el backend">
                           Permisos
                         </button>
                       </div>

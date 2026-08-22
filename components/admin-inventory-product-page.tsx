@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAdminUi } from '@/components/admin-ui-provider';
 import {
   Inventory,
@@ -30,6 +30,15 @@ interface MatrixCell {
   inventory: Inventory | null;
 }
 
+interface PendingMovement {
+  variantId: number;
+  inventoryId: number | null;
+  initialStock: number;
+  delta: number;
+}
+
+const QUICK_MOVEMENT_DEBOUNCE_MS = 500;
+
 function attrLabel(value?: string | null): string {
   return normalizeInventoryAttribute(value) || 'Única';
 }
@@ -50,8 +59,12 @@ export function AdminInventoryProductPage() {
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [adjustKey, setAdjustKey] = useState<string | null>(null);
   const [adjustValue, setAdjustValue] = useState(0);
+  const [pendingDeltas, setPendingDeltas] = useState<Record<string, number>>({});
   const [groupBy, setGroupBy] = useState<'color' | 'size'>('color');
   const [collapsedKeys, setCollapsedKeys] = useState<Set<number>>(new Set());
+  const pendingMovementsRef = useRef<Map<string, PendingMovement>>(new Map());
+  const movementTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const inFlightMovementKeysRef = useRef<Set<string>>(new Set());
 
   function toggleGroup(id: number) {
     setCollapsedKeys((prev) => {
@@ -104,6 +117,13 @@ export function AdminInventoryProductPage() {
       loadData();
     }
   }, [productId, loadData]);
+
+  useEffect(() => () => {
+    for (const timer of movementTimersRef.current.values()) clearTimeout(timer);
+    movementTimersRef.current.clear();
+    pendingMovementsRef.current.clear();
+    inFlightMovementKeysRef.current.clear();
+  }, []);
 
   const productName = product?.name || allItems[0]?.variant.product.name || 'Producto';
 
@@ -207,45 +227,88 @@ export function AdminInventoryProductPage() {
     return true;
   }
 
-  async function handleMove(cellKey: string, cell: MatrixCell, type: 'IN' | 'OUT') {
-    if (busyKey) {
-      return;
-    }
-    const quantity = Math.max(1, moveQty);
-    const inventory = cell.inventory;
+  function clearQueuedMovement(cellKey: string) {
+    const timer = movementTimersRef.current.get(cellKey);
+    if (timer) clearTimeout(timer);
+    movementTimersRef.current.delete(cellKey);
+    pendingMovementsRef.current.delete(cellKey);
+    setPendingDeltas((current) => {
+      if (!(cellKey in current)) return current;
+      const next = { ...current };
+      delete next[cellKey];
+      return next;
+    });
+  }
 
-    // Salida solo aplica si ya existe stock en esta tienda.
-    if (type === 'OUT') {
-      if (!inventory) {
-        return;
-      }
-      const stock = Number(inventory.stock || 0);
-      const resultStock = stock - quantity;
-      if (resultStock < 0) {
+  async function flushQueuedMovement(cellKey: string) {
+    const pending = pendingMovementsRef.current.get(cellKey);
+    movementTimersRef.current.delete(cellKey);
+    if (!pending || pending.delta === 0 || inFlightMovementKeysRef.current.has(cellKey)) return;
+
+    inFlightMovementKeysRef.current.add(cellKey);
+    setBusyKey(cellKey);
+    try {
+      if (pending.delta < 0 && pending.initialStock + pending.delta < 0) {
         const proceed = await confirm({
           title: 'Stock insuficiente',
-          message: `La salida de ${quantity} deja el stock en ${resultStock} (hay ${stock}). ¿Registrar de todas formas?`,
+          message: `La salida acumulada de ${Math.abs(pending.delta)} deja el stock en ${pending.initialStock + pending.delta} (hay ${pending.initialStock}). ¿Registrar de todas formas?`,
           acceptText: 'Registrar',
         });
-        if (!proceed) {
-          return;
-        }
+        if (!proceed) return;
       }
-    }
 
-    setBusyKey(cellKey);
-    const ok = await postMovement(cell.variantId, type, quantity, type === 'IN' ? 'Ingreso rapido' : 'Salida rapida');
-    if (ok) {
-      if (inventory) {
-        applyStockDelta(inventory.id, type === 'IN' ? quantity : -quantity);
+      const type: 'IN' | 'OUT' = pending.delta > 0 ? 'IN' : 'OUT';
+      const quantity = Math.abs(pending.delta);
+      const ok = await postMovement(
+        pending.variantId,
+        type,
+        quantity,
+        type === 'IN' ? 'Ingreso rapido acumulado' : 'Salida rapida acumulada',
+      );
+      if (!ok) return;
+
+      if (pending.inventoryId) {
+        applyStockDelta(pending.inventoryId, pending.delta);
       } else {
-        // Primer ingreso de una variante: el backend crea el inventario; recargar
-        // para obtener el registro nuevo (id/stock).
+        // El primer lote crea el inventario y necesitamos su identificador.
         await loadData();
       }
       showAlert(`${type === 'IN' ? 'Ingreso' : 'Salida'} de ${quantity} registrado.`, 'success');
+    } finally {
+      clearQueuedMovement(cellKey);
+      inFlightMovementKeysRef.current.delete(cellKey);
+      setBusyKey((current) => current === cellKey ? null : current);
     }
-    setBusyKey(null);
+  }
+
+  function queueMovement(cellKey: string, cell: MatrixCell, type: 'IN' | 'OUT') {
+    if (inFlightMovementKeysRef.current.has(cellKey)) return;
+    if (type === 'OUT' && !cell.inventory) return;
+
+    const step = Math.max(1, moveQty) * (type === 'IN' ? 1 : -1);
+    const current = pendingMovementsRef.current.get(cellKey);
+    const next: PendingMovement = current
+      ? { ...current, delta: current.delta + step }
+      : {
+          variantId: cell.variantId,
+          inventoryId: cell.inventory?.id ?? null,
+          initialStock: Number(cell.inventory?.stock || 0),
+          delta: step,
+        };
+
+    const previousTimer = movementTimersRef.current.get(cellKey);
+    if (previousTimer) clearTimeout(previousTimer);
+    if (next.delta === 0) {
+      clearQueuedMovement(cellKey);
+      return;
+    }
+
+    pendingMovementsRef.current.set(cellKey, next);
+    setPendingDeltas((values) => ({ ...values, [cellKey]: next.delta }));
+    const timer = setTimeout(() => {
+      void flushQueuedMovement(cellKey);
+    }, QUICK_MOVEMENT_DEBOUNCE_MS);
+    movementTimersRef.current.set(cellKey, timer);
   }
 
   function openAdjust(cellKey: string, cell: MatrixCell) {
@@ -401,7 +464,8 @@ export function AdminInventoryProductPage() {
                     const busy = busyKey === cellKey;
                     const editing = adjustKey === cellKey;
                     const inventory = cell.inventory;
-                    const available = inventory ? computeAvailableStock(inventory) : 0;
+                    const pendingDelta = pendingDeltas[cellKey] || 0;
+                    const available = (inventory ? computeAvailableStock(inventory) : 0) + pendingDelta;
 
                     return (
                       <div className={`inv-mtx-size-row${inventory ? '' : ' is-new'}`} key={cellKey}>
@@ -418,7 +482,7 @@ export function AdminInventoryProductPage() {
                               className="inventory-matrix-btn income inventory-matrix-btn-wide"
                               disabled={busy}
                               title="Primer ingreso"
-                              onClick={() => handleMove(cellKey, cell, 'IN')}
+                              onClick={() => queueMovement(cellKey, cell, 'IN')}
                             >
                               Ingresar +{moveQty}
                             </button>
@@ -439,9 +503,9 @@ export function AdminInventoryProductPage() {
                           </div>
                         ) : (
                           <div className="inv-mtx-size-actions">
-                            <button type="button" className="inventory-matrix-btn income" disabled={busy} title="Ingreso" onClick={() => handleMove(cellKey, cell, 'IN')}>+{moveQty}</button>
-                            <button type="button" className="inventory-matrix-btn outcome" disabled={busy} title="Salida" onClick={() => handleMove(cellKey, cell, 'OUT')}>−{moveQty}</button>
-                            <button type="button" className="inventory-matrix-btn adjust" disabled={busy} title="Ajustar conteo" onClick={() => openAdjust(cellKey, cell)}>Aj</button>
+                            <button type="button" className="inventory-matrix-btn income" disabled={busy} title="Ingreso" onClick={() => queueMovement(cellKey, cell, 'IN')}>+{moveQty}</button>
+                            <button type="button" className="inventory-matrix-btn outcome" disabled={busy} title="Salida" onClick={() => queueMovement(cellKey, cell, 'OUT')}>−{moveQty}</button>
+                            <button type="button" className="inventory-matrix-btn adjust" disabled={busy || pendingDelta !== 0} title="Ajustar conteo" onClick={() => openAdjust(cellKey, cell)}>Aj</button>
                           </div>
                         )}
                       </div>
