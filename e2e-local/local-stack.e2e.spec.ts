@@ -25,7 +25,7 @@ test('autentica el admin y carga marketplace y Mailpit reales', async ({ page })
   });
 
   await page.goto('http://127.0.0.1:3003/marketplace');
-  await expect(page.getByRole('heading', { name: /Encuentra polos por color y talla/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Descubre nuestro catalogo/i })).toBeVisible();
   await expect(page.locator('.product-card')).toHaveCount(7);
   await page.screenshot({
     path: path.join(artifactsDir, 'local-marketplace.png'),

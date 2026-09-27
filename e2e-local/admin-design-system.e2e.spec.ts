@@ -288,7 +288,7 @@ const compactTitleRoutes = [
   '/admin/stores',
   '/admin/orders/list',
   '/admin/orders/pos',
-  '/admin/orders/picking',
+  '/admin/orders/list?view=preparation',
   '/admin/sunat',
   '/admin/sunat/comprobantes',
   '/admin/sunat/configuracion',

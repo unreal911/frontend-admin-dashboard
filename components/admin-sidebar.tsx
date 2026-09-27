@@ -81,6 +81,9 @@ function routeIcon(route: AdminRouteItem) {
       </>
     );
   }
+  if (slug === 'store/appearance') {
+    return <path d="M12 3a9 9 0 1 0 0 18h1.5a1.5 1.5 0 0 0 0-3H12a2 2 0 0 1 0-4h5a4 4 0 0 0 0-8h-1 M7.5 10h.01 M9.5 6.5h.01 M14 6h.01" />;
+  }
   if (slug === 'stores') {
     return (
       <>
@@ -112,6 +115,9 @@ function routeIcon(route: AdminRouteItem) {
   }
   if (slug === 'orders/pos') {
     return <path d="M4 7h16 M4 12h16 M4 17h16" />;
+  }
+  if (slug === 'tasks') {
+    return <path d="M9 11l3 3L22 4 M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />;
   }
   if (slug === 'orders/picking') {
     return <path d="M9 3H5a2 2 0 0 0-2 2v4h18V5a2 2 0 0 0-2-2h-4 M12 3V2a1 1 0 0 0-1-1h2a1 1 0 0 0-1 1v1 M6 7h12" />;

@@ -11,7 +11,6 @@ import {
 } from 'react';
 import {
   buildVariantPayload,
-  extractPublicIdFromUrl,
   fileToBase64,
   parseVariantMode,
   toNumber,
@@ -23,7 +22,12 @@ import { AdminSelect } from '@/components/admin-select';
 
 export type ProductVariantMode = 'MATRIX' | 'SIMPLE' | 'SIZE_ONLY';
 
-const PRODUCT_WIZARD_STEPS = ['Datos', 'Variantes', 'Imagenes', 'Precios'] as const;
+const PRODUCT_WIZARD_STEPS = [
+  { label: 'Datos', title: 'Identificacion del producto', help: 'Nombre, categoria e impuestos.' },
+  { label: 'Variantes', title: 'Como se vende', help: 'Define si es unico o si varia por color y talla.' },
+  { label: 'Fotos', title: 'Presentacion comercial', help: 'Carga la foto principal y las imagenes por variante.' },
+  { label: 'Venta', title: 'Precio e identificadores', help: 'Completa precio, SKU y codigo de barras antes de guardar.' },
+] as const;
 
 export interface AdminCategoryOption {
   id: number;
@@ -44,6 +48,7 @@ export interface AdminSizeOption {
 export interface AdminProductVariant {
   id?: number;
   sku?: string;
+  barcode?: string | null;
   colorId: number;
   sizeId: number;
   price: number;
@@ -71,6 +76,7 @@ export interface AdminProductDetail {
 interface ProductVariantForm {
   id?: number;
   sku?: string;
+  barcode?: string;
   colorId: number;
   sizeId: number;
   price: number;
@@ -84,7 +90,11 @@ interface ProductImageForm {
   file?: File;
   preview: string;
   url?: string;
-  publicId?: string;
+}
+
+interface RemovedProductImage {
+  image: ProductImageForm;
+  index: number;
 }
 
 interface MarketplaceColorImageForm {
@@ -174,7 +184,8 @@ export function AdminProductModal({
   const [formMessage, setFormMessage] = useState('');
   const [fieldErrors, setFieldErrors] = useState<ProductModalFieldErrors>({});
   const [isGeneratingVariants, setIsGeneratingVariants] = useState(false);
-  const [deletingImageIndex, setDeletingImageIndex] = useState<number | null>(null);
+  const [removedProductImage, setRemovedProductImage] = useState<RemovedProductImage | null>(null);
+  const [previewImage, setPreviewImage] = useState<ProductImageForm | null>(null);
   const [step, setStep] = useState(0);
   const [showCombosDetail, setShowCombosDetail] = useState(false);
   const [collapsedColorGroups, setCollapsedColorGroups] = useState<number[]>([]);
@@ -189,6 +200,17 @@ export function AdminProductModal({
   const isFormVisible = open || isPage;
   const isSimpleMode = variantMode === 'SIMPLE';
   const isSizeOnlyMode = variantMode === 'SIZE_ONLY';
+  const expectedVariantCount = isSimpleMode
+    ? 1
+    : isSizeOnlyMode
+      ? selectedSizeIds.length
+      : selectedColorIds.length * selectedSizeIds.length;
+  const selectedCategoryName = categories.find((category) => category.id === categoryId)?.name || 'Sin categoria';
+  const selectedModeLabel = isSimpleMode
+    ? 'Producto unico'
+    : isSizeOnlyMode
+      ? 'Por talla'
+      : 'Color y talla';
 
   useEffect(() => {
     if (!isFormVisible) {
@@ -198,7 +220,8 @@ export function AdminProductModal({
     setFormError('');
     setFormMessage('');
     setFieldErrors({});
-    setDeletingImageIndex(null);
+    setRemovedProductImage(null);
+    setPreviewImage(null);
     setIsGeneratingVariants(false);
     setStep(0);
 
@@ -257,6 +280,7 @@ export function AdminProductModal({
       setVariants(firstVariant ? [{
         id: toPositiveNumber(firstVariant.id) || undefined,
         sku: String(firstVariant.sku || '') || undefined,
+        barcode: String(firstVariant.barcode || '') || undefined,
         colorId: toNumber(firstVariant.colorId),
         sizeId: toNumber(firstVariant.sizeId),
         price: toNumber(firstVariant.price),
@@ -278,6 +302,7 @@ export function AdminProductModal({
         productVariants.map((variant) => ({
           id: toPositiveNumber(variant.id) || undefined,
           sku: String(variant.sku || '') || undefined,
+          barcode: String(variant.barcode || '') || undefined,
           colorId: 0,
           sizeId: toPositiveNumber(variant.sizeId),
           price: toNumber(variant.price),
@@ -298,6 +323,7 @@ export function AdminProductModal({
         productVariants.map((variant) => ({
           id: toPositiveNumber(variant.id) || undefined,
           sku: String(variant.sku || '') || undefined,
+          barcode: String(variant.barcode || '') || undefined,
           colorId: toPositiveNumber(variant.colorId),
           sizeId: toPositiveNumber(variant.sizeId),
           price: toNumber(variant.price),
@@ -321,7 +347,6 @@ export function AdminProductModal({
           return {
             preview: url,
             url,
-            publicId: extractPublicIdFromUrl(url),
           } as ProductImageForm;
         })
         .filter((image): image is ProductImageForm => Boolean(image)),
@@ -432,6 +457,20 @@ export function AdminProductModal({
     };
   }, [open, isPage, isSubmitting, onClose]);
 
+  useEffect(() => {
+    if (!previewImage) {
+      return;
+    }
+    function closePreview(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        event.stopPropagation();
+        setPreviewImage(null);
+      }
+    }
+    window.addEventListener('keydown', closePreview, true);
+    return () => window.removeEventListener('keydown', closePreview, true);
+  }, [previewImage]);
+
   const availableColorRows = useMemo(() => {
     return colors.map((color) => ({
       id: color.id,
@@ -506,6 +545,17 @@ export function AdminProductModal({
       next[index] = {
         ...next[index],
         isActive: checked,
+      };
+      return next;
+    });
+  }
+
+  function onVariantIdentifierChange(index: number, field: 'sku' | 'barcode', value: string) {
+    setVariants((current) => {
+      const next = [...current];
+      next[index] = {
+        ...next[index],
+        [field]: value,
       };
       return next;
     });
@@ -757,44 +807,87 @@ export function AdminProductModal({
     if (!files.length) {
       return;
     }
-    const nextItems = files.map((file) => ({
+    const currentFiles = new Set(productImages
+      .filter((image) => image.file)
+      .map((image) => `${image.file?.name}-${image.file?.size}-${image.file?.lastModified}`));
+    const uniqueFiles = files.filter((file) => !currentFiles.has(`${file.name}-${file.size}-${file.lastModified}`));
+    const nextItems = uniqueFiles.map((file) => ({
       file,
       preview: URL.createObjectURL(file),
     }));
     setProductImages((current) => [...current, ...nextItems]);
+    setRemovedProductImage(null);
+    if (uniqueFiles.length < files.length) {
+      setFormMessage('Las fotos repetidas se omitieron.');
+    } else {
+      setFormMessage(`${uniqueFiles.length} ${uniqueFiles.length === 1 ? 'foto agregada' : 'fotos agregadas'}.`);
+    }
     event.target.value = '';
   }
 
-  async function removeProductImage(index: number) {
+  function replaceProductImage(index: number, event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+    const preview = URL.createObjectURL(file);
+    setProductImages((current) => current.map((image, imageIndex) => (
+      imageIndex === index
+        ? { file, preview }
+        : image
+    )));
+    setRemovedProductImage(null);
+    setFormMessage('Foto reemplazada. Guarda el producto para aplicar el cambio.');
+    event.target.value = '';
+  }
+
+  function moveProductImage(index: number, direction: -1 | 1) {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= productImages.length) {
+      return;
+    }
+    setProductImages((current) => {
+      const next = [...current];
+      [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+      return next;
+    });
+    setRemovedProductImage(null);
+    setFormMessage(targetIndex === 0 ? 'Nueva foto de portada seleccionada.' : 'Orden de fotos actualizado.');
+  }
+
+  function removeProductImage(index: number) {
     const image = productImages[index];
     if (!image) {
       return;
     }
     setFormError('');
-    setFormMessage('');
-    setDeletingImageIndex(index);
-
-    if (image.publicId) {
-      try {
-        const response = await fetch(`/api/admin/products/image/${encodeURIComponent(image.publicId)}`, {
-          method: 'DELETE',
-        });
-        const payload = await response.json().catch(() => null);
-        if (!response.ok) {
-          setFormError(String((payload as { message?: unknown } | null)?.message || 'No se pudo eliminar la imagen.'));
-          setDeletingImageIndex(null);
-          return;
-        }
-        setFormMessage('Imagen eliminada.');
-      } catch {
-        setFormError('No se pudo eliminar la imagen.');
-        setDeletingImageIndex(null);
-        return;
-      }
-    }
-
+    setFormMessage('Foto quitada de la galeria. El cambio se aplicara al guardar.');
+    setRemovedProductImage({ image, index });
     setProductImages((current) => current.filter((_, idx) => idx !== index));
-    setDeletingImageIndex(null);
+  }
+
+  function undoRemoveProductImage() {
+    if (!removedProductImage) {
+      return;
+    }
+    setProductImages((current) => {
+      const next = [...current];
+      next.splice(Math.min(removedProductImage.index, next.length), 0, removedProductImage.image);
+      return next;
+    });
+    setRemovedProductImage(null);
+    setFormMessage('Foto restaurada.');
+  }
+
+  function productImageMeta(image: ProductImageForm): string {
+    if (!image.file) {
+      return 'Imagen guardada';
+    }
+    const megabytes = image.file.size / (1024 * 1024);
+    const size = megabytes >= 1
+      ? `${megabytes.toFixed(1)} MB`
+      : `${Math.max(1, Math.round(image.file.size / 1024))} KB`;
+    return `Foto nueva · ${size}`;
   }
 
   function handleVariantModeChange(mode: ProductVariantMode) {
@@ -842,16 +935,19 @@ export function AdminProductModal({
     setVariants([]);
   }
 
-  async function buildImageFilesPayload() {
-    const result: Array<{ filename: string; data: string }> = [];
+  async function buildOrderedImagesPayload() {
+    const result: Array<Record<string, unknown>> = [];
     for (const image of productImages) {
-      if (!image.file) {
-        continue;
+      if (image.file) {
+        result.push({
+          imageFile: {
+            filename: image.file.name,
+            data: await fileToBase64(image.file),
+          },
+        });
+      } else if (image.url) {
+        result.push({ url: image.url });
       }
-      result.push({
-        filename: image.file.name,
-        data: await fileToBase64(image.file),
-      });
     }
     return result;
   }
@@ -1005,8 +1101,7 @@ export function AdminProductModal({
     }
 
     const shouldPersistMarketplaceDimensions = isSimpleMode && marketplaceVariantsEnabled && effectiveMarketplaceVariants.length > 0;
-    const imageUrls = productImages.filter((image) => image.url).map((image) => image.url as string);
-    const imageFiles = await buildImageFilesPayload();
+    const orderedImages = await buildOrderedImagesPayload();
     const payloadVariants = await buildVariantPayload(variants, variantMode);
     const marketplaceColorImagesPayload = shouldPersistMarketplaceDimensions
       ? await buildMarketplaceColorImagesPayload()
@@ -1017,23 +1112,19 @@ export function AdminProductModal({
       description: normalizedDescription,
       categoryId: normalizedCategoryId,
       afectacionIgv,
+      isActive,
       variantMode,
       colorIds: variantMode === 'MATRIX' || shouldPersistMarketplaceDimensions ? normalizedMarketplaceColorIds : [],
       sizeIds: isSimpleMode && !shouldPersistMarketplaceDimensions ? [] : normalizedMarketplaceSizeIds,
-      imageUrls,
+      orderedImages,
       variants: payloadVariants,
     };
-
-    if (imageFiles.length) {
-      commonPayload.imageFiles = imageFiles;
-    }
 
     if (shouldPersistMarketplaceDimensions) {
       commonPayload.marketplaceColorImages = marketplaceColorImagesPayload;
     }
 
     if (isEditing && product?.id) {
-      commonPayload.isActive = isActive;
       try {
         await onSubmit({
           mode: 'edit',
@@ -1079,17 +1170,6 @@ export function AdminProductModal({
     return String(image?.imagePreview || image?.imageUrl || '').trim();
   }
 
-  function getMarketplaceColorImageLabel(colorId: number): string {
-    const image = marketplaceColorImages.find((item) => item.colorId === colorId);
-    if (image?.imageFile?.name) {
-      return image.imageFile.name;
-    }
-    if (image?.imageUrl) {
-      return 'Imagen guardada';
-    }
-    return 'Sin imagen seleccionada';
-  }
-
   function getVariantGroupPreview(groupType: 'color' | 'size', groupId: number): string {
     const groupImage = variantGroupImages.find((image) => image.groupType === groupType && image.groupId === groupId);
     const groupPreview = String(groupImage?.imagePreview || groupImage?.imageUrl || '').trim();
@@ -1113,6 +1193,44 @@ export function AdminProductModal({
       const scroller = formRef.current?.closest('.admin-product-modal-dialog, .admin-product-form-card, .admin-product-page-shell');
       scroller?.scrollTo?.({ top: 0, behavior: 'smooth' });
     }, 0);
+  }
+
+  function advanceStep() {
+    if (step === 0) {
+      const errors: ProductModalFieldErrors = {};
+      if (String(name || '').trim().length < 3) {
+        errors.name = 'El nombre debe tener al menos 3 caracteres.';
+      }
+      if (!categoryId) {
+        errors.category = 'Selecciona una categoria valida.';
+      }
+      if (Object.keys(errors).length) {
+        setFieldErrors((current) => ({ ...current, ...errors }));
+        setFormError('Completa los datos esenciales para continuar.');
+        focusInvalidControl(errors, -1);
+        return;
+      }
+    }
+
+    if (step === 1) {
+      if (!variants.length) {
+        const message = isSimpleMode
+          ? 'No se pudo preparar la presentacion unica.'
+          : 'Selecciona las opciones y genera las variantes para continuar.';
+        setFieldErrors((current) => ({ ...current, variants: message }));
+        setFormError(message);
+        generateVariantsButtonRef.current?.focus();
+        return;
+      }
+      if (isSimpleMode && marketplaceVariantsEnabled && (!selectedColorIds.length || !selectedSizeIds.length)) {
+        const message = 'Selecciona al menos un color y una talla para el marketplace.';
+        setFieldErrors((current) => ({ ...current, marketplaceVariants: message }));
+        setFormError(message);
+        return;
+      }
+    }
+
+    goStep(step + 1);
   }
 
   function renderOptionChips(kind: 'color' | 'size') {
@@ -1212,32 +1330,75 @@ export function AdminProductModal({
     clearFieldError('variantPrices');
   }
 
-  function renderPriceCells(variant: ProductVariantForm, index: number) {
+  function renderVariantSalesCard(variant: ProductVariantForm, index: number, label: string) {
     return (
-      <>
-        <td>
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            value={toNumber(variant.price)}
-            data-variant-price-index={index}
-            className={fieldErrors.variantPrices && toNumber(variant.price) <= 0 ? 'admin-field-invalid' : undefined}
-            aria-invalid={Boolean(fieldErrors.variantPrices && toNumber(variant.price) <= 0)}
-            onChange={(event) => {
-              onVariantPriceChange(index, event.target.value);
-              clearFieldError('variantPrices');
-            }}
-          />
-        </td>
-        <td>
-          <input
-            type="checkbox"
-            checked={variant.isActive !== false}
-            onChange={(event) => onVariantActiveChange(index, event.target.checked)}
-          />
-        </td>
-      </>
+      <article className="admin-variant-sales-card">
+        <div className="admin-variant-sales-card-head">
+          <strong>{label}</strong>
+          <label className="admin-variant-active-toggle">
+            <input
+              type="checkbox"
+              checked={variant.isActive !== false}
+              onChange={(event) => onVariantActiveChange(index, event.target.checked)}
+            />
+            <span>{variant.isActive !== false ? 'Activa' : 'Inactiva'}</span>
+          </label>
+        </div>
+        <div className="admin-variant-sales-fields">
+          <label>
+            <span>Precio de venta *</span>
+            <div className="admin-money-input">
+              <span>S/</span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                inputMode="decimal"
+                value={toNumber(variant.price)}
+                data-variant-price-index={index}
+                className={fieldErrors.variantPrices && toNumber(variant.price) <= 0 ? 'admin-field-invalid' : undefined}
+                aria-invalid={Boolean(fieldErrors.variantPrices && toNumber(variant.price) <= 0)}
+                onChange={(event) => {
+                  onVariantPriceChange(index, event.target.value);
+                  clearFieldError('variantPrices');
+                }}
+              />
+            </div>
+          </label>
+          <label>
+            <span>SKU interno</span>
+            <input
+              type="text"
+              inputMode="text"
+              autoCapitalize="characters"
+              maxLength={64}
+              value={variant.sku || ''}
+              placeholder="Se genera automaticamente"
+              onChange={(event) => onVariantIdentifierChange(index, 'sku', event.target.value)}
+            />
+          </label>
+          <label>
+            <span>Codigo de barras</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={128}
+              value={variant.barcode || ''}
+              placeholder="Escanea o escribe EAN/UPC"
+              onChange={(event) => onVariantIdentifierChange(index, 'barcode', event.target.value)}
+            />
+          </label>
+        </div>
+      </article>
+    );
+  }
+
+  function renderSimpleSalesEditor(variant: ProductVariantForm) {
+    return (
+      <div className="admin-simple-price">
+        {renderVariantSalesCard(variant, 0, 'Producto unico')}
+        <p className="admin-field-hint">Deja el SKU vacio para que el sistema genere uno estable. El codigo de barras es opcional.</p>
+      </div>
     );
   }
 
@@ -1291,24 +1452,12 @@ export function AdminProductModal({
                   </div>
                 </header>
                 {!collapsed ? (
-                  <div className="admin-table-wrap">
-                    <table className="admin-table admin-table-sm admin-variant-group-table">
-                      <thead>
-                        <tr>
-                          <th>Talla</th>
-                          <th>Precio</th>
-                          <th>Activo</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {group.items.map(({ variant, index }) => (
-                          <tr key={index}>
-                            <td>{getSizeName(variant.sizeId)}</td>
-                            {renderPriceCells(variant, index)}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div className="admin-variant-sales-grid">
+                    {group.items.map(({ variant, index }) => (
+                      <div key={index} className="admin-variant-sales-grid-item">
+                        {renderVariantSalesCard(variant, index, `Talla ${getSizeName(variant.sizeId)}`)}
+                      </div>
+                    ))}
                   </div>
                 ) : null}
               </section>
@@ -1321,56 +1470,17 @@ export function AdminProductModal({
     // SIMPLE: producto unico => un solo precio, sin tabla
     if (isSimpleMode) {
       const variant = variants[0];
-      return (
-        <div className="admin-simple-price">
-          <label className="admin-field-block admin-simple-price-field">
-            <span>Precio</span>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={toNumber(variant.price)}
-              data-variant-price-index={0}
-              className={fieldErrors.variantPrices && toNumber(variant.price) <= 0 ? 'admin-field-invalid' : undefined}
-              aria-invalid={Boolean(fieldErrors.variantPrices && toNumber(variant.price) <= 0)}
-              onChange={(event) => {
-                onVariantPriceChange(0, event.target.value);
-                clearFieldError('variantPrices');
-              }}
-            />
-          </label>
-          <label className="admin-checkbox">
-            <input
-              type="checkbox"
-              checked={variant.isActive !== false}
-              onChange={(event) => onVariantActiveChange(0, event.target.checked)}
-            />
-            Variante activa
-          </label>
-        </div>
-      );
+      return renderSimpleSalesEditor(variant);
     }
 
     // SIZE_ONLY: tabla compacta Talla/Precio/Activo (sin scroll horizontal)
     return (
-      <div className="admin-table-wrap">
-        <table className="admin-table admin-table-sm admin-variant-group-table">
-          <thead>
-            <tr>
-              <th>Talla</th>
-              <th>Precio</th>
-              <th>Activo</th>
-            </tr>
-          </thead>
-          <tbody>
-            {variants.map((variant, index) => (
-              <tr key={`${variant.sizeId}-${index}`}>
-                <td>{getSizeName(variant.sizeId)}</td>
-                {renderPriceCells(variant, index)}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="admin-variant-sales-grid">
+        {variants.map((variant, index) => (
+          <div key={`${variant.sizeId}-${index}`} className="admin-variant-sales-grid-item">
+            {renderVariantSalesCard(variant, index, `Talla ${getSizeName(variant.sizeId)}`)}
+          </div>
+        ))}
       </div>
     );
   }
@@ -1426,9 +1536,9 @@ export function AdminProductModal({
 
         <form ref={formRef} className="admin-modal-form admin-product-modal-form" onSubmit={handleSubmit} onKeyDown={onFormKeyDown}>
           <div className="admin-product-wizard-steps" role="tablist" aria-label="Pasos del formulario">
-            {PRODUCT_WIZARD_STEPS.map((label, index) => (
+            {PRODUCT_WIZARD_STEPS.map((item, index) => (
               <button
-                key={label}
+                key={item.label}
                 type="button"
                 role="tab"
                 aria-selected={step === index}
@@ -1436,10 +1546,18 @@ export function AdminProductModal({
                 onClick={() => goStep(index)}
               >
                 <span className="admin-product-wizard-step-num">{index + 1}</span>
-                <span className="admin-product-wizard-step-label">{label}</span>
+                <span className="admin-product-wizard-step-label">{item.label}</span>
               </button>
             ))}
           </div>
+
+          <header className="admin-product-step-head">
+            <span>{String(step + 1).padStart(2, '0')}</span>
+            <div>
+              <h4>{PRODUCT_WIZARD_STEPS[step].title}</h4>
+              <p>{PRODUCT_WIZARD_STEPS[step].help}</p>
+            </div>
+          </header>
 
           <div className="admin-wizard-panel" hidden={step !== 0}>
           <div className="admin-product-basic-grid">
@@ -1523,32 +1641,45 @@ export function AdminProductModal({
           <div className="admin-wizard-panel" hidden={step !== 1}>
           <section className="admin-product-mode-box">
             <h4>Tipo de producto</h4>
-            <label className="admin-checkbox">
+            <p className="admin-product-mode-help">Elige la estructura que usaras para vender y controlar el inventario.</p>
+            <label className={`admin-product-mode-card${variantMode === 'MATRIX' ? ' is-selected' : ''}`}>
               <input
                 type="radio"
                 name="variant-mode"
                 checked={variantMode === 'MATRIX'}
                 onChange={() => handleVariantModeChange('MATRIX')}
               />
-              Con variantes (color y talla)
+              <span className="admin-product-mode-icon" aria-hidden="true">▦</span>
+              <span>
+                <strong>Color y talla</strong>
+                <small>Ropa, calzado y productos con combinaciones.</small>
+              </span>
             </label>
-            <label className="admin-checkbox">
+            <label className={`admin-product-mode-card${variantMode === 'SIMPLE' ? ' is-selected' : ''}`}>
               <input
                 type="radio"
                 name="variant-mode"
                 checked={variantMode === 'SIMPLE'}
                 onChange={() => handleVariantModeChange('SIMPLE')}
               />
-              Producto unico (sin color/talla)
+              <span className="admin-product-mode-icon" aria-hidden="true">□</span>
+              <span>
+                <strong>Producto unico</strong>
+                <small>Una sola presentacion, precio y codigo.</small>
+              </span>
             </label>
-            <label className="admin-checkbox">
+            <label className={`admin-product-mode-card${variantMode === 'SIZE_ONLY' ? ' is-selected' : ''}`}>
               <input
                 type="radio"
                 name="variant-mode"
                 checked={variantMode === 'SIZE_ONLY'}
                 onChange={() => handleVariantModeChange('SIZE_ONLY')}
               />
-              Producto unico con talla (sin color)
+              <span className="admin-product-mode-icon" aria-hidden="true">↕</span>
+              <span>
+                <strong>Solo por talla</strong>
+                <small>Un mismo producto disponible en varias tallas.</small>
+              </span>
             </label>
           </section>
 
@@ -1667,7 +1798,9 @@ export function AdminProductModal({
                 onClick={generateVariants}
                 disabled={isGeneratingVariants || isSubmitting}
               >
-                {isGeneratingVariants ? 'Generando...' : isSizeOnlyMode ? 'Generar por talla' : 'Generar variantes'}
+                {isGeneratingVariants
+                  ? 'Generando...'
+                  : `Generar ${expectedVariantCount || ''} ${expectedVariantCount === 1 ? 'variante' : 'variantes'}`.replace('  ', ' ')}
               </button>
             </div>
           ) : null}
@@ -1680,26 +1813,82 @@ export function AdminProductModal({
 
           <div className="admin-wizard-panel" hidden={step !== 2}>
           <section className="admin-product-select-box">
-            <h5>Imagenes del producto</h5>
-            <input type="file" accept="image/*" multiple onChange={onProductImagesChange} />
+            <div className="admin-product-images-head">
+              <div>
+                <h5>Imagenes del producto</h5>
+                <p>La primera foto sera la portada. Recomendado: formato vertical 4:5 y fondo limpio.</p>
+              </div>
+              <span>{productImages.length} {productImages.length === 1 ? 'foto' : 'fotos'}</span>
+            </div>
+            <label className="admin-product-upload-zone">
+              <input type="file" accept="image/*" multiple onChange={onProductImagesChange} />
+              <span className="admin-product-upload-icon" aria-hidden="true">＋</span>
+              <span>
+                <strong>Agregar fotos</strong>
+                <small>Galeria o camara · puedes seleccionar varias a la vez.</small>
+              </span>
+            </label>
             {productImages.length ? (
               <div className="admin-product-image-grid">
                 {productImages.map((image, index) => (
                   <article key={`${image.preview}-${index}`} className="admin-product-image-card">
-                    <img src={image.preview} alt="Imagen de producto" />
-                    <div>
-                      <span>{image.file?.name || image.url || 'Imagen existente'}</span>
+                    <div className="admin-product-image-frame">
                       <button
                         type="button"
-                        className="admin-ghost-btn"
-                        disabled={deletingImageIndex === index || isSubmitting}
+                        className="admin-product-image-preview-btn"
+                        onClick={() => setPreviewImage(image)}
+                        aria-label={`Ampliar foto ${index + 1}`}
+                      >
+                        <img src={image.preview} alt={`${name || 'Producto'}, foto ${index + 1}`} />
+                      </button>
+                      <span className={`admin-product-image-badge${index === 0 ? ' is-cover' : ''}`}>
+                        {index === 0 ? 'Portada' : `Foto ${index + 1}`}
+                      </span>
+                    </div>
+                    <div className="admin-product-image-info">
+                      <strong>{index === 0 ? 'Imagen principal' : `Vista ${index + 1}`}</strong>
+                      <span>{productImageMeta(image)}</span>
+                    </div>
+                    <div className="admin-product-image-actions">
+                      <label className="admin-image-action-btn">
+                        <input type="file" accept="image/*" onChange={(event) => replaceProductImage(index, event)} />
+                        Cambiar
+                      </label>
+                      <div className="admin-product-image-order" role="group" aria-label="Cambiar orden">
+                        <button
+                          type="button"
+                          onClick={() => moveProductImage(index, -1)}
+                          disabled={index === 0 || isSubmitting}
+                          aria-label="Mover foto antes"
+                        >
+                          ←
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveProductImage(index, 1)}
+                          disabled={index === productImages.length - 1 || isSubmitting}
+                          aria-label="Mover foto despues"
+                        >
+                          →
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        className="admin-image-action-btn is-danger"
+                        disabled={isSubmitting}
                         onClick={() => removeProductImage(index)}
                       >
-                        {deletingImageIndex === index ? 'Eliminando...' : 'Eliminar'}
+                        Quitar
                       </button>
                     </div>
                   </article>
                 ))}
+              </div>
+            ) : null}
+            {removedProductImage ? (
+              <div className="admin-product-image-undo" role="status">
+                <span>Quitaste una foto. Aun no se ha eliminado.</span>
+                <button type="button" onClick={undoRemoveProductImage}>Deshacer</button>
               </div>
             ) : null}
           </section>
@@ -1759,7 +1948,36 @@ export function AdminProductModal({
 
           </div>
 
+          {previewImage ? (
+            <div className="admin-product-image-lightbox" role="dialog" aria-modal="true" aria-label="Vista previa de imagen" onClick={() => setPreviewImage(null)}>
+              <button type="button" className="admin-product-image-lightbox-close" onClick={() => setPreviewImage(null)} aria-label="Cerrar vista previa">×</button>
+              <img src={previewImage.preview} alt={`Vista ampliada de ${name || 'producto'}`} onClick={(event) => event.stopPropagation()} />
+            </div>
+          ) : null}
+
           <div className="admin-wizard-panel" hidden={step !== 3}>
+          <section className="admin-product-review-strip" aria-label="Resumen del producto">
+            <div>
+              <span>Producto</span>
+              <strong>{name.trim() || 'Sin nombre'}</strong>
+            </div>
+            <div>
+              <span>Categoria</span>
+              <strong>{selectedCategoryName}</strong>
+            </div>
+            <div>
+              <span>Presentacion</span>
+              <strong>{selectedModeLabel}</strong>
+            </div>
+            <div>
+              <span>Variantes</span>
+              <strong>{variants.length}</strong>
+            </div>
+            <div>
+              <span>Fotos</span>
+              <strong>{productImages.length}</strong>
+            </div>
+          </section>
           {renderPriceEditor()}
           {fieldErrors.variantPrices ? (
             <p className="admin-field-error-text admin-product-block-error">
@@ -1767,16 +1985,21 @@ export function AdminProductModal({
             </p>
           ) : null}
 
-          {isEditing ? (
-            <label className="admin-checkbox">
-              <input
-                type="checkbox"
-                checked={isActive}
-                onChange={(event) => setIsActive(event.target.checked)}
-              />
-              Producto activo
-            </label>
-          ) : null}
+          <label className="admin-product-availability-card">
+            <input
+              type="checkbox"
+              checked={isActive}
+              onChange={(event) => setIsActive(event.target.checked)}
+            />
+            <span>
+              <strong>{isActive ? 'Disponible para venta' : 'Guardado como inactivo'}</strong>
+              <small>
+                {isActive
+                  ? 'Aparecera en los canales de venta una vez guardado.'
+                  : 'Podras completar o revisar el producto antes de activarlo.'}
+              </small>
+            </span>
+          </label>
 
           </div>
 
@@ -1801,7 +2024,7 @@ export function AdminProductModal({
                 key="wizard-next"
                 type="button"
                 className="admin-primary-btn admin-submit-btn-next"
-                onClick={() => goStep(step + 1)}
+                onClick={advanceStep}
                 disabled={isSubmitting}
               >
                 Siguiente →

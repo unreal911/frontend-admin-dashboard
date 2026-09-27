@@ -6,6 +6,7 @@ import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
 import { useAdminUi } from '@/components/admin-ui-provider';
 import { AdminTableEmptyState } from '@/components/admin-table-empty-state';
 import { validatePasswordConfirmation } from '@/lib/password-confirmation';
+import { useAdminAuth } from '@/components/admin-auth-provider';
 
 interface AdminRole {
   id: number;
@@ -24,6 +25,9 @@ interface AdminUser {
     name: string;
   };
 }
+
+interface AdminStore { id: number; name: string; code: string; type: string; isActive: boolean }
+interface StoreAssignment { id: string; assignmentType: 'PRIMARY' | 'REGULAR' | 'TEMPORARY'; startsAt?: string | null; endsAt?: string | null; isActive: boolean; reason?: string | null; store: AdminStore }
 
 interface UserFormState {
   firstName: string;
@@ -130,6 +134,7 @@ function isValidEmail(value: string): boolean {
 
 export function AdminUsersPage() {
   const { confirm, showAlert } = useAdminUi();
+  const { hasPermission } = useAdminAuth();
 
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [roles, setRoles] = useState<AdminRole[]>([]);
@@ -146,6 +151,11 @@ export function AdminUsersPage() {
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
   const [form, setForm] = useState<UserFormState>(DEFAULT_FORM);
   const [modalError, setModalError] = useState('');
+  const [assignmentUser, setAssignmentUser] = useState<AdminUser | null>(null);
+  const [assignments, setAssignments] = useState<StoreAssignment[]>([]);
+  const [stores, setStores] = useState<AdminStore[]>([]);
+  const [assignmentForm, setAssignmentForm] = useState({ storeId: '', assignmentType: 'REGULAR', startsAt: '', endsAt: '', reason: '' });
+  const [assignmentLoading, setAssignmentLoading] = useState(false);
 
   const filteredUsers = useMemo(() => {
     const search = searchText.trim().toLowerCase();
@@ -228,6 +238,55 @@ export function AdminUsersPage() {
       return;
     }
     setCurrentUserId(getCurrentUserId(payload));
+  }
+
+  async function openAssignments(user: AdminUser) {
+    setAssignmentUser(user);
+    setAssignmentLoading(true);
+    const [assignmentResponse, storeResponse] = await Promise.all([
+      fetch(`/api/admin/users/${user.id}/store-assignments`, { cache: 'no-store' }).catch(() => null),
+      fetch('/api/admin/stores', { cache: 'no-store' }).catch(() => null),
+    ]);
+    const assignmentPayload = await assignmentResponse?.json().catch(() => []);
+    const storePayload = await storeResponse?.json().catch(() => []);
+    if (!assignmentResponse?.ok || !storeResponse?.ok) {
+      showAlert('No se pudieron cargar las asignaciones de sede.', 'error');
+      setAssignmentUser(null);
+    } else {
+      setAssignments(Array.isArray(assignmentPayload) ? assignmentPayload : []);
+      const normalizedStores = (Array.isArray(storePayload) ? storePayload : (storePayload?.data || [])) as AdminStore[];
+      setStores(normalizedStores.filter((store) => store.isActive !== false));
+      setAssignmentForm((current) => ({ ...current, storeId: normalizedStores[0]?.id ? String(normalizedStores[0].id) : '' }));
+    }
+    setAssignmentLoading(false);
+  }
+
+  async function saveAssignment() {
+    if (!assignmentUser || !assignmentForm.storeId) return;
+    setAssignmentLoading(true);
+    const response = await fetch(`/api/admin/users/${assignmentUser.id}/store-assignments`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({
+        storeId: Number(assignmentForm.storeId), assignmentType: assignmentForm.assignmentType,
+        startsAt: assignmentForm.startsAt || undefined, endsAt: assignmentForm.endsAt || undefined,
+        reason: assignmentForm.reason || undefined,
+      }),
+    }).catch(() => null);
+    const payload = await response?.json().catch(() => null);
+    setAssignmentLoading(false);
+    if (!response?.ok) { showAlert(String(payload?.message || 'No se pudo guardar la asignación.'), 'error'); return; }
+    showAlert('Asignación de sede guardada.', 'success');
+    await openAssignments(assignmentUser);
+  }
+
+  async function finishAssignment(assignment: StoreAssignment) {
+    if (!assignmentUser) return;
+    const accepted = await confirm({ title: 'Finalizar asignación', message: `¿Finalizar la asignación en ${assignment.store.name}?`, acceptText: 'Finalizar', cancelText: 'Cancelar' });
+    if (!accepted) return;
+    const response = await fetch(`/api/admin/users/${assignmentUser.id}/store-assignments/${assignment.id}/finish`, {
+      method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ reason: 'Finalizada desde administración de usuarios' }),
+    }).catch(() => null);
+    if (!response?.ok) { const payload = await response?.json().catch(() => null); showAlert(String(payload?.message || 'No se pudo finalizar.'), 'error'); return; }
+    showAlert('Asignación finalizada.', 'success'); await openAssignments(assignmentUser);
   }
 
   useEffect(() => {
@@ -502,6 +561,7 @@ export function AdminUsersPage() {
                         <button type="button" className="admin-ghost-btn" onClick={() => openEditModal(user)}>
                           Editar
                         </button>
+                        {hasPermission('store_assignments.manage') ? <button type="button" className="admin-ghost-btn" onClick={() => void openAssignments(user)}>Sedes</button> : null}
                         <button
                           type="button"
                           className="admin-ghost-btn"
@@ -642,6 +702,25 @@ export function AdminUsersPage() {
                 </button>
               </div>
             </form>
+          </article>
+        </div>
+      ) : null}
+
+      {assignmentUser ? (
+        <div className="admin-modal-overlay" role="presentation" onClick={() => !assignmentLoading && setAssignmentUser(null)}>
+          <article className="admin-modal-dialog admin-user-modal-dialog" onClick={(event) => event.stopPropagation()}>
+            <header className="admin-modal-head-next"><div><h3>Sedes de {assignmentUser.firstName}</h3><p>Define dónde trabaja normalmente o dónde brindará apoyo temporal.</p></div><button className="admin-modal-close-next" onClick={() => setAssignmentUser(null)}>x</button></header>
+            <div className="admin-modal-form">
+              <div className="admin-user-form-grid">
+                <label><span>Sede</span><select value={assignmentForm.storeId} onChange={(event) => setAssignmentForm((current) => ({ ...current, storeId: event.target.value }))}>{stores.map((store) => <option key={store.id} value={store.id}>{store.name} · {store.type === 'WAREHOUSE' ? 'Almacén' : 'Tienda'}</option>)}</select></label>
+                <label><span>Tipo</span><select value={assignmentForm.assignmentType} onChange={(event) => setAssignmentForm((current) => ({ ...current, assignmentType: event.target.value }))}><option value="PRIMARY">Principal</option><option value="REGULAR">Regular</option><option value="TEMPORARY">Apoyo temporal</option></select></label>
+              </div>
+              {assignmentForm.assignmentType === 'TEMPORARY' ? <div className="admin-user-form-grid"><label><span>Desde</span><input type="datetime-local" value={assignmentForm.startsAt} onChange={(event) => setAssignmentForm((current) => ({ ...current, startsAt: event.target.value }))} /></label><label><span>Hasta</span><input type="datetime-local" value={assignmentForm.endsAt} onChange={(event) => setAssignmentForm((current) => ({ ...current, endsAt: event.target.value }))} /></label></div> : null}
+              <label><span>Motivo / contexto</span><input value={assignmentForm.reason} onChange={(event) => setAssignmentForm((current) => ({ ...current, reason: event.target.value }))} placeholder="Ej. apoyo por campaña" /></label>
+              <button type="button" className="admin-primary-btn" disabled={assignmentLoading || !assignmentForm.storeId} onClick={() => void saveAssignment()}>{assignmentLoading ? 'Guardando...' : 'Agregar asignación'}</button>
+              <div className="admin-migration-box"><h4>Asignaciones registradas</h4>{assignments.length === 0 ? <p>No tiene sedes asignadas.</p> : assignments.map((assignment) => <div key={assignment.id} className="admin-table-actions" style={{ justifyContent: 'space-between', borderBottom: '1px solid var(--admin-border, #e6e2f0)', padding: '10px 0' }}><div><strong>{assignment.store.name}</strong><br /><small>{assignment.assignmentType === 'PRIMARY' ? 'Principal' : assignment.assignmentType === 'TEMPORARY' ? 'Apoyo temporal' : 'Regular'} · {assignment.isActive ? 'Activa' : 'Finalizada'}{assignment.endsAt ? ` · hasta ${new Date(assignment.endsAt).toLocaleString('es-PE')}` : ''}</small></div>{assignment.isActive ? <button className="admin-ghost-btn" onClick={() => void finishAssignment(assignment)}>Finalizar</button> : null}</div>)}</div>
+              <div className="admin-modal-actions"><button type="button" className="admin-ghost-btn" onClick={() => setAssignmentUser(null)}>Cerrar</button></div>
+            </div>
           </article>
         </div>
       ) : null}

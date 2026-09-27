@@ -25,7 +25,7 @@ interface OrderWorkflowSettings {
 }
 
 const MARKETPLACE_HERO_HEADING_MAX_LENGTH = 60;
-const DEFAULT_MARKETPLACE_HERO_HEADING = 'Encuentra polos por color y talla';
+const DEFAULT_MARKETPLACE_HERO_HEADING = 'Descubre nuestro catalogo';
 
 interface PaymentMethod {
   id: number;

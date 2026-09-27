@@ -3,6 +3,7 @@ export type AdminRouteGroup =
   | 'Ventas'
   | 'Catalogo'
   | 'Inventario'
+  | 'TiendaOnline'
   | 'Facturacion'
   | 'Accesos'
   | 'Sistema';
@@ -22,6 +23,7 @@ export const ADMIN_ROUTE_GROUP_ORDER: AdminRouteGroup[] = [
   'Ventas',
   'Catalogo',
   'Inventario',
+  'TiendaOnline',
   'Facturacion',
   'Accesos',
   'Sistema',
@@ -32,6 +34,7 @@ export const ADMIN_ROUTE_GROUP_LABELS: Record<AdminRouteGroup, string> = {
   Ventas: 'Ventas y atencion',
   Catalogo: 'Catalogo',
   Inventario: 'Inventario y tiendas',
+  TiendaOnline: 'Tienda online',
   Facturacion: 'Facturacion electronica',
   Accesos: 'Equipo y accesos',
   Sistema: 'Administracion',
@@ -47,6 +50,8 @@ export const ADMIN_ROUTE_ITEMS: AdminRouteItem[] = [
   { slug: 'color', label: 'Colores', group: 'Catalogo', permission: 'colors.manage', description: 'Gestion de colores.' },
   { slug: 'size', label: 'Tallas', group: 'Catalogo', permission: 'sizes.manage', description: 'Gestion de tallas.' },
 
+  { slug: 'store/appearance', label: 'Apariencia', group: 'TiendaOnline', permission: 'settings.manage', description: 'Plantilla, colores, tipografias y portada de la tienda online.' },
+
   { slug: 'inventory', label: 'Inventario', group: 'Inventario', permission: 'inventory.view', description: 'Vista de inventario general.' },
   { slug: 'inventory/movements', label: 'Movimientos', group: 'Inventario', permission: 'inventory.view', description: 'Movimientos de inventario.' },
   { slug: 'inventory/traceability', label: 'Trazabilidad', group: 'Inventario', permission: 'inventory.view', description: 'Trazabilidad de lotes y stock.' },
@@ -54,9 +59,10 @@ export const ADMIN_ROUTE_ITEMS: AdminRouteItem[] = [
   { slug: 'stores', label: 'Tiendas', group: 'Inventario', permission: 'stores.view', description: 'Gestion de tiendas y almacenes.' },
 
   { slug: 'orders/pos', label: 'Punto de venta', group: 'Ventas', permission: 'pos.view', description: 'Punto de venta para creacion de pedidos.' },
-  { slug: 'orders/list', label: 'Pedidos', group: 'Ventas', permission: 'orders.view', description: 'Listado de pedidos.' },
-  { slug: 'customers', label: 'Clientes', group: 'Ventas', permission: 'customers.view', description: 'Registro y busqueda de clientes.' },
-  { slug: 'orders/picking', label: 'Picking y despacho', group: 'Ventas', permission: 'picking.view', description: 'Tablero de picking.' },
+  { slug: 'orders/list', label: 'Pedidos', group: 'Ventas', permission: 'orders.view', description: 'Supervision de pedidos, preparacion, despacho y devoluciones.' },
+  { slug: 'customers', label: 'Clientes y atencion', group: 'Ventas', permission: 'customers.view', description: 'Registro, busqueda y seguimiento de clientes.' },
+  { slug: 'attention', label: 'Bandeja de atención', group: 'Ventas', permission: 'attention.view', feature: 'attention.inbox', description: 'Conversaciones, seguimiento y respuestas de atención por WhatsApp.' },
+  { slug: 'tasks', label: 'Mis tareas', group: 'Ventas', permission: 'tasks.view.own', feature: 'tasks.operational', description: 'Trabajo operativo asignado para pedidos, picking, empaque, despacho y transferencias.' },
 
   { slug: 'sunat/comprobantes', label: 'Comprobantes', group: 'Facturacion', permission: 'sunat.documents.view', feature: 'sunat', description: 'Comprobantes emitidos: notas de credito/debito y anulaciones.' },
   { slug: 'sunat', label: 'Gestion SUNAT', group: 'Facturacion', permission: 'sunat.documents.view', feature: 'sunat', description: 'Facturacion electronica: declaracion de boletas y comprobantes.' },

@@ -40,7 +40,7 @@ Nuevo proyecto Next.js creado para migrar el panel administrativo Angular por fa
 - Modulo `Pedidos` migrado (`/admin/orders/list`) con filtros, chips, estados rapidos y cambio de estado.
 - Modulo `Detalle de pedido` migrado (`/admin/orders/[id]`) con resumen, items, reservas y cambio de estado.
 - Detalle de pedido mejorado con flujo operativo: iniciar/finalizar picking, ajuste de items por fila, entrega (`READY`) y bloque `RETURN_PENDING` (aceptar/delegar/confirmar devolucion).
-- Modulo `Picking` migrado (`/admin/orders/picking`) con tablero, progreso y actualizacion por item.
+- Vista `Pedidos > Preparacion` (`/admin/orders/list?view=preparation`) con tablero, progreso y actualizacion por item. La ruta anterior redirige por compatibilidad.
 - Modulo `POS` migrado (`/admin/orders/pos`) con catalogo, selector de variante, carrito y cobro.
 - Sistema UI base del admin migrado: `Alert`, `ConfirmModal` y modal formulario reutilizable.
 - Capa de sesion/permisos migrada en layout admin: provider de `auth/me`, filtrado de sidebar por permisos y bloqueo visual de rutas sin permiso.

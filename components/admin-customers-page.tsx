@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useAdminAuth } from '@/components/admin-auth-provider';
 import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
 import { useAdminUi } from '@/components/admin-ui-provider';
@@ -24,6 +25,11 @@ type CustomerForm = {
 };
 
 type CustomerActiveFilter = 'all' | 'active' | 'inactive';
+
+type CustomerAttentionDetail = AdminCustomer & {
+  summary: { orderCount: number; totalPurchased: number; lastPurchaseAt: string | null };
+  recentOrders: Array<{ id: number; code: string; status: string; salesChannel: string; total: number; createdAt: string }>;
+};
 
 const CUSTOMER_STATUS_OPTIONS: AdminSelectOption<CustomerActiveFilter>[] = [
   { value: 'all', label: 'Todos' },
@@ -67,6 +73,8 @@ export function AdminCustomersPage() {
   const [editing, setEditing] = useState<AdminCustomer | null>(null);
   const [form, setForm] = useState<CustomerForm>(EMPTY_FORM);
   const [formError, setFormError] = useState('');
+  const [attention, setAttention] = useState<CustomerAttentionDetail | null>(null);
+  const [loadingAttention, setLoadingAttention] = useState(false);
   const canManage = hasPermission('customers.manage');
 
   const loadCustomers = useCallback(async (query: string, status: CustomerActiveFilter) => {
@@ -175,12 +183,32 @@ export function AdminCustomersPage() {
     }
   }
 
+  async function openAttention(customer: AdminCustomer) {
+    setLoadingAttention(true);
+    try {
+      const response = await fetch(`/api/admin/customers/${customer.id}`, { cache: 'no-store' });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(String(payload?.message || 'No se pudo consultar el cliente.'));
+      setAttention(payload as CustomerAttentionDetail);
+    } catch (caught) {
+      showAlert(caught instanceof Error ? caught.message : 'No se pudo consultar el cliente.', 'error');
+    } finally {
+      setLoadingAttention(false);
+    }
+  }
+
+  function whatsappUrl(phone: string): string {
+    const digits = phone.replace(/\D/g, '');
+    const international = digits.length === 9 ? `51${digits}` : digits;
+    return `https://wa.me/${international}`;
+  }
+
   return (
     <section className="admin-dashboard-grid">
       <AdminPageHeader
         eyebrow="Ventas"
-        title="Clientes"
-        description="Consulta y administra los clientes de todos los canales."
+        title="Clientes y atencion"
+        description="Consulta la ficha, compras y canales de contacto de cada cliente."
         actions={canManage ? <AdminButton type="button" onClick={openCreate}>Nuevo cliente</AdminButton> : undefined}
       />
       <article className="admin-card admin-filters-card-next">
@@ -235,6 +263,7 @@ export function AdminCustomersPage() {
                   <td data-label="Direccion">{customer.address || '-'}</td>
                   <td data-label="Estado"><span className={`admin-pill ${customer.isActive ? 'success' : 'error'}`}>{customer.isActive ? 'Activo' : 'Inactivo'}</span></td>
                   <td data-label="Acciones"><div className="admin-table-actions">
+                    <button type="button" className="admin-ghost-btn" disabled={loadingAttention} onClick={() => void openAttention(customer)}>Atender</button>
                     {canManage ? <><button type="button" className="admin-ghost-btn" onClick={() => openEdit(customer)}>Editar</button>
                     <button type="button" className="admin-ghost-btn" disabled={saving} onClick={() => void toggle(customer)}>{customer.isActive ? 'Desactivar' : 'Activar'}</button></> : '-'}
                   </div></td>
@@ -244,6 +273,29 @@ export function AdminCustomersPage() {
           </table>
         </div>
       </article>
+
+      {attention ? <div className="admin-modal-overlay" role="presentation" onClick={() => setAttention(null)}>
+        <article className="admin-modal-dialog admin-customer-modal-next" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+          <header className="admin-modal-head-next"><div><h3>{attention.name}</h3><p>{customerDocumentLabel(attention)}</p></div>
+            <button type="button" className="admin-modal-close-next" onClick={() => setAttention(null)} aria-label="Cerrar">×</button></header>
+          <div className="admin-dashboard-grid">
+            <div className="admin-table-actions">
+              <Link className="admin-primary-btn" href="/admin/orders/pos">Nueva venta</Link>
+              <Link className="admin-ghost-btn" href={`/admin/orders/list?search=${encodeURIComponent(attention.name)}`}>Ver pedidos</Link>
+              {attention.phone ? <a className="admin-ghost-btn" href={whatsappUrl(attention.phone)} target="_blank" rel="noreferrer">Contactar por WhatsApp</a> : null}
+            </div>
+            <div className="admin-card">
+              <p><strong>{attention.summary.orderCount}</strong> pedidos · <strong>S/ {Number(attention.summary.totalPurchased).toFixed(2)}</strong> acumulado</p>
+              <p className="admin-muted-text">Ultima compra: {attention.summary.lastPurchaseAt ? new Date(attention.summary.lastPurchaseAt).toLocaleString('es-PE') : 'Sin compras'}</p>
+              <p>{attention.phone || 'Sin telefono'} · {attention.email || 'Sin correo'}</p>
+            </div>
+            <div className="admin-table-wrap"><table className="admin-table mobile-card-table"><thead><tr><th>Pedido</th><th>Estado</th><th>Canal</th><th>Total</th><th>Fecha</th></tr></thead>
+              <tbody>{attention.recentOrders.length ? attention.recentOrders.map((order) => <tr key={order.id}>
+                <td><Link href={`/admin/orders/${order.id}`}>{order.code}</Link></td><td>{order.status}</td><td>{order.salesChannel}</td><td>S/ {Number(order.total).toFixed(2)}</td><td>{new Date(order.createdAt).toLocaleDateString('es-PE')}</td>
+              </tr>) : <tr><td colSpan={5}>Este cliente aun no tiene pedidos.</td></tr>}</tbody></table></div>
+          </div>
+        </article>
+      </div> : null}
 
       {modalOpen ? <div className="admin-modal-overlay" role="presentation" onClick={closeModal}>
         <article className="admin-modal-dialog admin-customer-modal-next" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>

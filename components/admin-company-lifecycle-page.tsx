@@ -227,7 +227,7 @@ export function AdminCompanyLifecyclePage() {
   if (!data) return <section className="admin-page-stack"><article className="admin-card">Empresa no disponible.</article></section>;
   const quotas = [
     { label: 'Usuarios', used: data.usage.users, limit: data.tenant.maxUsers },
-    { label: 'Productos activos', used: data.usage.products, limit: data.tenant.maxProducts },
+    { label: 'Productos padre activos', used: data.usage.products, limit: data.tenant.maxProducts },
     { label: 'Tiendas activas', used: data.usage.stores, limit: data.plan.effectiveMaxStores },
     { label: 'Ventas POS del periodo', used: data.usage.posSales, limit: data.tenant.maxPosSalesPerMonth },
   ];
@@ -245,7 +245,7 @@ export function AdminCompanyLifecyclePage() {
           <div><span>Plan actual</span><span className={`admin-status-badge ${data.readOnly ? 'warning' : 'success'}`}>{data.readOnly ? 'Solo lectura' : 'Cuenta operativa'}</span></div>
           <strong>{data.plan.name}</strong>
           <p>{data.plan.monthlyPricePen === null ? 'Periodo de prueba' : `S/${data.plan.monthlyPricePen.toLocaleString('es-PE', { minimumFractionDigits: 2 })} al mes`}</p>
-          <div className="admin-current-plan-meta-next"><span><b>{data.tenant.maxProducts}</b> productos</span><span><b>{data.tenant.maxUsers}</b> usuarios</span><span><b>{data.plan.effectiveMaxStores}</b> tiendas</span></div>
+          <div className="admin-current-plan-meta-next"><span><b>{data.tenant.maxProducts}</b> productos padre</span><span><b>{data.tenant.maxUsers}</b> usuarios</span><span><b>{data.plan.effectiveMaxStores}</b> tiendas</span></div>
         </div>
       </article>
 
@@ -308,7 +308,7 @@ export function AdminCompanyLifecyclePage() {
             </div>
           ))}
         </div>
-        <div className="admin-plan-details-next"><span>Hasta <b>{data.tenant.maxVariantsPerProduct}</b> variantes por producto</span><span><b>{data.tenant.maxMainImagesPerProduct}</b> imágenes principales</span><span><b>{data.tenant.maxImagesPerVariant}</b> imágenes por variante</span><span><b>{(Number(data.usage.storageBytes) / 1048576).toLocaleString('es-PE', { maximumFractionDigits: 2 })} MB</b> en archivos protegidos</span></div>
+        <div className="admin-plan-details-next"><span>Hasta <b>{data.tenant.maxVariantsPerProduct}</b> variantes por producto padre</span><span><b>{data.tenant.maxMainImagesPerProduct}</b> imágenes principales por producto</span><span>{data.tenant.maxImagesPerVariant === 1 ? <><b>1</b> imagen propia por variante</> : 'Imágenes de variante no incluidas'}</span><span><b>{(Number(data.usage.storageBytes) / 1048576).toLocaleString('es-PE', { maximumFractionDigits: 2 })} MB</b> en archivos protegidos</span></div>
       </article>
 
       <article className="admin-card admin-company-legal-card-next" id="perfil-legal">

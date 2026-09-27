@@ -8,6 +8,27 @@ test.beforeAll(() => {
   mkdirSync(artifactsDir, { recursive: true });
 });
 
+test.beforeEach(async ({ page }) => {
+  await page.route('**/api/public/auth/policy', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: {
+          signupEmailEnabled: true,
+          signupWhatsappEnabled: true,
+          loginEmailEnabled: true,
+          loginWhatsappEnabled: true,
+          passwordResetEmailEnabled: true,
+          passwordResetWhatsappEnabled: true,
+          invitationEmailEnabled: true,
+          invitationWhatsappEnabled: true,
+        },
+      }),
+    });
+  });
+});
+
 test('registro exige repetir la contrasena antes de enviar', async ({ page }) => {
   let signupCalls = 0;
 
@@ -38,6 +59,7 @@ test('registro exige repetir la contrasena antes de enviar', async ({ page }) =>
   await page.getByLabel('Nombre', { exact: true }).fill('Ana');
   await page.getByLabel('Apellido', { exact: true }).fill('Prueba');
   await page.getByLabel('Empresa', { exact: true }).fill('Empresa Prueba');
+  await page.getByRole('radio', { name: /Correo/ }).check({ force: true });
   await page.getByLabel('Correo', { exact: true }).fill('ana@example.com');
   await page.locator('input[name="password"]').fill('Clave-segura-123!');
   await page.locator('input[name="confirmPassword"]').fill('Clave-diferente-456!');
@@ -122,12 +144,13 @@ test('login avisa cuenta pendiente y permite reenviar activacion', async ({ page
   });
 
   await page.goto('/login');
-  await page.getByLabel('Correo', { exact: true }).fill('pendiente@example.test');
+  await page.getByRole('radio', { name: /Correo/ }).check({ force: true });
+  await page.getByPlaceholder('correo@empresa.com').fill('pendiente@example.test');
   await page.getByLabel('Contraseña', { exact: true }).fill('Clave-segura-123!');
   await page.getByRole('button', { name: 'Ingresar' }).click();
 
   await expect(page.getByText('Cuenta pendiente de activar')).toBeVisible();
-  await page.getByRole('button', { name: 'Reenviar correo de activación' }).click();
+  await page.getByRole('button', { name: 'Reenviar enlace de activación' }).click();
   await expect(page.getByRole('status')).toContainText('recibiras un enlace nuevo');
   expect(resendCalls).toBe(1);
 });

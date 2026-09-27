@@ -18,7 +18,7 @@ const criticalRoutes = [
   '/admin/orders/list',
   '/admin/customers',
   '/admin/orders/pos',
-  '/admin/orders/picking',
+  '/admin/orders/list?view=preparation',
   '/admin/sunat',
   '/admin/sunat/comprobantes',
   '/admin/users',

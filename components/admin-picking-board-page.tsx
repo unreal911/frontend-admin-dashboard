@@ -185,7 +185,7 @@ function getItemKey(item: AdminOrderItem): string {
 export function AdminPickingBoardPage() {
   const searchParams = useSearchParams();
   const { showAlert } = useAdminUi();
-  const { hasPermission, user } = useAdminAuth();
+  const { hasFeature, hasPermission, user } = useAdminAuth();
 
   const [statusFilter, setStatusFilter] = useState<'' | AdminOrderStatus>('');
   const [orders, setOrders] = useState<AdminOrder[]>([]);
@@ -226,11 +226,12 @@ export function AdminPickingBoardPage() {
   }, [selectedOrder]);
 
   const isPickingResponsibilityFlowEnabled = useMemo(() => {
+    if (!hasFeature('picking.collaborative')) return false;
     if (pickingResponsibilityFlowEnabledSetting !== null) {
       return pickingResponsibilityFlowEnabledSetting;
     }
     return selectedOrder?.pickingResponsibility?.enabled === true;
-  }, [pickingResponsibilityFlowEnabledSetting, selectedOrder?.pickingResponsibility?.enabled]);
+  }, [hasFeature, pickingResponsibilityFlowEnabledSetting, selectedOrder?.pickingResponsibility?.enabled]);
 
   const pickingGroups = useMemo(
     () => groupPickingItems(selectedOrder?.items ?? [], !isPickingResponsibilityFlowEnabled),
@@ -238,7 +239,10 @@ export function AdminPickingBoardPage() {
   );
 
   const primaryResponsible = selectedOrder?.pickingResponsibility?.primaryResponsible || null;
-  const sharedResponsibles = selectedOrder?.pickingResponsibility?.sharedResponsibles || [];
+  const sharedResponsibles = useMemo(
+    () => selectedOrder?.pickingResponsibility?.sharedResponsibles || [],
+    [selectedOrder?.pickingResponsibility?.sharedResponsibles],
+  );
   const pendingResponsibilityRequests = selectedOrder?.pickingResponsibility?.pendingRequests || [];
 
   const isCurrentUserPrimaryResponsible = useMemo(() => {

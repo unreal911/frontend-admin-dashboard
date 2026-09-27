@@ -28,7 +28,7 @@ test('login móvil prioriza el formulario sin desbordamiento horizontal', async 
   expect(visualBox!.y).toBeLessThan(formBox!.y);
   expect(formBox!.width).toBeLessThanOrEqual(390);
 
-  const inputHeights = await page.locator('.auth-form-next input').evaluateAll(
+  const inputHeights = await page.locator('.auth-form-next input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"])').evaluateAll(
     (inputs) => inputs.map((input) => input.getBoundingClientRect().height),
   );
   expect(inputHeights.every((height) => height >= 48)).toBeTruthy();
@@ -42,7 +42,7 @@ test('registro compacto usa una columna y controles táctiles', async ({ page })
   const nameGridColumns = await page.locator('.public-flow-name-grid-next').evaluate(
     (element) => getComputedStyle(element).gridTemplateColumns.split(' ').length,
   );
-  const fieldHeights = await page.locator('.auth-form-next input:not([type="checkbox"])').evaluateAll(
+  const fieldHeights = await page.locator('.auth-form-next input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"])').evaluateAll(
     (inputs) => inputs.map((input) => input.getBoundingClientRect().height),
   );
 

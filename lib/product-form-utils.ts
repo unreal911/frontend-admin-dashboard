@@ -41,6 +41,8 @@ export function fileToBase64(file: File): Promise<string> {
 // Forma minima de variante para construir el payload de guardado.
 // Compatible con ProductVariantForm del modal y con el manager de variantes.
 export interface VariantPayloadInput {
+  sku?: string;
+  barcode?: string;
   colorId?: number;
   sizeId?: number;
   price: number;
@@ -62,6 +64,16 @@ export async function buildVariantPayload(
       price: toNumber(variant.price),
       isActive: variant.isActive !== false,
     };
+
+    const sku = String(variant.sku || '').trim();
+    const barcode = String(variant.barcode || '').trim();
+    if (sku) {
+      payload.sku = sku;
+    }
+    // Distingue "sin cambios" (undefined) de "quitar codigo" (cadena vacia).
+    if (variant.barcode !== undefined) {
+      payload.barcode = barcode;
+    }
 
     if (mode === 'MATRIX') {
       payload.colorId = toPositiveNumber(variant.colorId);

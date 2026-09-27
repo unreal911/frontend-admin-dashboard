@@ -1,15 +1,12 @@
-import type { Metadata } from 'next';
-import { AdminPickingBoardPage } from '@/components/admin-picking-board-page';
+import { redirect } from 'next/navigation';
 
-export const metadata: Metadata = {
-  title: 'Admin | Picking',
-  description: 'Tablero de picking para preparacion de pedidos.',
-  robots: {
-    index: false,
-    follow: false,
-  },
-};
-
-export default function AdminPickingBoardRoutePage() {
-  return <AdminPickingBoardPage />;
+export default async function AdminPickingBoardRoutePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>;
+}) {
+  const { status } = await searchParams;
+  const query = new URLSearchParams({ view: 'preparation' });
+  if (status) query.set('status', status);
+  redirect(`/admin/orders/list?${query.toString()}`);
 }

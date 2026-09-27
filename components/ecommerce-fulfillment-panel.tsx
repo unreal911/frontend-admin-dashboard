@@ -1103,7 +1103,7 @@ export function EcommerceFulfillmentPanel({ order, canEdit, onReload }: Ecommerc
             <strong className="ff-code">{order.code}</strong>
             <span className="ff-muted">Ajusta la cantidad con + / - y se reserva en vivo por tienda</span>
           </div>
-          <Link href="/admin/orders/picking" className="ff-ghost-btn">
+          <Link href="/admin/orders/list?view=preparation" className="ff-ghost-btn">
             Ver tablero de picking
           </Link>
         </header>

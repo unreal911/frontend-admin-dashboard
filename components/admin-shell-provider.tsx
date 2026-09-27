@@ -20,7 +20,7 @@ type AdminTheme = 'dark' | 'light';
 export interface AdminLiveUpdateDetail {
   type?: string;
   entity?: string;
-  entityId?: number | null;
+  entityId?: number | string | null;
   entityCode?: string | null;
   status?: string | null;
   timestamp?: string;

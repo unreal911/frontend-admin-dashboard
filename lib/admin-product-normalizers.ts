@@ -73,6 +73,7 @@ export function normalizeProductDetail(payload: unknown): AdminProductDetail | n
     variants.push({
       id: toPositiveNumber((item as AdminProductVariant).id) || undefined,
       sku: String((item as AdminProductVariant).sku || '') || undefined,
+      barcode: String((item as AdminProductVariant).barcode || '') || undefined,
       colorId,
       sizeId,
       price,

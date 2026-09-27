@@ -23,7 +23,7 @@ function applyTokenRefresh(response: Response, cookieStore: Awaited<ReturnType<t
   });
 }
 
-export async function PATCH(_request: Request, context: RouteContext) {
+export async function PATCH(request: Request, context: RouteContext) {
   const { id } = await context.params;
   const transferId = Number(id);
   if (!Number.isInteger(transferId) || transferId < 1) {
@@ -36,11 +36,14 @@ export async function PATCH(_request: Request, context: RouteContext) {
     return NextResponse.json({ success: false, message: 'Sesion no valida.' }, { status: 401 });
   }
 
+  const body = await request.text().catch(() => '');
   const upstream = await fetch(`${getAdminApiUrl()}/inventory/transfers/${transferId}/receive`, {
     method: 'PATCH',
     headers: {
       Authorization: `Bearer ${token}`,
+      ...(body ? { 'content-type': 'application/json' } : {}),
     },
+    ...(body ? { body } : {}),
     cache: 'no-store',
   }).catch(() => null);
 
@@ -52,4 +55,3 @@ export async function PATCH(_request: Request, context: RouteContext) {
   applyTokenRefresh(upstream, cookieStore);
   return NextResponse.json(payload, { status: upstream.status });
 }
-

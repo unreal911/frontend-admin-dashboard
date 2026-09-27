@@ -5,7 +5,8 @@ import { FormEvent, useEffect, useState } from 'react';
 import { validatePasswordConfirmation } from '@/lib/password-confirmation';
 
 interface InvitationInfo {
-  email: string;
+  email: string | null;
+  phone: string | null;
   role: string;
   status: string;
   existingAccount: boolean;
@@ -94,7 +95,7 @@ export function AcceptInvitationFlow({ token }: { token: string }) {
     return (
       <div className="public-flow-success-next">
         <h1>Invitaci&oacute;n aceptada</h1>
-        <p>Ya puedes ingresar a {invitation?.tenant.name || 'tu empresa'} con tu correo.</p>
+        <p>Ya puedes ingresar a {invitation?.tenant.name || 'tu empresa'} con tu correo o WhatsApp.</p>
         <Link href="/login">Iniciar sesi&oacute;n</Link>
       </div>
     );
@@ -114,7 +115,7 @@ export function AcceptInvitationFlow({ token }: { token: string }) {
       <header className="public-flow-heading-next">
         <p>Te invitaron a</p>
         <h1>{invitation.tenant.name}</h1>
-        <span>{invitation.email} &middot; {invitation.role}</span>
+        <span>{invitation.email || invitation.phone} &middot; {invitation.role}</span>
       </header>
       <form className="auth-form-next public-flow-form-next" onSubmit={submit}>
         {!invitation.existingAccount ? (
@@ -147,7 +148,7 @@ export function AcceptInvitationFlow({ token }: { token: string }) {
                 required
               />
             </label>
-            <small>El enlace verifica tu correo. La contrase&ntilde;a debe incluir may&uacute;scula, min&uacute;scula, n&uacute;mero y s&iacute;mbolo.</small>
+            <small>El enlace verifica tu identidad. La contrase&ntilde;a debe incluir may&uacute;scula, min&uacute;scula, n&uacute;mero y s&iacute;mbolo.</small>
           </>
         ) : null}
         {error ? <p className="auth-error">{error}</p> : null}

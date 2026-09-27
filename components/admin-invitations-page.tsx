@@ -19,7 +19,8 @@ const INVITATION_ROLE_OPTIONS: AdminSelectOption<InvitationRole>[] = [
 
 interface TenantInvitation {
   id: string;
-  email: string;
+  email: string | null;
+  phone: string | null;
   role: InvitationRole;
   status: 'PENDING' | 'ACCEPTED' | 'REVOKED' | 'EXPIRED';
   expiresAt: string;
@@ -33,11 +34,13 @@ function invitationList(payload: unknown): TenantInvitation[] {
   return rows.flatMap((item) => {
     const row = item as Partial<TenantInvitation>;
     const id = String(row.id || '');
-    const email = String(row.email || '');
-    if (!id || !email) return [];
+    const email = row.email ? String(row.email) : null;
+    const phone = row.phone ? String(row.phone) : null;
+    if (!id || (!email && !phone)) return [];
     return [{
       id,
       email,
+      phone,
       role: String(row.role || 'VIEWER') as InvitationRole,
       status: String(row.status || 'PENDING') as TenantInvitation['status'],
       expiresAt: String(row.expiresAt || ''),
@@ -54,11 +57,16 @@ function statusLabel(status: TenantInvitation['status']): string {
   return 'Vencida';
 }
 
+function recipientLabel(invitation: Pick<TenantInvitation, 'email' | 'phone'>): string {
+  return invitation.email || invitation.phone || 'Destinatario sin identificar';
+}
+
 export function AdminInvitationsPage() {
   const { confirm, showAlert } = useAdminUi();
   const { user } = useAdminAuth();
   const [invitations, setInvitations] = useState<TenantInvitation[]>([]);
   const [email, setEmail] = useState('');
+  const [channel, setChannel] = useState<'email' | 'phone'>('phone');
   const [role, setRole] = useState<InvitationRole>('SELLER');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -91,7 +99,11 @@ export function AdminInvitationsPage() {
       const response = await fetch('/api/admin/invitations', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ email, role }),
+        body: JSON.stringify({
+          email: channel === 'email' ? email : null,
+          phone: channel === 'phone' ? email : null,
+          role,
+        }),
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
@@ -111,7 +123,7 @@ export function AdminInvitationsPage() {
   async function revoke(invitation: TenantInvitation) {
     const accepted = await confirm({
       title: 'Revocar invitaci\u00f3n',
-      message: `La invitaci\u00f3n de ${invitation.email} dejar\u00e1 de funcionar.`,
+      message: `La invitaci\u00f3n de ${recipientLabel(invitation)} dejar\u00e1 de funcionar.`,
       acceptText: 'Revocar',
     });
     if (!accepted) return;
@@ -133,21 +145,43 @@ export function AdminInvitationsPage() {
         <div>
           <p className="admin-page-eyebrow">Accesos</p>
           <h1>Invitaciones</h1>
-          <p>Los colaboradores verifican su correo y definen su propia contrase&ntilde;a.</p>
+          <p>Los colaboradores reciben un enlace por correo o WhatsApp y definen su propia contrase&ntilde;a.</p>
         </div>
       </header>
 
       <article className="admin-card">
         <h2>Invitar colaborador</h2>
         <form className="tenant-invitation-form-next" onSubmit={submit}>
+          <fieldset className="auth-channel-fieldset-next">
+            <legend>Canal de invitaci&oacute;n</legend>
+            <div className="auth-channel-options-next" role="radiogroup" aria-label="Canal de invitación">
+              <label className={`auth-channel-option-next${channel === 'email' ? ' is-selected' : ''}`}>
+                <input type="radio" name="invitationChannel" value="email" checked={channel === 'email'} onChange={() => setChannel('email')} />
+                <span className="auth-channel-option-content-next">
+                  <strong>Correo</strong>
+                  <small>Envía la invitación por email</small>
+                </span>
+              </label>
+              <label className={`auth-channel-option-next${channel === 'phone' ? ' is-selected' : ''}`}>
+                <input type="radio" name="invitationChannel" value="phone" checked={channel === 'phone'} onChange={() => setChannel('phone')} />
+                <span className="auth-channel-option-content-next">
+                  <strong>WhatsApp</strong>
+                  <small>Envía la invitación al celular</small>
+                </span>
+              </label>
+            </div>
+          </fieldset>
           <label>
-            Correo
+            {channel === 'email' ? 'Correo' : 'Número de WhatsApp'}
             <input
-              type="email"
+              type={channel === 'email' ? 'email' : 'tel'}
+              inputMode={channel === 'email' ? 'email' : 'numeric'}
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              placeholder="persona@empresa.com"
-              autoComplete="email"
+              placeholder={channel === 'email' ? 'persona@empresa.com' : '987654321'}
+              autoComplete={channel === 'email' ? 'email' : 'tel-national'}
+              maxLength={channel === 'email' ? 320 : 9}
+              pattern={channel === 'phone' ? '9[0-9]{8}' : undefined}
               required
             />
           </label>
@@ -182,7 +216,7 @@ export function AdminInvitationsPage() {
           <table className="admin-table mobile-card-table list-cards-next">
             <thead>
               <tr>
-                <th>Correo</th>
+                <th>Destinatario</th>
                 <th>Rol</th>
                 <th>Estado</th>
                 <th>Vence</th>
@@ -202,7 +236,7 @@ export function AdminInvitationsPage() {
                 </tr>
               ) : invitations.map((invitation) => (
                 <tr key={invitation.id}>
-                  <td data-label="Correo">{invitation.email}</td>
+                  <td data-label="Destinatario">{recipientLabel(invitation)}</td>
                   <td data-label="Rol">{invitation.role}</td>
                   <td data-label="Estado">
                     <span className={`admin-status-badge ${invitation.status === 'ACCEPTED' ? 'success' : invitation.status === 'PENDING' ? 'info' : 'error'}`}>

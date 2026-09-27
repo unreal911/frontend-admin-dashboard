@@ -173,7 +173,7 @@ const TOPICS: ManualTopic[] = [
     tip: 'Una transferencia no es una venta: solo cambia la ubicación del stock entre tiendas o almacenes.',
     image: '/manual/picking.png',
     imageAlt: 'Tablero de picking para preparar pedidos',
-    action: { href: '/admin/orders/picking', label: 'Abrir Picking' },
+    action: { href: '/admin/orders/list?view=preparation', label: 'Abrir Preparacion' },
   },
   {
     id: 'sunat',

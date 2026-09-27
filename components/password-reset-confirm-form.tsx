@@ -4,7 +4,15 @@ import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { validatePasswordConfirmation } from '@/lib/password-confirmation';
 
-export function PasswordResetConfirmForm({ token }: { token: string }) {
+export function PasswordResetConfirmForm({
+  token,
+  identifier = '',
+}: {
+  token: string;
+  identifier?: string;
+}) {
+  const usesWhatsappOtp = !token && Boolean(identifier);
+  const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -24,7 +32,11 @@ export function PasswordResetConfirmForm({ token }: { token: string }) {
       const response = await fetch('/api/public/password-reset/confirm', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ token, password }),
+        body: JSON.stringify({
+          token: usesWhatsappOtp ? code : token,
+          password,
+          ...(usesWhatsappOtp ? { identifier } : {}),
+        }),
       });
       const result = await response.json().catch(() => null);
       if (!response.ok) {
@@ -41,7 +53,7 @@ export function PasswordResetConfirmForm({ token }: { token: string }) {
     }
   }
 
-  if (!token) {
+  if (!token && !usesWhatsappOtp) {
     return (
       <div className="public-flow-success-next">
         <h2>Enlace no válido</h2>
@@ -63,6 +75,26 @@ export function PasswordResetConfirmForm({ token }: { token: string }) {
 
   return (
     <form className="auth-form-next" onSubmit={submit}>
+      {usesWhatsappOtp ? (
+        <>
+          <h2>Ingresa el código de WhatsApp</h2>
+          <p>El código tiene 6 dígitos, vence en 10 minutos y admite un máximo de 5 intentos.</p>
+          <label>
+            Código de recuperación
+            <input
+              name="code"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              value={code}
+              onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+              pattern="[0-9]{6}"
+              maxLength={6}
+              required
+            />
+          </label>
+        </>
+      ) : null}
       <label>
         Nueva contraseña
         <input
@@ -92,7 +124,7 @@ export function PasswordResetConfirmForm({ token }: { token: string }) {
       </label>
       {error ? <p className="auth-error">{error}</p> : null}
       <button type="submit" disabled={submitting}>
-        {submitting ? 'Actualizando...' : 'Guardar nueva contraseña'}
+        {submitting ? 'Actualizando...' : usesWhatsappOtp ? 'Validar código y guardar contraseña' : 'Guardar nueva contraseña'}
       </button>
     </form>
   );

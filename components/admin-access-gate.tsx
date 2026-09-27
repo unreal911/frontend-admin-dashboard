@@ -27,6 +27,10 @@ function resolveRequiredPermission(pathname: string): string | null {
     return 'orders.detail.view';
   }
 
+  if (slugParts.length === 2 && slugParts[0] === 'tasks') {
+    return 'tasks.view.own';
+  }
+
   if (!slug || slug === 'dashboard') {
     return 'dashboard.view';
   }
@@ -37,7 +41,7 @@ function resolveRequiredPermission(pathname: string): string | null {
 export function AdminAccessGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || '/admin/dashboard';
   const router = useRouter();
-  const { loading, user, hasPermission } = useAdminAuth();
+  const { loading, user, hasPermission, hasFeature } = useAdminAuth();
 
   const requiredPermission = useMemo(() => resolveRequiredPermission(pathname), [pathname]);
   const routeItem = useMemo(() => {
@@ -46,14 +50,18 @@ export function AdminAccessGate({ children }: { children: React.ReactNode }) {
   }, [pathname]);
   const membershipRole = user?.membership.role;
   const ownerAllowed = !routeItem?.ownerOnly || membershipRole === 'OWNER';
-  const allowed = hasPermission(requiredPermission) && ownerAllowed;
+  const isTaskDetail = /^\/admin\/tasks\/[^/]+$/.test(pathname);
+  const requiredFeature = routeItem?.feature || (isTaskDetail ? 'tasks.operational' : null);
+  const featureAllowed = hasFeature(requiredFeature);
+  const allowed = hasPermission(requiredPermission) && ownerAllowed && featureAllowed;
 
   const allowedRoutes = useMemo(() => {
     return ADMIN_ROUTE_ITEMS.filter((item) => (
       hasPermission(item.permission)
+      && hasFeature(item.feature)
       && (!item.ownerOnly || membershipRole === 'OWNER')
     )).slice(0, 8);
-  }, [hasPermission, membershipRole]);
+  }, [hasFeature, hasPermission, membershipRole]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -79,13 +87,15 @@ export function AdminAccessGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if ((requiredPermission || routeItem?.ownerOnly) && !allowed) {
+  if ((requiredPermission || routeItem?.ownerOnly || requiredFeature) && !allowed) {
     return (
       <article className="admin-card admin-no-access-next">
         <h1>Acceso denegado</h1>
         <p>No tienes permiso para acceder a esta seccion.</p>
         <p className="admin-muted-text">
-          {routeItem?.ownerOnly
+          {!featureAllowed
+            ? <>Tu plan actual no incluye esta función.</>
+            : routeItem?.ownerOnly
             ? <>Esta sección está reservada para el propietario de la empresa.</>
             : <>Permiso requerido: <strong>{requiredPermission}</strong></>}
         </p>

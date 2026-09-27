@@ -14,7 +14,7 @@ export default function SignupPage() {
     <AuthFashionLayout
       eyebrow="Prueba compartida y aislada"
       title="Crea tu empresa"
-      description="Verifica tu correo y empieza una prueba de 15 días."
+      description="Elige un canal disponible y empieza una prueba de 15 días."
       footer={<Link href="/login">Ya tengo una cuenta</Link>}
       wideForm
     >

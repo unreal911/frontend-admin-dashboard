@@ -36,7 +36,7 @@ const SCREENS = [
   { slug: 'orders-list', url: '/admin/orders/list' },
   { slug: 'order-detail-delivered', url: `/admin/orders/${ORDER_DELIVERED}` },
   { slug: 'order-detail-cancelled', url: `/admin/orders/${ORDER_CANCELLED}` },
-  { slug: 'picking-board', url: '/admin/orders/picking' },
+  { slug: 'picking-board', url: '/admin/orders/list?view=preparation' },
   { slug: 'pos', url: '/admin/orders/pos' },
   { slug: 'product-list', url: '/admin/product' },
   { slug: 'product-create', url: '/admin/product/create' },

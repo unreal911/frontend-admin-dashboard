@@ -38,13 +38,19 @@ function mapErrorMessage(payload: unknown, fallback: string): string {
 
 export async function POST(request: Request) {
   const payload = await request.json().catch(() => null);
-  const email = String(payload?.email || '').trim();
-  const password = String(payload?.password || '').trim();
+  // La pantalla usa `identifier` porque admite correo y WhatsApp. Se mantienen
+  // `email` y `phone` como alias para clientes/E2E anteriores.
+  const identifier = String(
+    payload?.identifier ?? payload?.email ?? payload?.phone ?? '',
+  ).trim();
+  // Una contraseña es un valor opaco: no se recorta ni normaliza porque el
+  // registro conserva exactamente los caracteres elegidos por el usuario.
+  const password = typeof payload?.password === 'string' ? payload.password : '';
   const tenantSlug = String(payload?.tenantSlug || '').trim().toLowerCase();
 
-  if (!email || !password) {
+  if (!identifier || !password) {
     return NextResponse.json(
-      { success: false, message: 'Correo y contrasena son obligatorios.' },
+      { success: false, message: 'El correo o número de WhatsApp y la contraseña son obligatorios.' },
       { status: 400 },
     );
   }
@@ -55,7 +61,7 @@ export async function POST(request: Request) {
     headers: {
       'content-type': 'application/json',
     },
-    body: JSON.stringify({ email, password, ...(tenantSlug ? { tenantSlug } : {}) }),
+    body: JSON.stringify({ identifier, password, ...(tenantSlug ? { tenantSlug } : {}) }),
     cache: 'no-store',
   }).catch(() => null);
 
@@ -106,7 +112,7 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     success: true,
-    user: result?.user || { email },
+    user: result?.user || { email: identifier },
   });
 }
 

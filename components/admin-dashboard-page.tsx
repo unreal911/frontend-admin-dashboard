@@ -412,10 +412,10 @@ function buildPendingInbox(inbox: PendingInboxMetric): PendingTask[] {
   return [
     { key: 'to-confirm', label: 'Por confirmar', description: 'Pedidos nuevos sin confirmar', count: inbox.toConfirm, href: '/admin/orders/list?status=PENDING', tone: 'urgent' },
     { key: 'waiting-stock', label: 'Esperando stock', description: 'Con faltantes por reponer', count: inbox.waitingStock, href: '/admin/orders/list?status=WAITING_STOCK', tone: 'warn' },
-    { key: 'to-pick', label: 'Falta separar', description: 'Confirmados sin picking', count: inbox.toPick, href: '/admin/orders/picking?status=CONFIRMED', tone: 'urgent' },
+    { key: 'to-pick', label: 'Falta separar', description: 'Confirmados sin picking', count: inbox.toPick, href: '/admin/orders/list?view=preparation&status=CONFIRMED', tone: 'urgent' },
     { key: 'waiting-transfer', label: 'Confirmar traslado', description: 'Esperan traslado entre tiendas', count: inbox.waitingTransfer, href: '/admin/orders/list?status=WAITING_TRANSFER', tone: 'warn' },
     { key: 'transfers-receive', label: 'Traslados por recibir', description: 'Transferencias en transito', count: inbox.transfersToReceive, href: '/admin/transfers?status=TO_RECEIVE', tone: 'warn' },
-    { key: 'preparing', label: 'Separando', description: 'Picking en progreso', count: inbox.preparing, href: '/admin/orders/picking?status=PREPARING', tone: 'info' },
+    { key: 'preparing', label: 'Separando', description: 'Picking en progreso', count: inbox.preparing, href: '/admin/orders/list?view=preparation&status=PREPARING', tone: 'info' },
     { key: 'ready', label: 'Por entregar', description: 'Listas sin entregar', count: inbox.ready, href: '/admin/orders/list?status=READY', tone: 'info' },
     { key: 'return-pending', label: 'Devoluciones', description: 'Pendientes por procesar', count: inbox.returnPending, href: '/admin/orders/list?status=RETURN_PENDING', tone: 'urgent' },
   ];
@@ -485,10 +485,14 @@ export function AdminDashboardPage() {
   const [loadingMessage, setLoadingMessage] = useState('Cargando dashboard...');
   const [error, setError] = useState('');
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [myTaskCount, setMyTaskCount] = useState(0);
 
   const salesTrendMax = useMemo(() => Math.max(0, ...metrics.salesTrend.map((item) => item.total)), [metrics.salesTrend]);
   const weekTicket = metrics.weeklyOrders > 0 ? metrics.weeklySales / metrics.weeklyOrders : 0;
-  const pendingTasks = useMemo(() => buildPendingInbox(metrics.pendingInbox), [metrics.pendingInbox]);
+  const pendingTasks = useMemo(() => [
+    { key: 'my-tasks', label: 'Mis tareas', description: 'Trabajo operativo asignado', count: myTaskCount, href: '/admin/tasks', tone: 'urgent' as const },
+    ...buildPendingInbox(metrics.pendingInbox),
+  ], [metrics.pendingInbox, myTaskCount]);
   const pendingTotal = useMemo(() => pendingTasks.reduce((total, task) => total + task.count, 0), [pendingTasks]);
 
   const fetchOrdersPaginated = useCallback(async (params: Record<string, string>): Promise<AdminOrder[]> => {
@@ -564,6 +568,7 @@ export function AdminDashboardPage() {
         inventories,
         transfersPayload,
         storesPayload,
+        tasksPayload,
       ] = await Promise.all([
         fetchOrdersPaginated({
           startDate: rollingStart.toISOString(),
@@ -579,10 +584,14 @@ export function AdminDashboardPage() {
         fetchInventories(),
         fetchJson('/api/admin/inventory/transfers'),
         fetchJson('/api/admin/stores?skip=1&take=300&includeInactive=false'),
+        fetch('/api/admin/tasks?pageSize=1', { cache: 'no-store' })
+          .then(async (response) => response.ok ? response.json() : { total: 0 })
+          .catch(() => ({ total: 0 })),
       ]);
 
       setLoadingMessage('Procesando metricas operativas...');
       const transfers = normalizeTransfers(transfersPayload) as StockTransfer[];
+      setMyTaskCount(Math.max(0, Number((tasksPayload as { total?: unknown } | null)?.total || 0)));
       const stores = normalizeStores(storesPayload);
       const todayOrders = filterOrdersByRange(recentOrders, todayRange.start, todayRange.end);
       const yesterdayOrders = filterOrdersByRange(recentOrders, yesterdayRange.start, yesterdayRange.end);
@@ -653,7 +662,7 @@ export function AdminDashboardPage() {
   }
 
   function goToPickingBoard(status = '') {
-    router.push(status ? `/admin/orders/picking?status=${status}` : '/admin/orders/picking');
+    router.push(status ? `/admin/orders/list?view=preparation&status=${status}` : '/admin/orders/list?view=preparation');
   }
 
   function goToOverdueOrders() {
@@ -986,7 +995,7 @@ export function AdminDashboardPage() {
         <div className="admin-link-grid">
           <Link href="/admin/orders/list" className="admin-link-card"><strong>Pedidos</strong><span>Listado y filtros de ordenes.</span></Link>
           <Link href="/admin/orders/pos" className="admin-link-card"><strong>POS</strong><span>Crear ventas desde tienda.</span></Link>
-          <Link href="/admin/orders/picking" className="admin-link-card"><strong>Picking</strong><span>Preparacion de pedidos.</span></Link>
+          <Link href="/admin/orders/list?view=preparation" className="admin-link-card"><strong>Preparacion</strong><span>Cola operativa dentro de Pedidos.</span></Link>
           <Link href="/admin/inventory" className="admin-link-card"><strong>Inventario</strong><span>Stock, reservas y movimientos.</span></Link>
           <Link href="/admin/transfers" className="admin-link-card"><strong>Transferencias</strong><span>Movimientos entre tiendas.</span></Link>
           <Link href="/admin/product" className="admin-link-card"><strong>Productos</strong><span>Catalogo y variantes.</span></Link>

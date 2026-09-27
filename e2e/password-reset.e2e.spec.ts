@@ -1,5 +1,26 @@
 import { expect, test } from '@playwright/test';
 
+test.beforeEach(async ({ page }) => {
+  await page.route('**/api/public/auth/policy', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: {
+          signupEmailEnabled: true,
+          signupWhatsappEnabled: true,
+          loginEmailEnabled: true,
+          loginWhatsappEnabled: true,
+          passwordResetEmailEnabled: true,
+          passwordResetWhatsappEnabled: true,
+          invitationEmailEnabled: true,
+          invitationWhatsappEnabled: true,
+        },
+      }),
+    });
+  });
+});
+
 test('solicita recuperación sin revelar si el correo existe', async ({ page }) => {
   let requestCalls = 0;
   await page.route('**/api/public/password-reset/request', async (route) => {
@@ -16,6 +37,7 @@ test('solicita recuperación sin revelar si el correo existe', async ({ page }) 
   await page.goto('/login');
   await page.getByRole('link', { name: 'Olvidé mi contraseña' }).click();
   await expect(page).toHaveURL(/\/forgot-password$/);
+  await page.getByRole('radio', { name: /Correo/ }).check({ force: true });
   await page.getByLabel('Correo de tu cuenta').fill('ana@example.test');
   await page.getByRole('button', { name: 'Enviar enlace de recuperación' }).click();
 

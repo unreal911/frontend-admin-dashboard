@@ -9,7 +9,7 @@ export type InventoryMovementType =
 
 export type InventoryReservationStatus = 'ACTIVE' | 'RELEASED' | 'COMPLETED';
 
-export type StockTransferStatus = 'PENDING' | 'IN_TRANSIT' | 'RECEIVED' | 'CANCELLED';
+export type StockTransferStatus = 'PENDING' | 'IN_TRANSIT' | 'PARTIALLY_RECEIVED' | 'RECEIVED' | 'CANCELLED';
 
 export interface InventoryStore {
   id: number;
@@ -117,6 +117,9 @@ export interface InventoryReservedReconcileResult {
 export interface StockTransferItem {
   id: number;
   quantity: number;
+  dispatchedQuantity: number;
+  receivedQuantity: number;
+  discrepancyQuantity: number;
   variantId: number;
   variant: InventoryVariant;
 }
@@ -128,6 +131,9 @@ export interface StockTransfer {
   note?: string | null;
   createdAt: string;
   updatedAt: string;
+  dispatchedAt?: string | null;
+  receivedAt?: string | null;
+  orderId?: number | null;
   fromStoreId: number;
   toStoreId: number;
   fromStore: InventoryStore;
@@ -429,6 +435,9 @@ export function normalizeTransfers(payload: unknown): StockTransfer[] {
       items.push({
         id: itemId,
         quantity: toNumber(transferItemRaw.quantity, 0),
+        dispatchedQuantity: toNumber(transferItemRaw.dispatchedQuantity, 0),
+        receivedQuantity: toNumber(transferItemRaw.receivedQuantity, 0),
+        discrepancyQuantity: toNumber(transferItemRaw.discrepancyQuantity, 0),
         variantId,
         variant,
       });
@@ -441,6 +450,9 @@ export function normalizeTransfers(payload: unknown): StockTransfer[] {
       note: toText(item.note) || null,
       createdAt: toText(item.createdAt),
       updatedAt: toText(item.updatedAt),
+      dispatchedAt: toText(item.dispatchedAt) || null,
+      receivedAt: toText(item.receivedAt) || null,
+      orderId: toPositiveInt(item.orderId),
       fromStoreId: Number(item.fromStoreId || fromStore.id),
       toStoreId: Number(item.toStoreId || toStore.id),
       fromStore,
@@ -565,4 +577,3 @@ export function getInventoryVariantDisplay(item: Inventory): string {
   const parts = [colorName, sizeName].filter(Boolean);
   return parts.length ? parts.join(' / ') : 'Unico';
 }
-

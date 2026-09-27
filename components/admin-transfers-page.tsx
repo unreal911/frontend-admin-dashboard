@@ -52,6 +52,7 @@ const ALLOWED_STATUS_FILTERS: TransferStatusFilter[] = [
   'TO_RECEIVE',
   'PENDING',
   'IN_TRANSIT',
+  'PARTIALLY_RECEIVED',
   'RECEIVED',
   'CANCELLED',
 ];
@@ -61,6 +62,7 @@ const TRANSFER_STATUS_OPTIONS: AdminSelectOption<TransferStatusFilter>[] = [
   { value: 'TO_RECEIVE', label: 'Pendientes de recepcion' },
   { value: 'PENDING', label: 'Pendiente' },
   { value: 'IN_TRANSIT', label: 'En transito' },
+  { value: 'PARTIALLY_RECEIVED', label: 'Recepción parcial' },
   { value: 'RECEIVED', label: 'Recibida' },
   { value: 'CANCELLED', label: 'Cancelada' },
 ];
@@ -91,7 +93,7 @@ function matchesStatusFilter(status: StockTransferStatus, filter: TransferStatus
     return true;
   }
   if (filter === 'TO_RECEIVE') {
-    return status === 'PENDING' || status === 'IN_TRANSIT';
+    return status === 'PENDING' || status === 'IN_TRANSIT' || status === 'PARTIALLY_RECEIVED';
   }
   return status === filter;
 }
@@ -100,6 +102,7 @@ function getStatusLabel(status: StockTransferStatus): string {
   const labels: Record<StockTransferStatus, string> = {
     PENDING: 'Pendiente',
     IN_TRANSIT: 'En transito',
+    PARTIALLY_RECEIVED: 'Recepción parcial',
     RECEIVED: 'Recibida',
     CANCELLED: 'Cancelada',
   };
@@ -111,6 +114,7 @@ function getStatusClass(status: StockTransferStatus): string {
     case 'PENDING':
       return 'warning';
     case 'IN_TRANSIT':
+    case 'PARTIALLY_RECEIVED':
       return 'info';
     case 'RECEIVED':
       return 'success';
@@ -182,6 +186,7 @@ export function AdminTransfersPage() {
   const [creatingTransfer, setCreatingTransfer] = useState(false);
   const [receivingTransferIds, setReceivingTransferIds] = useState<number[]>([]);
   const [dispatchingTransferIds, setDispatchingTransferIds] = useState<number[]>([]);
+  const [receiptDraft, setReceiptDraft] = useState<Record<number, { receivedQuantity: number; discrepancyQuantity: number }>>({});
 
   const [fromStoreId, setFromStoreId] = useState<number | null>(null);
   const [toStoreId, setToStoreId] = useState<number | null>(null);
@@ -784,8 +789,17 @@ export function AdminTransfersPage() {
     }
   }
 
-  async function receiveTransfer(transfer: StockTransfer) {
-    if (transfer.status !== 'IN_TRANSIT') {
+  function openTransferDetails(transfer: StockTransfer) {
+    setSelectedTransferDetails(transfer);
+    setReceiptDraft(Object.fromEntries(transfer.items.map((item) => [item.id, {
+      receivedQuantity: Math.max(0, item.dispatchedQuantity - item.receivedQuantity - item.discrepancyQuantity),
+      discrepancyQuantity: 0,
+    }])));
+    setShowTransferDetails(true);
+  }
+
+  async function receiveTransfer(transfer: StockTransfer, partial = false) {
+    if (!['IN_TRANSIT', 'PARTIALLY_RECEIVED'].includes(transfer.status)) {
       showAlert('Solo una transferencia en transito puede recibirse.', 'warning');
       return;
     }
@@ -793,6 +807,8 @@ export function AdminTransfersPage() {
     try {
       const response = await fetch(`/api/admin/inventory/transfers/${transfer.id}/receive`, {
         method: 'PATCH',
+        headers: partial ? { 'content-type': 'application/json' } : undefined,
+        body: partial ? JSON.stringify({ items: transfer.items.map((item) => ({ itemId: item.id, ...receiptDraft[item.id] })) }) : undefined,
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
@@ -800,7 +816,8 @@ export function AdminTransfersPage() {
         return;
       }
 
-      showAlert(`Transferencia ${transfer.code} recibida.`, 'success');
+      showAlert(`Recepción de ${transfer.code} registrada.`, 'success');
+      setShowTransferDetails(false);
       loadTransfers();
     } catch {
       showAlert('Error al recibir transferencia.', 'error');
@@ -956,10 +973,7 @@ export function AdminTransfersPage() {
                         <button
                           type="button"
                           className="admin-ghost-btn"
-                          onClick={() => {
-                            setSelectedTransferDetails(transfer);
-                            setShowTransferDetails(true);
-                          }}
+                          onClick={() => openTransferDetails(transfer)}
                         >
                           Ver
                         </button>
@@ -973,14 +987,14 @@ export function AdminTransfersPage() {
                             {dispatchingTransferIds.includes(transfer.id) ? 'Despachando...' : 'Despachar'}
                           </button>
                         ) : null}
-                        {transfer.status === 'IN_TRANSIT' ? (
+                        {['IN_TRANSIT', 'PARTIALLY_RECEIVED'].includes(transfer.status) ? (
                           <button
                             type="button"
                             className="admin-primary-btn"
                             disabled={isReceiving(transfer.id)}
-                            onClick={() => receiveTransfer(transfer)}
+                            onClick={() => openTransferDetails(transfer)}
                           >
-                            {isReceiving(transfer.id) ? 'Recibiendo...' : 'Recibir'}
+                            Registrar recepción
                           </button>
                         ) : null}
                       </div>
@@ -1067,13 +1081,22 @@ export function AdminTransfersPage() {
                           {item.variant.color.name || 'Sin color'} / {item.variant.size.name || 'Sin talla'}
                         </p>
                         <p className="transfer-item-sku-next">{item.variant.sku || `#${item.variantId}`}</p>
+                        {item.dispatchedQuantity > 0 ? <p className="admin-muted-text">Despachado {item.dispatchedQuantity} · Recibido {item.receivedQuantity} · Diferencia {item.discrepancyQuantity}</p> : null}
                       </div>
                       <span className="admin-status-badge info">x{item.quantity}</span>
+                      {['IN_TRANSIT', 'PARTIALLY_RECEIVED'].includes(selectedTransferDetails.status) ? <div className="admin-table-actions">
+                        <label>Recibido<input type="number" min={0} max={Math.max(0, item.dispatchedQuantity - item.receivedQuantity - item.discrepancyQuantity)} value={receiptDraft[item.id]?.receivedQuantity ?? 0} onChange={(event) => setReceiptDraft((current) => ({ ...current, [item.id]: { receivedQuantity: Math.max(0, Number(event.target.value)), discrepancyQuantity: current[item.id]?.discrepancyQuantity ?? 0 } }))} /></label>
+                        <label>Diferencia<input type="number" min={0} max={Math.max(0, item.dispatchedQuantity - item.receivedQuantity - item.discrepancyQuantity)} value={receiptDraft[item.id]?.discrepancyQuantity ?? 0} onChange={(event) => setReceiptDraft((current) => ({ ...current, [item.id]: { receivedQuantity: current[item.id]?.receivedQuantity ?? 0, discrepancyQuantity: Math.max(0, Number(event.target.value)) } }))} /></label>
+                      </div> : null}
                     </article>
                   ))}
                 </div>
               )}
             </div>
+
+            {['IN_TRANSIT', 'PARTIALLY_RECEIVED'].includes(selectedTransferDetails.status) ? <div className="admin-table-actions">
+              <button type="button" className="admin-primary-btn" disabled={isReceiving(selectedTransferDetails.id)} onClick={() => void receiveTransfer(selectedTransferDetails, true)}>{isReceiving(selectedTransferDetails.id) ? 'Registrando...' : 'Guardar recepción'}</button>
+            </div> : null}
 
             {selectedTransferDetails.note ? (
               <div className="transfer-note-box-next">

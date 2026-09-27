@@ -9,6 +9,7 @@ import { AdminSelect, AdminSelectOption } from '@/components/admin-select';
 import { useAdminUi } from '@/components/admin-ui-provider';
 import { EcommerceFulfillmentPanel } from '@/components/ecommerce-fulfillment-panel';
 import { AdminOrderReturnPanel } from '@/components/admin-order-return-panel';
+import { AdminOrderAttentionFollowUps } from '@/components/admin-order-attention-followups';
 import { PickingScanPanel } from '@/components/picking-scan-panel';
 import { AdminTableEmptyState } from '@/components/admin-table-empty-state';
 import {
@@ -62,7 +63,8 @@ const AVAILABLE_TRANSITIONS: Record<AdminOrderStatus, AdminOrderStatus[]> = {
   CONFIRMED: ['PREPARING', 'WAITING_TRANSFER', 'CANCELLED'],
   WAITING_STOCK: ['CONFIRMED', 'CANCELLED'],
   WAITING_TRANSFER: ['PREPARING', 'CANCELLED'],
-  PREPARING: ['READY', 'CANCELLED'],
+  // READY solo se alcanza al completar el picking; no es una transicion manual.
+  PREPARING: ['CANCELLED'],
   READY: ['DELIVERED', 'CANCELLED'],
   RETURN_PENDING: ['CANCELLED'],
   DELIVERED: [],
@@ -583,7 +585,7 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { confirm, showAlert } = useAdminUi();
-  const { hasPermission, user } = useAdminAuth();
+  const { hasFeature, hasPermission, user } = useAdminAuth();
 
   const [order, setOrder] = useState<AdminOrder | null>(null);
   const [loading, setLoading] = useState(true);
@@ -658,11 +660,12 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
   const currentUserId = Number(user?.id || 0);
   const pickingPrimaryResponsible = order?.pickingResponsibility?.primaryResponsible || null;
   const isPickingResponsibilityFlowEnabled = useMemo(() => {
+    if (!hasFeature('picking.collaborative')) return false;
     if (pickingResponsibilityFlowEnabledSetting !== null) {
       return pickingResponsibilityFlowEnabledSetting;
     }
     return order?.pickingResponsibility?.enabled === true;
-  }, [order?.pickingResponsibility?.enabled, pickingResponsibilityFlowEnabledSetting]);
+  }, [hasFeature, order?.pickingResponsibility?.enabled, pickingResponsibilityFlowEnabledSetting]);
   const isCurrentUserPickingPrimaryResponsible = useMemo(() => {
     const responsibleId = Number(pickingPrimaryResponsible?.id || 0);
     return Number.isInteger(currentUserId) && currentUserId > 0 && currentUserId === responsibleId;
@@ -2219,7 +2222,7 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
                 Imprimir
               </button>
               <Link href="/admin/orders/list" className="admin-ghost-btn order-detail-header-btn-next">Volver al listado</Link>
-              <Link href="/admin/orders/picking" className="admin-ghost-btn order-detail-header-btn-next">Tablero de picking</Link>
+              <Link href="/admin/orders/list?view=preparation" className="admin-ghost-btn order-detail-header-btn-next">Preparacion de pedidos</Link>
             </div>
           </div>
         </div>
@@ -2482,6 +2485,8 @@ export function AdminOrderDetailPage({ orderId }: AdminOrderDetailPageProps) {
             <div className="order-detail-info-row-next"><label>Actualizado:</label><span>{formatDateTime(order.updatedAt)}</span></div>
           </div>
         </article>
+
+        <AdminOrderAttentionFollowUps orderId={order.id} />
 
         <article className="admin-card">
           <h3>Pago</h3>

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { AdminOrdersListPage } from '@/components/admin-orders-list-page';
+import { AdminOrdersHubPage } from '@/components/admin-orders-hub-page';
 
 export const metadata: Metadata = {
   title: 'Admin | Pedidos',
@@ -11,5 +11,5 @@ export const metadata: Metadata = {
 };
 
 export default function AdminOrdersListRoutePage() {
-  return <AdminOrdersListPage />;
+  return <AdminOrdersHubPage />;
 }

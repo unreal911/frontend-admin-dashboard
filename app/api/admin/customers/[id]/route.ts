@@ -5,6 +5,24 @@ import { getAdminApiUrl } from '@/lib/admin-api-config';
 const COOKIE = 'admin_session';
 type Context = { params: Promise<{ id: string }> };
 
+export async function GET(_request: Request, context: Context) {
+  const id = Number((await context.params).id);
+  if (!Number.isInteger(id) || id < 1) return NextResponse.json({ message: 'Id de cliente invalido.' }, { status: 400 });
+  const cookieStore = await cookies();
+  const session = String(cookieStore.get(COOKIE)?.value || '').trim();
+  if (!session) return NextResponse.json({ message: 'Sesion no valida.' }, { status: 401 });
+  const upstream = await fetch(`${getAdminApiUrl()}/customers/${id}`, {
+    headers: { Authorization: `Bearer ${session}` }, cache: 'no-store',
+  }).catch(() => null);
+  if (!upstream) return NextResponse.json({ message: 'No se pudo consultar el cliente.' }, { status: 502 });
+  const payload = await upstream.json().catch(() => null);
+  const refreshed = String(upstream.headers.get('x-access-token') || '').trim();
+  if (refreshed) cookieStore.set(COOKIE, refreshed, {
+    httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/', maxAge: 60 * 60 * 8,
+  });
+  return NextResponse.json(payload, { status: upstream.status });
+}
+
 export async function PUT(request: Request, context: Context) {
   const id = Number((await context.params).id);
   if (!Number.isInteger(id) || id < 1) return NextResponse.json({ message: 'Id de cliente invalido.' }, { status: 400 });

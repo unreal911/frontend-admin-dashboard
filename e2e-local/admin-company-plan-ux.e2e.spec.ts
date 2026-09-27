@@ -24,7 +24,7 @@ async function mockCompanyPlan(page: Page) {
   } }));
   await page.route('**/api/admin/subscription/catalog', (route) => route.fulfill({ json: {
     plans: [
-      { code: 'STARTER', displayName: 'Económico', planVersionId: 'starter', currency: 'PEN', monthlyPrice: '30.00', annualPrice: '300.00', limits: { maxProducts: 25, maxUsers: 2, maxStores: 1, maxPosSalesPerMonth: 70 } },
+      { code: 'STARTER', displayName: 'Básico', planVersionId: 'starter', currency: 'PEN', monthlyPrice: '30.00', annualPrice: '300.00', limits: { maxProducts: 100, maxUsers: 2, maxStores: 1, maxPosSalesPerMonth: 300 } },
       { code: 'GROWTH', displayName: 'Negocio', planVersionId: 'growth', currency: 'PEN', monthlyPrice: '70.00', annualPrice: '700.00', limits: { maxProducts: 50, maxUsers: 5, maxStores: 2, maxPosSalesPerMonth: 300 } },
       { code: 'PREMIUM', displayName: 'Pro', planVersionId: 'premium', currency: 'PEN', monthlyPrice: '130.00', annualPrice: '1300.00', limits: { maxProducts: 200, maxUsers: 15, maxStores: 5, maxPosSalesPerMonth: 1500 } },
     ],

@@ -163,7 +163,7 @@ export function AdminSubscriptionPanel({ currentPlanCode }: { currentPlanCode: s
             <span className="admin-plan-card-head-next"><span>{plan.displayName}</span>{current ? <small>PLAN ACTUAL</small> : selected ? <small>ELEGIDO</small> : null}</span>
             <strong className="admin-plan-price-next">{moneyLabel(plan.currency, plan.monthlyPrice)}<small>/ mes</small></strong>
             {plan.annualPrice ? <span className="admin-plan-annual-next">o {moneyLabel(plan.currency, plan.annualPrice)} al año</span> : <span className="admin-plan-annual-next">Facturación mensual</span>}
-            <span className="admin-plan-limit-grid-next"><small><b>{plan.limits.maxProducts}</b> productos</small><small><b>{plan.limits.maxUsers}</b> usuarios</small><small><b>{plan.limits.maxStores}</b> tiendas</small><small><b>{plan.limits.maxPosSalesPerMonth}</b> ventas POS</small></span>
+            <span className="admin-plan-limit-grid-next"><small><b>{plan.limits.maxProducts}</b> productos padre</small><small><b>{plan.limits.maxUsers}</b> usuarios</small><small><b>{plan.limits.maxStores}</b> tiendas</small><small><b>{plan.limits.maxPosSalesPerMonth}</b> ventas POS</small></span>
             <span className="admin-plan-select-label-next">{selected ? 'Plan seleccionado' : current ? 'Renovar este plan' : 'Elegir este plan'} <b>→</b></span>
           </button>;
         })}</div>

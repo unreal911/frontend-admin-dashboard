@@ -13,7 +13,7 @@ export default function ForgotPasswordPage() {
     <AuthFashionLayout
       eyebrow="Acceso seguro"
       title="Recupera tu contraseña"
-      description="Te enviaremos un enlace temporal si el correo pertenece a una cuenta activa."
+      description="Te enviaremos un enlace por correo o un código temporal por WhatsApp si el identificador pertenece a una cuenta activa."
       footer={<Link href="/login">Volver al login</Link>}
     >
       <PasswordResetRequestForm />

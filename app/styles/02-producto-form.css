@@ -132,6 +132,238 @@
   white-space: nowrap;
 }
 
+.admin-product-step-head {
+  display: flex;
+  align-items: center;
+  gap: 0.72rem;
+  border-bottom: 1px solid var(--admin-border);
+  padding: 0.15rem 0 0.72rem;
+}
+
+.admin-product-step-head > span {
+  display: grid;
+  place-items: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  flex: none;
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--admin-primary) 15%, var(--admin-surface));
+  color: var(--admin-primary);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.admin-product-step-head h4,
+.admin-product-step-head p {
+  margin: 0;
+}
+
+.admin-product-mode-help {
+  grid-column: 1 / -1;
+  margin: -0.15rem 0 0;
+  color: var(--admin-muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.admin-product-modal-form label.admin-product-mode-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.62rem;
+  min-height: 76px;
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  background: var(--admin-surface);
+  padding: 0.68rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+
+.admin-product-mode-card:hover {
+  border-color: color-mix(in oklab, var(--admin-primary) 48%, var(--admin-border));
+  transform: translateY(-1px);
+}
+
+.admin-product-modal-form label.admin-product-mode-card.is-selected {
+  border-color: var(--admin-primary);
+  background: color-mix(in oklab, var(--admin-primary) 11%, var(--admin-surface));
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--admin-primary) 13%, transparent);
+}
+
+.admin-product-mode-card > input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.admin-product-mode-card > span:last-child {
+  display: grid;
+  gap: 0.16rem;
+}
+
+.admin-product-mode-card strong {
+  color: var(--admin-text);
+  font-size: 0.86rem;
+}
+
+.admin-product-mode-card small {
+  color: var(--admin-muted);
+  font-size: 0.72rem;
+  line-height: 1.3;
+}
+
+.admin-product-mode-icon {
+  display: grid;
+  place-items: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--admin-primary) 13%, var(--admin-surface-soft));
+  color: var(--admin-primary);
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+.admin-product-upload-zone {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.72rem;
+  min-height: 92px;
+  border: 1.5px dashed color-mix(in oklab, var(--admin-primary) 48%, var(--admin-border));
+  border-radius: 14px;
+  background: color-mix(in oklab, var(--admin-primary) 6%, var(--admin-surface));
+  padding: 0.82rem;
+  cursor: pointer;
+}
+
+.admin-product-upload-zone:hover {
+  background: color-mix(in oklab, var(--admin-primary) 10%, var(--admin-surface));
+}
+
+.admin-product-modal-form .admin-product-upload-zone input[type='file'] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.admin-product-upload-zone > span:last-child {
+  display: grid;
+  gap: 0.16rem;
+}
+
+.admin-product-upload-zone strong {
+  color: var(--admin-text);
+  font-size: 0.9rem;
+}
+
+.admin-product-upload-zone small {
+  color: var(--admin-muted);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.admin-product-upload-icon {
+  display: grid;
+  place-items: center;
+  width: 2.55rem;
+  height: 2.55rem;
+  flex: none;
+  border-radius: 12px;
+  background: var(--admin-primary);
+  color: var(--admin-primary-text);
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.admin-product-review-strip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.admin-product-review-strip > div {
+  display: grid;
+  gap: 0.12rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--admin-surface) 85%, var(--admin-surface-soft));
+  padding: 0.58rem;
+}
+
+.admin-product-review-strip span {
+  color: var(--admin-muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.admin-product-review-strip strong {
+  overflow: hidden;
+  color: var(--admin-text);
+  font-size: 0.8rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-product-modal-form label.admin-product-availability-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.7rem;
+  border: 1px solid color-mix(in oklab, #22c55e 48%, var(--admin-border));
+  border-radius: 12px;
+  background: color-mix(in oklab, #22c55e 7%, var(--admin-surface));
+  padding: 0.7rem;
+  cursor: pointer;
+}
+
+.admin-product-availability-card:has(input:not(:checked)) {
+  border-color: var(--admin-border);
+  background: color-mix(in oklab, var(--admin-surface) 84%, var(--admin-surface-soft));
+}
+
+.admin-product-availability-card input {
+  width: 1.15rem;
+  height: 1.15rem;
+  min-height: 0;
+  accent-color: #16a34a;
+}
+
+.admin-product-availability-card > span {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.admin-product-availability-card strong {
+  color: var(--admin-text);
+  font-size: 0.86rem;
+}
+
+.admin-product-availability-card small {
+  color: var(--admin-muted);
+  font-size: 0.74rem;
+  line-height: 1.3;
+}
+
+.admin-product-step-head h4 {
+  color: var(--admin-text);
+  font-size: 1rem;
+}
+
+.admin-product-step-head p {
+  margin-top: 0.12rem;
+  color: var(--admin-muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
 /* ===== Chips de seleccion (colores/tallas) estilo ERP ===== */
 .admin-chip-select {
   display: grid;
@@ -362,6 +594,97 @@
   max-width: 14rem;
 }
 
+/* Editor comercial mobile-first: cada variante mantiene juntos precio e identificadores. */
+.admin-variant-sales-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 0.58rem;
+  padding: 0.62rem;
+  border-top: 1px solid var(--admin-border);
+}
+
+.admin-variant-sales-card {
+  display: grid;
+  gap: 0.64rem;
+  height: 100%;
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  background: var(--admin-surface);
+  padding: 0.72rem;
+}
+
+.admin-variant-sales-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.admin-variant-sales-card-head strong {
+  color: var(--admin-text);
+  font-size: 0.9rem;
+}
+
+.admin-product-modal-form label.admin-variant-active-toggle {
+  display: inline-flex;
+  align-items: center;
+  grid-template-columns: none;
+  gap: 0.35rem;
+  width: auto;
+  color: var(--admin-muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.admin-variant-active-toggle input {
+  width: 1rem;
+  height: 1rem;
+  min-height: 0;
+}
+
+.admin-variant-sales-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.56rem;
+}
+
+.admin-variant-sales-fields label:first-child {
+  grid-column: 1 / -1;
+}
+
+.admin-variant-sales-fields input {
+  min-height: 44px;
+}
+
+.admin-money-input {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid var(--admin-border);
+  border-radius: 9px;
+  background: color-mix(in oklab, var(--admin-surface) 84%, var(--admin-surface-soft));
+}
+
+.admin-money-input:focus-within {
+  border-color: var(--admin-primary-strong);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--admin-primary-strong) 18%, transparent);
+}
+
+.admin-money-input > span {
+  padding-left: 0.7rem;
+  color: var(--admin-muted);
+  font-size: 0.8rem;
+  font-weight: 900;
+}
+
+.admin-product-modal-form .admin-money-input input {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
 /* ===== Editor de precios agrupado por color (acordeon estilo Shopify) ===== */
 .admin-variant-groups {
   display: grid;
@@ -485,6 +808,86 @@
     order: -1;
     width: 100%;
     text-align: center;
+  }
+
+  .admin-product-wizard-step {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .admin-product-wizard-nav {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
+    gap: 0.5rem;
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+
+  .admin-product-wizard-nav-spacer {
+    display: none;
+  }
+
+  .admin-product-wizard-nav-count {
+    grid-column: 1 / -1;
+  }
+
+  .admin-product-wizard-nav > button {
+    min-height: 46px;
+    width: 100%;
+  }
+
+  .admin-product-wizard-nav > button:first-child {
+    display: none;
+  }
+
+  .admin-variant-group-head {
+    align-items: stretch;
+  }
+
+  .admin-variant-group-toggle {
+    min-height: 42px;
+  }
+
+  .admin-variant-group-bulk {
+    width: 100%;
+    margin-left: 0;
+    justify-content: space-between;
+  }
+
+  .admin-product-modal-form .admin-variant-group-bulk input {
+    min-height: 44px;
+    width: 7rem;
+  }
+
+  .admin-variant-sales-grid {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 0.5rem;
+  }
+
+  .admin-variant-sales-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .admin-variant-sales-fields label:first-child {
+    grid-column: auto;
+  }
+
+  .admin-product-step-head {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--admin-surface);
+  }
+
+  .admin-product-modal-form label.admin-product-mode-card {
+    min-height: 84px;
+  }
+
+  .admin-product-review-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-product-review-strip > div:first-child {
+    grid-column: 1 / -1;
   }
 }
 
@@ -751,40 +1154,272 @@
   background: color-mix(in oklab, var(--admin-primary-strong) 88%, black);
 }
 
+.admin-product-images-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.admin-product-images-head h5,
+.admin-product-images-head p {
+  margin: 0;
+}
+
+.admin-product-images-head p {
+  margin-top: 0.18rem;
+  max-width: 58ch;
+  color: var(--admin-muted);
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+.admin-product-images-head > span {
+  flex: none;
+  border: 1px solid var(--admin-border);
+  border-radius: 999px;
+  background: var(--admin-surface);
+  color: var(--admin-muted);
+  padding: 0.24rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
 .admin-product-image-grid {
   display: grid;
-  gap: 0.6rem;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  grid-auto-columns: minmax(190px, 220px);
+  grid-auto-flow: column;
+  gap: 0.65rem;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  padding: 0.1rem 0 0.55rem;
+  scroll-snap-type: inline mandatory;
+  scrollbar-width: thin;
 }
 
 .admin-product-image-card {
+  display: grid;
+  align-content: start;
+  gap: 0.52rem;
   border: 1px solid var(--admin-border);
-  border-radius: 10px;
-  background: color-mix(in oklab, var(--admin-surface) 88%, var(--admin-surface-soft));
+  border-radius: 14px;
+  background: var(--admin-surface);
   padding: 0.5rem;
-  display: grid;
-  gap: 0.42rem;
+  scroll-snap-align: start;
 }
 
-.admin-product-image-card img {
-  width: 100%;
-  height: 112px;
-  object-fit: cover;
-  border-radius: 8px;
+.admin-product-image-frame {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 4 / 5;
   border: 1px solid var(--admin-border);
-  background: color-mix(in oklab, var(--admin-surface) 78%, var(--admin-surface-soft));
+  border-radius: 11px;
+  background:
+    linear-gradient(45deg, color-mix(in oklab, var(--admin-surface-soft) 70%, transparent) 25%, transparent 25%) 0 0 / 16px 16px,
+    linear-gradient(-45deg, color-mix(in oklab, var(--admin-surface-soft) 70%, transparent) 25%, transparent 25%) 0 8px / 16px 16px,
+    var(--admin-surface);
 }
 
-.admin-product-image-card div {
+.admin-product-image-preview-btn {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: zoom-in;
+}
+
+.admin-product-image-preview-btn img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.admin-product-image-badge {
+  position: absolute;
+  top: 0.45rem;
+  left: 0.45rem;
+  border-radius: 999px;
+  background: rgba(20, 17, 35, 0.78);
+  color: #fff;
+  padding: 0.22rem 0.5rem;
+  font-size: 0.66rem;
+  font-weight: 900;
+  backdrop-filter: blur(8px);
+}
+
+.admin-product-image-badge.is-cover {
+  background: color-mix(in oklab, var(--admin-primary) 88%, #171127);
+}
+
+.admin-product-image-info {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.08rem;
+  padding: 0 0.12rem;
 }
 
-.admin-product-image-card span {
+.admin-product-image-info strong {
+  color: var(--admin-text);
+  font-size: 0.78rem;
+}
+
+.admin-product-image-info span {
+  overflow: hidden;
   color: var(--admin-muted);
-  font-size: 0.75rem;
-  line-height: 1.3;
-  word-break: break-word;
+  font-size: 0.68rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-product-image-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.32rem;
+}
+
+.admin-image-action-btn,
+.admin-product-image-order button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  border: 1px solid var(--admin-border);
+  border-radius: 9px;
+  background: color-mix(in oklab, var(--admin-surface) 82%, var(--admin-surface-soft));
+  color: var(--admin-text);
+  padding: 0.35rem 0.42rem;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.admin-image-action-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.admin-image-action-btn input[type='file'] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.admin-image-action-btn.is-danger {
+  border-color: color-mix(in oklab, #ef4444 42%, var(--admin-border));
+  color: color-mix(in oklab, #ef4444 75%, var(--admin-text));
+}
+
+.admin-product-image-order {
+  display: flex;
+  gap: 0.2rem;
+}
+
+.admin-product-image-order button {
+  width: 34px;
+  min-height: 38px;
+  padding: 0;
+}
+
+.admin-product-image-order button:disabled,
+.admin-image-action-btn:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+.admin-product-image-undo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  border: 1px solid color-mix(in oklab, #f59e0b 42%, var(--admin-border));
+  border-radius: 10px;
+  background: color-mix(in oklab, #f59e0b 8%, var(--admin-surface));
+  padding: 0.55rem 0.68rem;
+  color: var(--admin-text);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.admin-product-image-undo button {
+  border: 0;
+  background: transparent;
+  color: var(--admin-primary);
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.admin-product-image-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: grid;
+  place-items: center;
+  background: rgba(8, 7, 15, 0.88);
+  padding: max(1rem, env(safe-area-inset-top)) 1rem max(1rem, env(safe-area-inset-bottom));
+  backdrop-filter: blur(10px);
+}
+
+.admin-product-image-lightbox img {
+  display: block;
+  max-width: min(92vw, 880px);
+  max-height: 88dvh;
+  object-fit: contain;
+  border-radius: 14px;
+}
+
+.admin-product-image-lightbox-close {
+  position: fixed;
+  top: max(0.8rem, env(safe-area-inset-top));
+  right: 0.8rem;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(24, 20, 40, 0.82);
+  color: #fff;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .admin-product-upload-zone {
+    min-height: 74px;
+    padding: 0.64rem;
+  }
+
+  .admin-product-upload-icon {
+    width: 2.35rem;
+    height: 2.35rem;
+  }
+
+  .admin-product-image-grid {
+    grid-auto-columns: minmax(200px, 76vw);
+    margin-inline: -0.1rem;
+  }
+
+  .admin-image-action-btn,
+  .admin-product-image-order button {
+    min-height: 44px;
+  }
+
+  .admin-product-image-order button {
+    height: 44px;
+  }
+
+  .admin-product-image-undo {
+    align-items: stretch;
+  }
 }
 
 .admin-table.admin-table-sm {

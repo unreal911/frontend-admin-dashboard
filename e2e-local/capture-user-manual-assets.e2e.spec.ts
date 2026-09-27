@@ -20,7 +20,7 @@ const captures = [
   { route: '/admin/inventory', file: 'inventario.png', readyText: 'Inventario' },
   { route: '/admin/orders/pos', file: 'punto-venta.png', readyText: 'Punto de venta' },
   { route: '/admin/customers', file: 'clientes.png', readyText: 'Clientes' },
-  { route: '/admin/orders/picking', file: 'picking.png', readyText: 'Tablero de picking' },
+  { route: '/admin/orders/list?view=preparation', file: 'picking.png', readyText: 'Tablero de picking' },
   { route: '/admin/sunat/comprobantes', file: 'comprobantes.png', readyText: 'Comprobantes emitidos' },
   { route: '/admin/invitations', file: 'equipo.png', readyText: 'Invitaciones' },
 ];
